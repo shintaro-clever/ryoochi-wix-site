@@ -1,0 +1,71 @@
+name: Feature / Change
+description: Start work from here. Link Figma + AI thread and define acceptance criteria.
+title: "[Feature] "
+labels: ["feature"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Rules
+        - Figma link is required
+        - AI thread link is required
+        - Acceptance criteria is required
+
+  - type: input
+    id: figma_url
+    attributes:
+      label: Figma URL
+      description: Link to the relevant Figma file/frame/page
+      placeholder: https://www.figma.com/file/...
+    validations:
+      required: true
+
+  - type: input
+    id: ai_thread_url
+    attributes:
+      label: AI/Antigravity Thread URL
+      description: Link to the planning thread that contains decisions
+      placeholder: https://...
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem / Background
+      description: What problem are we solving? Keep it concrete.
+    validations:
+      required: true
+
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What is in-scope / out-of-scope
+      value: |
+        In-scope:
+        - 
+        Out-of-scope:
+        - 
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      description: Must be testable. Use checklist.
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision (fill after AI discussion)
+      description: Final decisions only. Keep it short.
+      placeholder: "Decision: ... / Reason: ..."
+    validations:
+      required: false
