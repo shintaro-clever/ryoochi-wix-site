@@ -31,6 +31,11 @@ jobs:
             // - [x] も - [X] も許可
             const checkedBoxRegex = /-\s*\[[xX]\]\s+.+/;
 
+            // 4) AI thread URL(s): 見出しがあり、かつ http(s) URL が最低1つ
+            // ドメインは縛らない（ChatGPT/Gemini/Claude等OK）
+            const aiSectionRegex = /ai\s*thread\s*url/i;
+            const anyUrlRegex = /https?:\/\/\S+/i;
+
             const errors = [];
 
             if (!issueRegex.test(body)) {
@@ -42,6 +47,9 @@ jobs:
             if (!checkedBoxRegex.test(body)) {
               errors.push('Missing checked Acceptance Criteria (e.g., "- [x] ...").');
             }
+            if (!(aiSectionRegex.test(body) && anyUrlRegex.test(body))) {
+              errors.push('Missing "AI thread URL" section and at least one URL (https://...).');
+            }
 
             if (errors.length) {
               core.setFailed(
@@ -49,7 +57,12 @@ jobs:
                 `Expected in PR body:\n` +
                 `1) Fixes #123 or Closes #123\n` +
                 `2) https://www.figma.com/design/... (or /file/...)\n` +
-                `3) At least one checked box: - [x] ...`
+                `3) At least one checked box: - [x] ...\n` +
+                `4) AI thread URL(s): include a section header and at least one https://... link\n\n` +
+                `Example:\n` +
+                `## AI thread URL\n` +
+                `- https://chatgpt.com/...\n` +
+                `- https://gemini.google.com/...\n`
               );
             } else {
               core.info("PR Gate passed ✅");
