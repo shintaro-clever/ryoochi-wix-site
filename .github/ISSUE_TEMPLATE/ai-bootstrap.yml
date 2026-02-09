@@ -28,13 +28,13 @@ body:
       required: true
 
   - type: textarea
-    id: acceptance_criteria
+    id: ai_thread_url
     attributes:
-      label: "Acceptance Criteria"
-      description: "チェックボックスで最低3つ（PR Gateで - [x] が最低1つ必要）"
-      value: |
-        - [ ] PR本文に Fixes #<this issue> がある
-        - [ ] PR本文に Figma URL がある
-        - [ ] PR本文に - [x] のACが最低1つある
+      label: "AI thread URL(s)"
+      description: "ChatGPT / Gemini / Claude など。複数可（1つ以上必須）"
+      placeholder: |
+        - https://chatgpt.com/...
+        - https://gemini.google.com/...
     validations:
       required: true
+
