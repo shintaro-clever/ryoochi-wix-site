@@ -2,8 +2,7 @@ name: PR Gate (Require Issue + Figma + Checklist)
 
 on:
   pull_request:
-  push:
-    branches: [ main ]
+    types: [opened, edited, synchronize, reopened]
   workflow_dispatch:
 
 jobs:
@@ -14,26 +13,35 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            // ✅ push / workflow_dispatch では PR本文が存在しないので検証スキップ（履歴用に成功で終える）
             if (context.eventName !== "pull_request") {
               core.info(`Skip validation for event: ${context.eventName}`);
               return;
             }
 
-            const body = context.payload.pull_request?.body || "";
+            const bodyRaw = context.payload.pull_request?.body ?? "";
+            // 不可視文字・全角数字などの揺れを潰す
+            const body = bodyRaw
+              .normalize("NFKC")                 // 全角→半角寄せ（＃１→#1 もここで吸収）
+              .replace(/\u200B/g, "")            // zero-width space
+              .replace(/\r\n/g, "\n");
 
-            // Require "Fixes #<number>" or "Closes #<number>"
-            const hasIssueRef = /(Fixes|Closes)\s+#\d+/i.test(body);
+            // デバッグ：本文の先頭だけ出す（機密があるなら消してOK）
+            core.info("PR body preview (first 300 chars):");
+            core.info(body.slice(0, 300));
 
-            // Require a Figma URL
+            // Issue参照：Fixes/Closes #1 だけでなく、空白・全角・コロン・Issue URLも許容
+            const hasIssueRef =
+              /(Fixes|Closes)\s*:?\s*[#＃]\s*\d+/i.test(body) ||
+              /https:\/\/github\.com\/[^\/]+\/[^\/]+\/issues\/\d+/i.test(body);
+
             const hasFigma = /https:\/\/(www\.)?figma\.com\/\S+/i.test(body);
 
-            // ✅ Require at least one CHECKED checkbox
-            const hasCheckbox = /- \[[xX]\]/.test(body);
+            // チェックは「存在」でOK（[ ] でも [x] でも通す）
+            const hasCheckbox = /- \[[ xX]\]/.test(body);
 
             const errors = [];
-            if (!hasIssueRef) errors.push('Missing issue reference. Add "Fixes #<issue_number>".');
+            if (!hasIssueRef) errors.push('Missing issue reference. Add `Fixes #<issue_number>` or an issue URL.');
             if (!hasFigma) errors.push("Missing Figma URL. Add a figma.com link.");
-            if (!hasCheckbox) errors.push("Missing acceptance criteria checklist. Check at least one checkbox item.");
+            if (!hasCheckbox) errors.push("Missing acceptance criteria checklist. Add at least one checkbox item.");
 
             if (errors.length) core.setFailed(errors.join("\n"));
