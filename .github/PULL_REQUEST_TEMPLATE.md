@@ -2,7 +2,7 @@
 Fixes #
 
 ## Figma
-- URL:
+https://www.figma.com/design/
 
 ## Summary
 -
