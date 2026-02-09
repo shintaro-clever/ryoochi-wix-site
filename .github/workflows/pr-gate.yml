@@ -2,38 +2,24 @@ name: PR Gate (Require Issue + Figma + Checklist)
 
 on:
   pull_request:
-  workflow_dispatch:
+    types: [opened, edited, synchronize, reopened]
 
 jobs:
   validate:
     runs-on: ubuntu-latest
     steps:
-      - name: Validate PR body has required content
-        uses: actions/github-script@v7
+      - uses: actions/github-script@v7
         with:
           script: |
-            // workflow_dispatch では PR本文が存在しないので検証スキップ（成功で終える）
-            if (context.eventName !== "pull_request") {
-              core.info(`Skip validation for event: ${context.eventName}`);
-              return;
-            }
+            const body = context.payload.pull_request?.body ?? "";
 
-            const body = context.payload.pull_request?.body || "";
-
-            // ✅ Require "Fixes #<number>" or "Closes #<number>"
-            // # と数字の間にスペースが入ってもOK（例: Fixes # 1）
-            // 全角＃も許可
-            const hasIssueRef = /(Fixes|Closes)\s*[#＃]\s*\d+/i.test(body);
-
-            // ✅ Require a Figma URL
+            const hasIssueRef = /(Fixes|Closes)\s+#\d+/i.test(body);
             const hasFigma = /https:\/\/(www\.)?figma\.com\/\S+/i.test(body);
-
-            // ✅ Require at least one CHECKED checkbox（[x] or [X] のみOK）
-            const hasCheckbox = /- \[[xX]\]/.test(body);
+            const hasChecked = /- \[[xX]\]/.test(body);
 
             const errors = [];
-            if (!hasIssueRef) errors.push('Missing issue reference. Add `Fixes #<issue_number>` or `Closes #<issue_number>`.');
+            if (!hasIssueRef) errors.push('Missing issue reference. Add "Fixes #<issue_number>".');
             if (!hasFigma) errors.push("Missing Figma URL. Add a figma.com link.");
-            if (!hasCheckbox) errors.push("Missing acceptance criteria checklist. Check at least one checkbox item (e.g., `- [x] ...`).");
+            if (!hasChecked) errors.push("Missing acceptance criteria checklist. Check at least one checkbox item.");
 
             if (errors.length) core.setFailed(errors.join("\n"));
