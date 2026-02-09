@@ -28,13 +28,15 @@ body:
       required: true
 
   - type: textarea
-    id: ai_thread_url
+    id: ai_thread_urls
     attributes:
       label: "AI thread URL(s)"
       description: "ChatGPT / Gemini / Claude など。複数可（1つ以上必須）"
       placeholder: |
         - https://chatgpt.com/...
         - https://gemini.google.com/...
+        - https://claude.ai/...
     validations:
       required: true
+
 
