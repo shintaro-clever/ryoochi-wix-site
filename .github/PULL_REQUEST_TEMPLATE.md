@@ -8,7 +8,7 @@ https://www.figma.com/design/
 - 
 
 ## Acceptance Criteria Checklist
-- [ ] 
+- [ ] AC:テスト 
 
 ## Notes for Reviewers
 - 
