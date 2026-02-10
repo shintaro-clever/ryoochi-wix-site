@@ -6,8 +6,9 @@
 - （AI）影響範囲（UI / API / DB / Config / Docs など）を明記
 - （AI）リスクがあれば1行（例：既存画面の表示崩れの可能性）
 
-## 関連Issue
-Fixes #<issue_number>
+## 関連Issue（どちらか1つチェック）
+- [ ] 関連Issueあり: #<issue_number>
+- [ ] No Issue（理由）: <軽度修正のため / 文言修正 / CI調整 など>
 
 ## 完了条件（最低1つチェック）
 - [ ] AC: 
