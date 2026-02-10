@@ -1,18 +1,18 @@
-## Summary
+## 概要
 - （AI）このPRの狙いを1行で
 
-## Changes（AIが埋める）
+## 変更内容（AIが埋める）
 - （AI）変更点を箇条書きで3〜7行（何をどう変えたか）
-- （AI）影響範囲（UI/API/DB/Config/Docs など）を明記
+- （AI）影響範囲（UI / API / DB / Config / Docs など）を明記
 - （AI）リスクがあれば1行（例：既存画面の表示崩れの可能性）
 
-## Linked Issue
+## 関連Issue
 Fixes #<issue_number>
 
-## Acceptance Criteria (check at least one)
+## 完了条件（最低1つチェック）
 - [ ] AC: 
 - [ ] AC: 
 - [ ] AC: 
 
-## Notes (optional)
-- （AI）参照リンクが必要ならここ（Issueに集約が原則）
+## 補足（任意）
+- （AI）参照リンクが必要ならここ（原則はIssueに集約）
