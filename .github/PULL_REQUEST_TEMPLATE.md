@@ -1,9 +1,18 @@
-## Linked Issue
-Fixes #
+## 概要
+- （AI）このPRの狙いを1行で
 
-## Summary
--
+## 変更内容（AIが埋める）
+- （AI）変更点を箇条書きで3〜7行（何をどう変えたか）
+- （AI）影響範囲（UI / API / DB / Config / Docs など）を明記
+- （AI）リスクがあれば1行（例：既存画面の表示崩れの可能性）
 
-## Acceptance Criteria
-- [ ] 1
-- [x] gate pass (最低1つは必ず[x]にする)
+## 関連Issue
+Fixes #<issue_number>
+
+## 完了条件（最低1つチェック）
+- [ ] AC: 
+- [ ] AC: 
+- [ ] AC: 
+
+## 補足（任意）
+- （AI）参照リンクが必要ならここ（原則はIssueに集約）
