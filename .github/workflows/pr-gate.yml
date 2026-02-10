@@ -14,11 +14,15 @@ jobs:
 
     steps:
       - name: Validate PR body (Fixes/Closes + at least one checked item)
-      - uses: actions/github-script@v7
+        uses: actions/github-script@v7
         with:
           script: |
-            const body = (context.payload.pull_request && context.payload.pull_request.body) ? context.payload.pull_request.body : "";
-            const title = (context.payload.pull_request && context.payload.pull_request.title) ? context.payload.pull_request.title : "";
+            const body = (context.payload.pull_request && context.payload.pull_request.body)
+              ? context.payload.pull_request.body
+              : "";
+            const title = (context.payload.pull_request && context.payload.pull_request.title)
+              ? context.payload.pull_request.title
+              : "";
 
             // A) Issueリンク（Fixes/Closes/Resolves）: "Fixes #123" / "Closes #123" / "Resolves #123"
             // - 大文字小文字は無視
