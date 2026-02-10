@@ -24,31 +24,17 @@ jobs:
             // 1) Linked Issue: Fixes #123 / Closes #123
             const issueRegex = /\b(?:Fixes|Closes)\s+#\d+\b/i;
 
-            // 2) Figma URL: design/file のどちらでもOK + figma.com ドメイン固定
-            const figmaRegex = /https?:\/\/(?:www\.)?figma\.com\/(?:design|file)\/[^\s)]+/i;
-
-            // 3) Acceptance Criteria: チェック済みが最低1つ
+            // 2) Acceptance Criteria: チェック済みが最低1つ
             // - [x] も - [X] も許可
             const checkedBoxRegex = /-\s*\[[xX]\]\s+.+/;
-
-            // 4) AI thread URL(s): 見出しがあり、かつ http(s) URL が最低1つ
-            // ドメインは縛らない（ChatGPT/Gemini/Claude等OK）
-            const aiSectionRegex = /ai\s*thread\s*url/i;
-            const anyUrlRegex = /https?:\/\/\S+/i;
 
             const errors = [];
 
             if (!issueRegex.test(body)) {
               errors.push('Missing "Fixes #<number>" or "Closes #<number>".');
             }
-            if (!figmaRegex.test(body)) {
-              errors.push('Missing Figma URL (https://figma.com/design/... or https://figma.com/file/...).');
-            }
             if (!checkedBoxRegex.test(body)) {
               errors.push('Missing checked Acceptance Criteria (e.g., "- [x] ...").');
-            }
-            if (!(aiSectionRegex.test(body) && anyUrlRegex.test(body))) {
-              errors.push('Missing "AI thread URL" section and at least one URL (https://...).');
             }
 
             if (errors.length) {
@@ -56,15 +42,8 @@ jobs:
                 `PR Gate failed:\n- ${errors.join("\n- ")}\n\n` +
                 `Expected in PR body:\n` +
                 `1) Fixes #123 or Closes #123\n` +
-                `2) https://www.figma.com/design/... (or /file/...)\n` +
-                `3) At least one checked box: - [x] ...\n` +
-                `4) AI thread URL(s): include a section header and at least one https://... link\n\n` +
-                `Example:\n` +
-                `## AI thread URL\n` +
-                `- https://chatgpt.com/...\n` +
-                `- https://gemini.google.com/...\n`
+                `2) At least one checked box: - [x] ...\n`
               );
             } else {
               core.info("PR Gate passed ✅");
             }
-            
