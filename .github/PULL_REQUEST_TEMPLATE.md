@@ -1,9 +1,13 @@
-## Linked Issue
-Fixes #
-
 ## Summary
 -
 
-## Acceptance Criteria
-- [ ] 1
-- [x] gate pass (最低1つは必ず[x]にする)
+## Linked Issue
+Fixes #<issue_number>
+
+## Acceptance Criteria (check at least one)
+- [ ] AC: 
+- [ ] AC: 
+- [ ] AC: 
+
+## Notes (optional)
+-
