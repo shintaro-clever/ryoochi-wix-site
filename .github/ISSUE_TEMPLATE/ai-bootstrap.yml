@@ -45,3 +45,16 @@ body:
         - [ ] PR本文に - [x] のACが最低1つある
     validations:
       required: true
+
+        - type: dropdown
+    id: ai_default
+    attributes:
+      label: "Default AI for this project"
+      options:
+        - ChatGPT
+        - Gemini
+        - Claude
+        - Other
+    validations:
+      required: true
+
