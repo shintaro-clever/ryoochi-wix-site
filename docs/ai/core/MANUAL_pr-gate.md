@@ -99,3 +99,11 @@
 ### Phase 3（強制）
 - 必要になった時点で branch protection / ruleset / CODEOWNERS を検討
 - いきなり全repo強制はしない（段階的に適用）
+
+## Phase1（solo）Gate 通過証跡
+
+- PR: <PR URL>
+- Actions Run: <Actions run URL>
+- Date: YYYY-MM-DD
+- Notes: No Issue 運用で実施（軽微な docs 更新）
+
