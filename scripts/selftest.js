@@ -155,11 +155,20 @@ main();
 // --- Phase2 samples & docs (PR-C) existence checks ---
 try {
   // Keep this lightweight: existence only (no execution, no network).
-  okFile("scripts/sample-job.mcp.offline.smoke.json");
-  okFile("scripts/sample-job.docs.update.json");
-  okFile("scripts/sample-job.repo_patch.hub-static.json");
-  okFile("docs/.selftest-doc.md");
-  okFile("apps/hub/static/offline-job.fixture.json");
+  const fs = require("fs");
+  const paths = [
+    "scripts/sample-job.mcp.offline.smoke.json",
+    "scripts/sample-job.docs.update.json",
+    "scripts/sample-job.repo_patch.hub-static.json",
+    "docs/.selftest-doc.md",
+    "apps/hub/static/offline-job.fixture.json",
+  ];
+  for (const fp of paths) {
+    if (!fs.existsSync(fp)) {
+      throw new Error("missing: " + fp);
+    }
+  }
+  console.log("[selftest] OK: phase2 samples/docs exist");
 } catch (e) {
   console.error("[selftest] PHASE2_SAMPLES_CHECK FAILED:", e?.message || e);
   process.exitCode = 1;
