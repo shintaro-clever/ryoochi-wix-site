@@ -141,15 +141,19 @@ function applyDocsInstruction(docPath, instruction) {
   return note;
 }
 
-function applyRepoPatch(targetPath, instruction) {
+function applyRepoPatch(targetPath, instruction, allowHtmlComment = false) {
   const absolute = path.join(process.cwd(), targetPath);
   if (!fs.existsSync(absolute)) {
     throw new Error(`target_path not found: ${targetPath}`);
   }
   const original = fs.readFileSync(absolute, 'utf8');
-  const note = `<!-- repo_patch (${new Date().toISOString()}) ${instruction} -->`;
-  const updated = original.endsWith('\n') ? `${original}${note}\n` : `${original}\n${note}\n`;
-  fs.writeFileSync(absolute, updated, 'utf8');
+  if (allowHtmlComment) {
+    const note = `<!-- repo_patch (${new Date().toISOString()}) ${instruction} -->`;
+    const updated = original.endsWith('\n') ? `${original}${note}\n` : `${original}\n${note}\n`;
+    fs.writeFileSync(absolute, updated, 'utf8');
+    return { note, original };
+  }
+  const note = `repo_patch noop: would append comment "${instruction}" to ${targetPath}`;
   return { note, original };
 }
 
@@ -215,7 +219,11 @@ async function executeRepoPatchJob(jobPayload) {
   try {
     const targetPath = normalizeRelativePath(job.inputs.target_path);
     ensureAllowedPath(targetPath, job.inputs.allowed_paths || job.constraints.allowed_paths);
-    const { note } = applyRepoPatch(targetPath, job.inputs.instruction);
+    const allowComment = job.inputs && job.inputs.allow_html_comment === true;
+    const { note } = applyRepoPatch(targetPath, job.inputs.instruction, allowComment);
+    const noop = typeof note === 'string' && note.startsWith('repo_patch noop:');
+    const summary = noop ? note : `Repo patch applied to ${targetPath}`;
+    const checkReason = noop ? note : 'instruction applied';
     const artifactPath = `.ai-runs/${runId}/repo_patch_report.json`;
     writeJsonArtifact(artifactPath, {
       target_path: targetPath,
@@ -226,8 +234,8 @@ async function executeRepoPatchJob(jobPayload) {
     const result = {
       status: 'ok',
       artifacts: [{ path: artifactPath, kind: 'json' }],
-      diff_summary: `Repo patch applied to ${targetPath}`,
-      checks: [{ id: 'repo_patch', ok: true, reason: 'instruction applied' }],
+      diff_summary: summary,
+      checks: [{ id: 'repo_patch', ok: true, reason: checkReason }],
       logs: [`target_path=${targetPath}`]
     };
     return finalizeRun(runPaths, job, result, createdAt);
