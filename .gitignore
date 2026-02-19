@@ -1,3 +1,4 @@
 
 # local codex config
 .codex/
+.ai-runs/
