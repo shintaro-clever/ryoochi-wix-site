@@ -1,113 +1,160 @@
-# figma-ai-github-workflow
+figma-ai-github-workflow
 
-Integration Hub で **プロジェクト（リポジトリ）を量産**するときに使う  
+Integration Hub で プロジェクト（リポジトリ）を量産するときに使う
 **標準テンプレート（運用レール / ガードレール / SoT）**です。
 
-このリポジトリは、各プロジェクトで **Figma × AI × GitHub** を「壊れない運用」で回すための
-**共通ルールとCIゲート**を提供します。
+このリポジトリは、各プロジェクトで Figma × AI × GitHub を「壊れない運用」で回すための 共通ルールとCIゲートを提供します。
 
----
+何が入っているか（このテンプレが配布するもの）
 
-## 何が入っているか（このテンプレが配布するもの）
-- Issue Form Template（AI Bootstrap）
-- PR Template
-- PR Gate（GitHub Actions）
-- 運用SoT（workflow / decision policy / Phase2-min specs などの docs）
+Issue Form Template（AI Bootstrap）
 
----
+PR Template
 
-## 目的（Goal）
-- Issue → PR → Decision を短時間でトレース可能にする
-- “会話で決めたが消える” を防ぐ（意思決定は GitHub に残す）
-- テンプレ＋CIでリンク欠落・ルール逸脱を物理的に防止する
+PR Gate（GitHub Actions）
 
----
+運用SoT（workflow / decision policy / Phase2-min specs などの docs）
 
-## Canonical Workflow（正規ルート）
-1. Issue作成（AI Bootstrapフォーム）
-2. ブランチ作成（例: `issue-<number>-<slug>`）
-3. 実装 → コミット
-4. PR作成（PRテンプレ使用）
-5. PR Gate が緑 → Merge
-6. Decision（必要なら Issue コメントに残す）
+目的（Goal）
 
----
+Issue → PR → Decision を短時間でトレース可能にする
 
-## Rules（必須）
-### Issue（案件のSoT）
-- Figma URL / Default AI / AI thread URL(s) / Acceptance Criteria を必須入力
+“会話で決めたが消える” を防ぐ（意思決定は GitHub に残す）
 
-### PR（実装単位）
-- `Fixes #<issue>` 必須
-- AC（チェック済み）が最低1つ必須（PR Gateで検証）
+テンプレ＋CIでリンク欠落・ルール逸脱を物理的に防止する
 
----
+Canonical Workflow（正規ルート）
 
-## Included
-- Issue Form Template: `.github/ISSUE_TEMPLATE/ai-bootstrap.yml`
-- PR Template: `.github/PULL_REQUEST_TEMPLATE.md`
-- PR Gate (Actions): `.github/workflows/pr-gate.yml`
-- Docs (SoT): `docs/`
+Issue作成（AI Bootstrapフォーム）
 
----
+ブランチ作成（例: issue-<number>-<slug>）
 
-## ⚠️ 注意（このテンプレが提供しないもの）
-- Integration Hub 本体（RBAC/Audit/UI/APIなどのサービス実装）
-- 各プロジェクト固有のプロダクト実装コード
+実装 → コミット
 
----
+PR作成（PRテンプレ使用）
 
-## Next Steps（運用開始）
-1. このテンプレから新規リポジトリを作成（GitHub Template機能）
-2. 必要なら Branch protection で status check を required に設定
-3. 以後は Issue → PR → Gate の正規ルート以外を使わない
+PR Gate が緑 → Merge
 
-## 📚 Docs（一次情報）
-- 正規ルートと運用ルール: `docs/ai/core/workflow.md`
-- Decisionの残し方: `docs/ai/core/decision-policy.md`
+Decision（必要なら Issue コメントに残す）
 
----
+Rules（必須）
+Issue（案件のSoT）
 
-## 🚀 Current Status（いま出来ていること）
-- PR Gate（Actions）：PR本文の必須要素チェック（Issue参照 / Figma / ACチェック）
-- Issue Form：Figma URL / AI thread URL(s) / Acceptance Criteria の入力
+Figma URL / Default AI / AI thread URL(s) / Acceptance Criteria を必須入力
 
----
+PR（実装単位）
 
-## Phase1 Integration Hub Stub
-- `./bin/dev` — runs `npm test` first, then starts `node server.js` so you can open [http://127.0.0.1:3000/jobs](http://127.0.0.1:3000/jobs) immediately after the selftest passes.
-- `./bin/dev test` — executes `npm test` only (selftest for offline smoke/docs_update/repo_patch samples).
-- `./bin/dev smoke` — runs `node scripts/run-job.js --job scripts/sample-job.mcp.offline.smoke.json --role operator` for you (offline smoke最優先)。
-- `./bin/dev repo-patch` — runs `node scripts/run-job.js --job scripts/sample-job.repo_patch.hub-static.json --role operator`（repo_patch noop挙動の確認用）。
-- `./bin/dev serve` — starts the fallback serverのみ（selftestをスキップしたい場合）。
-- `node scripts/run-job.js --job scripts/sample-job.json --role operator` — executes any job (local stub by default, MCP if specified) via the adapter without starting the server. The legacy `scripts/runner-stub.js` CLI still exists for direct local stub debugging only.
-- `npm run vault:index` — (re)generate `vault/index.json` from the contents in `.ai-runs/`. Run this whenever new evidence should be surfaced through `/api/vault/index`.
-- **GitHub MCP sample** (`scripts/sample-job.github.mcp.json`): `export GITHUB_TOKEN=<read-only token>` (optional), then run `node scripts/run-job.js --job scripts/sample-job.github.mcp.json --role operator` or use the Hub UI. Successful runs materialize `.ai-runs/<run_id>/github_repo_meta.json` with repo metadata fetched via the GitHub API.
-- **Figma MCP sample** (`scripts/sample-job.figma.mcp.json`): `export FIGMA_TOKEN=<read-only figma personal access token>`, set `figma_file_key` (or URL) in the job JSON, then execute `node scripts/run-job.js --job scripts/sample-job.figma.mcp.json --role operator`. Completion produces `.ai-runs/<run_id>/figma_file_meta.json` containing the Figma file metadata.
-- **Claude MCP offline smoke（絶対に最初に実行）**: `node scripts/run-job.js --job scripts/sample-job.mcp.offline.smoke.json --role operator` を必ず先に走らせる（ネットワーク／Claude CLI 不要）。  
-絶対ルール：実際の指示（本番ジョブ）を流す前に、必ず offline smoke（local_stub）を先に通して接続/配線を確認する。
-  - **成功**: `.ai-runs/<run_id>/run.json` / `audit.jsonl` / `claude_mcp_smoketest.json` が揃う。  
-  - **失敗**: `run.json` / `audit.jsonl` は必ず残り、`run.json.checks` / `logs` で `mcp_exec` を見て切り分ける（`claude_mcp_smoketest.json` は欠けても可）。  
-- **Claude Code MCP smoke test（環境が許せば任意で実行）** (`scripts/sample-job.claude.smoke.json`): `node scripts/run-job.js --job scripts/sample-job.claude.smoke.json --role operator`。  
-  - Claude CLI が未導入／`claude` コマンドが見つからない／外向き通信が封鎖されている場合は失敗するため、その際は必ず offline smoke に戻って原因を切り分ける。  
-  - **Success**: `.ai-runs/<run_id>/claude_mcp_smoketest.json` is written alongside the usual `run.json` / `audit.jsonl` evidence.  
-  - **Failure** (missing CLI, MCP handshake errors, timeout, etc.): `run.json` / `audit.jsonl` still land under `.ai-runs/<run_id>/` and contain an `mcp_exec` check plus the stderr reason, but `claude_mcp_smoketest.json` may be absent. Review `run.json.checks` and `run.json.logs` to triage the root cause.
-- **OpenAI Exec Smoke（spawn + Codex CLI）** (`scripts/sample-job.openai_exec_smoke.json`): `OPENAI_API_KEY` を設定し、`npx --yes codex` が動く環境で `node scripts/run-job.js --job scripts/sample-job.openai_exec_smoke.json --role operator` を実行。  
-  - **Success**: `stdout preview` に `OK` が出て `status:"ok"` になれば疎通完了。stderr に `"Shell snapshot validation failed"` が混ざることがありますが Known Warning 扱いなので、exit=0 であれば無視して構いません（原文は `.ai-runs/<run_id>/spawn_stderr.txt` で確認可能）。
-- **失敗時トリアージの見どころ**  
-  1. `.ai-runs/<run_id>/run.json.runnerResult.status` で OK/Error を確認  
-  2. `.runnerResult.checks` の `id: "mcp_exec"` と `.runnerResult.logs` を読む（stderr 相当）  
-  3. `.ai-runs/<run_id>/audit.jsonl` の `RUN_END.checks_summary` で通過数/失敗IDを把握
-  - 例: `npm test` → `Selftest ok / [selftest] OK: phase2 samples/docs exist`
-  - 例: `./bin/dev smoke` → `{"status":"ok","diff_summary":"repo_patch noop: ...","checks":[{"id":"mcp_exec","ok":true,...}]}`（offline smoke 結果が JSON で表示される）
+Fixes #<issue> 必須
 
----
+AC（チェック済み）が最低1つ必須（PR Gateで検証）
 
-## Hub Jobs 最短ループ（手動確認フロー）
-1. `/jobs` にアクセスし、Offline Smoke Job を生成する（プロバナンス入力後に JSON をコピー）。
-2. 生成した JSON を `job.offline_smoke.json` などのファイルへ保存する。
-3. ルートで `node scripts/run-job.js --job job.offline_smoke.json --role operator` を実行する。
-4. 実行後に `.ai-runs/<run_id>/run.json` と `audit.jsonl` を開き、中身をコピーする。
-5. `/jobs` の Run Result Intake に貼り付けて Parse し、Gate/Triage が想定どおり表示されることを確認する。
-- Hub UI の表示言語は既定で日本語です。画面右上の Language セレクタで English に切り替えられ、選択内容は `?lang=ja|en` と `localStorage (hub.lang)` に保存されます。
-Offline smoke → Docs Update → Repo Patch（allowed_paths で限定）の順で段階導入し、まず offline smoke で接続確認、その後 docs_update で安全な1ファイル差分、最後に repo_patch で限定的なコード改変というステップを徹底する。
+Included
+
+Issue Form Template: .github/ISSUE_TEMPLATE/ai-bootstrap.yml
+
+PR Template: .github/PULL_REQUEST_TEMPLATE.md
+
+PR Gate (Actions): .github/workflows/pr-gate.yml
+
+Docs (SoT): docs/
+
+⚠️ 注意（このテンプレが提供しないもの）
+
+Integration Hub 本体（RBAC/Audit/UI/APIなどのサービス実装）
+
+各プロジェクト固有のプロダクト実装コード
+
+Next Steps（運用開始）
+
+このテンプレから新規リポジトリを作成（GitHub Template機能）
+
+必要なら Branch protection で status check を required に設定
+
+以後は Issue → PR → Gate の正規ルート以外を使わない
+
+📚 Docs（一次情報）
+
+正規ルートと運用ルール: docs/ai/core/workflow.md
+
+Decisionの残し方: docs/ai/core/decision-policy.md
+
+🚀 Current Status（いま出来ていること）
+
+PR Gate（Actions）：PR本文の必須要素チェック（Issue参照 / Figma / ACチェック）
+
+Issue Form：Figma URL / AI thread URL(s) / Acceptance Criteria の入力
+
+Phase1 Integration Hub Stub
+
+./bin/dev — runs npm test first, then starts node server.js so you can open http://127.0.0.1:3000/jobs immediately after the selftest passes.
+
+./bin/dev test — executes npm test only（selftest for phase2 samples）。
+
+./bin/dev smoke — runs node scripts/run-job.js --job scripts/sample-job.mcp.offline.smoke.json --role operator（offline smoke最優先）。
+
+./bin/dev repo-patch — runs node scripts/run-job.js --job scripts/sample-job.repo_patch.hub-static.json --role operator（repo_patch noop挙動の確認用）。
+
+./bin/dev serve — starts the fallback server only（selftestをスキップしたい場合）。
+
+node scripts/run-job.js --job scripts/sample-job.json --role operator — executes any job（local stub by default, MCP if specified）via the adapter without starting the server.
+※ legacy scripts/runner-stub.js CLI is for direct local stub debugging only.
+
+npm run vault:index — (re)generate vault/index.json from the contents in .ai-runs/. Run this whenever new evidence should be surfaced through /api/vault/index.
+
+MCP sample jobs
+
+GitHub MCP sample (scripts/sample-job.github.mcp.json):
+export GITHUB_TOKEN=<read-only token>（任意）→
+node scripts/run-job.js --job scripts/sample-job.github.mcp.json --role operator（または Hub UI）
+成功すると .ai-runs/<run_id>/github_repo_meta.json が出力されます。
+
+Figma MCP sample (scripts/sample-job.figma.mcp.json):
+export FIGMA_TOKEN=<read-only figma personal access token> →
+job JSON に figma_file_key（またはURL）を設定 →
+node scripts/run-job.js --job scripts/sample-job.figma.mcp.json --role operator
+成功すると .ai-runs/<run_id>/figma_file_meta.json が出力されます。
+
+絶対ルール（先に offline smoke）
+
+実際の指示（本番ジョブ）を流す前に、必ず offline smoke（local_stub） を先に通して接続/配線を確認してください。
+
+成功: .ai-runs/<run_id>/run.json / audit.jsonl が揃う
+
+失敗: run.json / audit.jsonl は必ず残り、run.json.checks / logs を見て切り分ける
+
+OpenAI Exec Smoke（spawn + Codex CLI）
+
+scripts/sample-job.openai_exec_smoke.json を使います。
+
+OPENAI_API_KEY を設定し、npx --yes codex が動く環境で実行:
+node scripts/run-job.js --job scripts/sample-job.openai_exec_smoke.json --role operator
+
+Success: stdout preview に OK が出て status:"ok" になれば疎通完了
+
+stderr に既知の警告が含まれる場合があるため、.ai-runs/<run_id>/ 配下の成果物で原文を確認してから判断してください（特定のファイル名には固定しません）。
+
+Hub Jobs 最短ループ（手動確認フロー）
+
+（任意）Diagnostics: /jobs で Diagnostics ジョブを生成・保存し、node scripts/run-job.js --job job.diagnostics.json --role operator を実行。CLI/環境変数を整えてから次へ。
+
+Offline smoke: Offline smoke ジョブを保存して node scripts/run-job.js --job job.offline_smoke.json --role operator を実行し、接続チェックを通す。
+
+Spawn smoke: Spawn smoke ジョブを保存→ node scripts/run-job.js --job job.spawn_smoke.json --role operator で shell なし実行を確認。
+
+OpenAI exec smoke: OPENAI_API_KEY を設定し、node scripts/run-job.js --job job.openai_exec_smoke.json --role operator を実行（stderr に既知の警告が含まれる場合があるため、.ai-runs/<run_id>/ 配下の成果物で原文を確認してから判断）。
+
+Docs update: Docs update ジョブを保存→ node scripts/run-job.js --job job.docs_update.json --role operator で1ファイル差分を確認。
+
+Repo patch: Repo patch ジョブ（noop）を保存→ node scripts/run-job.js --job job.repo_patch.json --role operator で限定的な編集のみ通ることを確認。
+
+最新の run_id は RID="$(ls -1 .ai-runs | tail -n 1)" で取得し、cat .ai-runs/$RID/run.json などで参照します。
+
+Hub UI の表示言語は既定で日本語です。画面右上の Language セレクタで English に切り替えられ、選択内容は ?lang=ja|en と localStorage (hub.lang) に保存されます。
+
+Offline smoke → Spawn smoke → OpenAI exec smoke → Docs Update → Repo Patch の順は SoT で固定されているため、この一本道を崩さずに段階導入してください。
+
+Connections 設定UI（暫定）
+
+node server.js でサーバを起動すると http://localhost:3000/connections から AI / GitHub / Figma の接続情報を入力・保存できます（保存先: apps/hub/data/connections.json）。再読込すると最新の値がフォームに復元されます。
+
+本番環境では必ず Secrets 管理（Vault や CI Secrets）へ移行してください。ここでの保存はローカル検証用途のみです。
