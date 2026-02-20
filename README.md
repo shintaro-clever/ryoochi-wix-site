@@ -3,9 +3,9 @@ figma-ai-github-workflow
 Integration Hub で プロジェクト（リポジトリ）を量産するときに使う
 **標準テンプレート（運用レール / ガードレール / SoT）**です。
 
-このリポジトリは、各プロジェクトで Figma × AI × GitHub を「壊れない運用」で回すための 共通ルールとCIゲートを提供します。
+このリポジトリは、各プロジェクトで Figma × AI × GitHub を「壊れない運用」で回すための **共通ルール・CIゲート・一次情報（SoT）**を提供します。
 
-目的（Goal）
+Goal（このテンプレの目的）
 
 Issue → PR → Decision を短時間でトレース可能にする
 
@@ -13,32 +13,7 @@ Issue → PR → Decision を短時間でトレース可能にする
 
 テンプレ＋CIでリンク欠落・ルール逸脱を物理的に防止する
 
-本体UI（プロダクト導線）
-1) Connectors（一覧）
-
-**対応しているツール（コネクタ）**を一覧で表示し、検索/フィルタから目的のツールを選びます。
-
-例：GitHub / Figma / Notion / Slack …（対応範囲はコネクタカタログで定義）
-
-状態：未設定 / 設定済み / 接続OK / 権限不足 / エラー 等
-
-2) Connector詳細（設定）
-
-選んだツールごとに、必要な接続情報（トークン/OAuth/権限）を設定します。
-
-例：Notionの場合は Workspace と権限状態（ゲスト等）を表示し、必要なら権限の案内を出す
-
-例：GitHubの場合は owner/repo や token の設定
-
-3) Account（アカウント設定）
-
-ワークスペースや権限、利用者設定、保存方針（Secrets移行など）を管理します。
-
-4) Chat（操作入口）
-
-日常の操作入口としてチャット画面を使い、Figma / GitHub / AI を横断して作業を進めます。
-
-いま入っているもの（テンプレが配布するもの）
+This Repo Provides（配布物）
 
 Issue Form Template（AI Bootstrap）
 
@@ -46,7 +21,7 @@ PR Template
 
 PR Gate（GitHub Actions）
 
-運用SoT（workflow / decision policy / Phase2-min specs などの docs）
+Docs（SoT：workflow / decision policy / Phase2-min specs など）
 
 Canonical Workflow（正規ルート）
 
@@ -73,84 +48,94 @@ Fixes #<issue> 必須
 
 AC（チェック済み）が最低1つ必須（PR Gateで検証）
 
-Included
+Product UI（本体UIの構成）
 
-Issue Form Template: .github/ISSUE_TEMPLATE/ai-bootstrap.yml
+本体プロダクトは以下の導線を想定します。
 
-PR Template: .github/PULL_REQUEST_TEMPLATE.md
+Connectors（一覧）
+対応ツール（コネクタ）を一覧表示し、検索/フィルタで選択する。
 
-PR Gate (Actions): .github/workflows/pr-gate.yml
+Connector詳細（設定）
+ツールごとに必要な接続情報（Token/OAuth/権限）を設定し、状態（未設定/接続OK/権限不足/エラー等）を表示する。
 
-Docs (SoT): docs/
+Account（アカウント設定）
+ワークスペース・権限・保存方針（Secrets移行など）を管理する。
 
-⚠️ 注意（このテンプレが提供しないもの）
+Chat（操作入口）
+日常の入口としてチャット画面から、Figma / GitHub / AI を横断して作業を進める。
+
+Not Included（このテンプレが提供しないもの）
 
 Integration Hub 本体（RBAC/Audit/UI/APIなどのサービス実装）
 
 各プロジェクト固有のプロダクト実装コード
 
-Next Steps（運用開始）
-
-このテンプレから新規リポジトリを作成（GitHub Template機能）
-
-必要なら Branch protection で status check を required に設定
-
-以後は Issue → PR → Gate の正規ルート以外を使わない
-
-📚 Docs（一次情報）
+Docs（一次情報）
 
 正規ルートと運用ルール: docs/ai/core/workflow.md
 
 Decisionの残し方: docs/ai/core/decision-policy.md
 
-🚀 Current Status（いま出来ていること）
+Current Status（いま出来ていること）
 
 PR Gate（Actions）：PR本文の必須要素チェック（Issue参照 / Figma / ACチェック）
 
 Issue Form：Figma URL / AI thread URL(s) / Acceptance Criteria の入力
 
-Phase1 Integration Hub Stub（/jobs 検証器）
+Phase1 Integration Hub Stub（検証器としての /jobs）
 
 Connections 設定UI（暫定）
 
+Quickstart（ローカル起動）
+npm test
+./bin/dev
+# then open
+# http://127.0.0.1:3000/jobs
 Phase1 Integration Hub Stub（検証器：/jobs）
 
-本体UIとは別に、Phase2の「ジョブ生成→実行→結果取り込み→次アクション」を回すための 検証用UI が入っています。
+/jobs は本体UIではなく、Phase2 の「ジョブ生成→実行→結果取り込み→次アクション」を回すための 検証用UIです。
 
-./bin/dev — runs npm test first, then starts node server.js so you can open http://127.0.0.1:3000/jobs immediately after the selftest passes.
+bin/dev
 
-./bin/dev test — executes npm test only（selftest）。
+./bin/dev — runs npm test first, then starts node server.js（selftest後に /jobs を開けます）
 
-./bin/dev smoke — runs node scripts/run-job.js --job scripts/sample-job.mcp.offline.smoke.json --role operator（offline smoke最優先）。
+./bin/dev test — npm test のみ
 
-./bin/dev repo-patch — runs node scripts/run-job.js --job scripts/sample-job.repo_patch.hub-static.json --role operator（repo_patch noop確認）。
+./bin/dev smoke — offline smoke を実行（最優先）
 
-./bin/dev serve — starts the fallback server only（selftestスキップ）。
+./bin/dev repo-patch — repo_patch noop の確認用
 
-node scripts/run-job.js --job scripts/sample-job.json --role operator — executes any job（local stub / MCP）。
-
-npm run vault:index — (re)generate vault/index.json from .ai-runs/ evidence.
+./bin/dev serve — serverのみ起動（selftestスキップ）
 
 Hub Jobs 最短ループ（手動確認フロー）
 
-（任意）Diagnostics: /jobs で Diagnostics ジョブを生成・保存し、node scripts/run-job.js --job job.diagnostics.json --role operator を実行。
+（任意）Diagnostics: /jobs で Diagnostics ジョブを生成・保存し、実行
 
 Offline smoke: node scripts/run-job.js --job job.offline_smoke.json --role operator
 
 Spawn smoke: node scripts/run-job.js --job job.spawn_smoke.json --role operator
 
-OpenAI exec smoke: OPENAI_API_KEY を設定し、node scripts/run-job.js --job job.openai_exec_smoke.json --role operator（stderrに既知の警告が含まれる場合があるため、.ai-runs/<run_id>/ 配下の成果物で原文を確認して判断）
+OpenAI exec smoke: OPENAI_API_KEY を設定し、node scripts/run-job.js --job job.openai_exec_smoke.json --role operator
 
 Docs update: node scripts/run-job.js --job job.docs_update.json --role operator
 
 Repo patch（noop）: node scripts/run-job.js --job job.repo_patch.json --role operator
 
-最新 run_id：RID="$(ls -1 .ai-runs | tail -n 1)" → cat .ai-runs/$RID/run.json
+最新 run_id: RID="$(ls -1 .ai-runs | tail -n 1)"
+cat .ai-runs/$RID/run.json で参照できます。
 
-言語：右上の Language セレクタ（?lang=ja|en と localStorage (hub.lang)）
+stderr に既知の警告が含まれる場合があるため、.ai-runs/<run_id>/ 配下の成果物で原文を確認してから判断してください（特定ファイル名には固定しません）。
 
 Connections 設定UI（暫定）
 
-node server.js を起動すると http://localhost:3000/connections で AI / GitHub / Figma の接続情報を入力・保存できます（保存先: apps/hub/data/connections.json）。
+node server.js 起動後、http://localhost:3000/connections から AI / GitHub / Figma の接続情報を入力・保存できます（保存先: apps/hub/data/connections.json）。
 
 本番環境では必ず Secrets 管理（Vault や CI Secrets）へ移行してください。ここでの保存はローカル検証用途のみです。
+
+Next Steps（運用開始）
+
+GitHub Template機能で、このテンプレから新規リポジトリを作成
+
+必要なら Branch protection で status check を required に設定
+
+以後は Issue → PR → Gate の正規ルートで運用する
