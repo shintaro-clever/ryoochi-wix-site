@@ -2,11 +2,14 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execSync, spawn } = require('child_process');
 const { validateJob } = require('../src/jobSpec');
 const { run: runAdapter } = require('../src/runnerAdapter');
 
 const SCHEMA_VERSION = 'phase2/v1';
+const ALLOWED_SPAWN_COMMANDS = new Set(['node', 'npx', 'git', 'php', 'codex']);
+const SPAWN_ENV_ALLOWLIST = ['PATH', 'HOME', 'OPENAI_API_KEY', 'ANTHROPIC_API_KEY'];
+const MAX_SPAWN_CAPTURE = 4000;
 
 function parseArgs(argv) {
   const args = { role: 'operator' };
@@ -270,6 +273,56 @@ function maskEnvValue(value) {
   return 'SET';
 }
 
+function buildSpawnEnv() {
+  const env = {};
+  SPAWN_ENV_ALLOWLIST.forEach((key) => {
+    if (typeof process.env[key] === 'string') {
+      env[key] = process.env[key];
+    }
+  });
+  return env;
+}
+
+function writeTextArtifact(relativePath, content = '') {
+  const absolute = path.join(process.cwd(), relativePath);
+  fs.mkdirSync(path.dirname(absolute), { recursive: true });
+  fs.writeFileSync(absolute, content, 'utf8');
+  return relativePath;
+}
+
+function captureWithLimit(buffer, chunk) {
+  const next = buffer + chunk;
+  if (next.length <= MAX_SPAWN_CAPTURE) {
+    return next;
+  }
+  return next.slice(0, MAX_SPAWN_CAPTURE);
+}
+
+function runSpawnCommand(command, args, env) {
+  return new Promise((resolve, reject) => {
+    let stdout = '';
+    let stderr = '';
+    const child = spawn(command, args, {
+      cwd: process.cwd(),
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+      shell: false
+    });
+    child.stdout.on('data', (chunk) => {
+      stdout = captureWithLimit(stdout, chunk.toString());
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr = captureWithLimit(stderr, chunk.toString());
+    });
+    child.on('error', (error) => {
+      reject(error);
+    });
+    child.on('close', (code) => {
+      resolve({ code, stdout, stderr });
+    });
+  });
+}
+
 async function executeDiagnosticsJob(jobPayload) {
   const job = cloneJob(jobPayload);
   const runId = `${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
@@ -367,7 +420,98 @@ async function executeDiagnosticsJob(jobPayload) {
   }
 }
 
+async function executeSpawnJob(jobPayload) {
+  const job = cloneJob(jobPayload);
+  const runId = `${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
+  const runPaths = ensureRunDirectory(runId);
+  recordRunStart(runPaths, job);
+  const createdAt = new Date().toISOString();
+
+  const validation = validateJob(job);
+  if (!validation.ok) {
+    return finalizeRun(runPaths, job, buildValidationFailure(validation.errors), createdAt);
+  }
+
+  try {
+    if (!job.inputs || job.inputs.mcp_provider !== 'spawn') {
+      throw new Error('spawn provider requires inputs.mcp_provider="spawn"');
+    }
+    const command = job.inputs.mcp_command;
+    if (typeof command !== 'string' || !ALLOWED_SPAWN_COMMANDS.has(command)) {
+      throw new Error('spawn command not allowed');
+    }
+    const rawArgs = job.inputs.mcp_args || [];
+    if (!Array.isArray(rawArgs)) {
+      throw new Error('spawn args must be an array');
+    }
+    const args = rawArgs.map((value) => {
+      if (typeof value !== 'string') {
+        throw new Error('spawn args entries must be strings');
+      }
+      return value;
+    });
+    if (!job.constraints || job.constraints.no_destructive_ops !== true) {
+      throw new Error('spawn jobs require constraints.no_destructive_ops=true');
+    }
+    const allowedPaths = job.constraints.allowed_paths;
+    if (!Array.isArray(allowedPaths) || !allowedPaths.length) {
+      throw new Error('spawn jobs require constraints.allowed_paths');
+    }
+    const resolvedTarget = resolveTargetPath(job.inputs.target_path, runId);
+    ensureAllowedPath(resolvedTarget, allowedPaths);
+    const env = buildSpawnEnv();
+    const { code, stdout, stderr } = await runSpawnCommand(command, args, env);
+    const stdoutPath = `.ai-runs/${runId}/spawn_stdout.txt`;
+    const stderrPath = `.ai-runs/${runId}/spawn_stderr.txt`;
+    writeTextArtifact(stdoutPath, stdout);
+    writeTextArtifact(stderrPath, stderr);
+    writeJsonArtifact(resolvedTarget, {
+      command,
+      args,
+      exit_code: code,
+      stdout_path: stdoutPath,
+      stderr_path: stderrPath
+    });
+    const preview = (text) => {
+      if (!text) {
+        return '(empty)';
+      }
+      return text.split('\n').slice(0, 3).join(' | ');
+    };
+    const logs = [
+      `spawn command=${command}`,
+      `spawn args=${JSON.stringify(args)}`,
+      `stdout preview: ${preview(stdout)}`,
+      `stderr preview: ${preview(stderr)}`
+    ];
+    const checks = [{ id: 'spawn_exec', ok: code === 0, reason: `exit=${code}` }];
+    const result = {
+      status: code === 0 ? 'ok' : 'error',
+      artifacts: [
+        { path: resolvedTarget, kind: 'json' },
+        { path: stdoutPath, kind: 'text' },
+        { path: stderrPath, kind: 'text' }
+      ],
+      diff_summary: `spawn exit=${code}`,
+      checks,
+      logs
+    };
+    return finalizeRun(runPaths, job, result, createdAt);
+  } catch (error) {
+    const result = {
+      status: 'error',
+      errors: [error.message],
+      checks: [{ id: 'spawn_exec', ok: false, reason: error.message }],
+      logs: ['spawn execution failed']
+    };
+    return finalizeRun(runPaths, job, result, createdAt);
+  }
+}
+
 async function executeMcpJob(jobPayload, role) {
+  if (jobPayload && jobPayload.inputs && jobPayload.inputs.mcp_provider === 'spawn') {
+    return executeSpawnJob(jobPayload);
+  }
   const job = cloneJob(jobPayload);
   const runId = `${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
   const runPaths = ensureRunDirectory(runId);
