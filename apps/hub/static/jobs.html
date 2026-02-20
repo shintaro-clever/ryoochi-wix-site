@@ -152,6 +152,135 @@
         background: #fde4e3;
         color: #a62017;
       }
+      .result-section {
+        margin-bottom: 20px;
+      }
+      .result-section h3 {
+        margin-top: 0;
+        margin-bottom: 12px;
+        font-size: 18px;
+      }
+      .summary-grid {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+      }
+      .summary-card {
+        flex: 1 1 180px;
+        min-width: 160px;
+        background: #f9f9f9;
+        border-radius: 12px;
+        padding: 12px 16px;
+      }
+      .summary-label {
+        font-size: 12px;
+        font-weight: 600;
+        color: #666;
+        text-transform: uppercase;
+      }
+      .summary-value {
+        margin-top: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        color: #222;
+      }
+      .monospace {
+        font-family: "SFMono-Regular", "Roboto Mono", "Source Code Pro", monospace;
+      }
+      .checks-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .check-item {
+        border: 1px solid #ececec;
+        border-radius: 12px;
+        padding: 12px 16px;
+        background: #fff;
+      }
+      .check-header {
+        display: flex;
+        justify-content: space-between;
+        gap: 16px;
+        flex-wrap: wrap;
+        font-weight: 600;
+      }
+      .check-status {
+        font-weight: 700;
+      }
+      .check-status.ok {
+        color: #1f7a3d;
+      }
+      .check-status.ng {
+        color: #a62017;
+      }
+      .check-body {
+        margin-top: 6px;
+        font-size: 14px;
+        color: #333;
+      }
+      .log-list,
+      .audit-list {
+        list-style: none;
+        padding: 0;
+        margin: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .log-line {
+        background: #111;
+        color: #f5f5f5;
+        padding: 8px 10px;
+        border-radius: 8px;
+        font-family: "SFMono-Regular", "Roboto Mono", "Source Code Pro", monospace;
+        font-size: 13px;
+      }
+      .audit-item {
+        background: #f7f7fb;
+        border-radius: 10px;
+        padding: 8px 12px;
+        font-size: 13px;
+      }
+      .audit-errors {
+        margin-top: 12px;
+        color: #a62017;
+        font-weight: 600;
+        font-size: 13px;
+      }
+      .placeholder {
+        font-size: 14px;
+        color: #777;
+      }
+      .next-action-note {
+        margin-top: 6px;
+        font-size: 14px;
+        color: #555;
+      }
+      .reason-list {
+        list-style: none;
+        padding: 0;
+        margin: 12px 0 0 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .reason-item {
+        background: #fff9f9;
+        border: 1px solid #ffd5d5;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 14px;
+        color: #663131;
+      }
+      .reason-toggle {
+        border: none;
+        background: transparent;
+        color: #0057d9;
+        font-weight: 600;
+        cursor: pointer;
+        margin-left: 6px;
+      }
       ul {
         padding-left: 20px;
       }
@@ -267,35 +396,48 @@
         </label>
         <button id="parseBtn" data-i18n="parseBtn">Parse</button>
         <div class="error" id="parseError"></div>
-        <div class="gate" id="gateSection" hidden>
-          <div class="gate-row">
-            <div class="gate-label" data-i18n="statusLabel">ステータス</div>
-            <div id="statusValue" class="status-badge status-ok">ok</div>
-          </div>
-          <div class="gate-row">
-            <div class="gate-label" data-i18n="summaryLabel">checks_summary (total/passed/failing)</div>
-            <div id="summaryValue">0 / 0 / 0</div>
-          </div>
-          <div class="gate-row">
-            <div class="gate-label" data-i18n="failingLabel">failing IDs</div>
-            <div id="failingValue" data-i18n="noFailing">なし</div>
-          </div>
-          <div class="gate-row">
-            <div class="gate-label" data-i18n="outputLangLabel">output_language</div>
-            <div id="outputLangValue">ja</div>
-          </div>
-          <div class="gate-row">
-            <div class="gate-label" data-i18n="auditTimelineLabel">Audit Timeline</div>
-            <div>
-              <div><strong data-i18n="auditStartLabel">RUN_START</strong>: <span id="auditStartValue" data-i18n="auditMissing">イベント無し</span></div>
-              <div><strong data-i18n="auditEndLabel">RUN_END</strong>: <span id="auditEndValue" data-i18n="auditMissing">イベント無し</span></div>
+        <div class="gate" id="resultsSection" hidden>
+          <div class="result-section" id="summarySection">
+            <h3 data-i18n="summarySectionTitle">Summary</h3>
+            <div class="summary-grid">
+              <div class="summary-card">
+                <div class="summary-label" data-i18n="summaryStatusLabel">Status</div>
+                <div id="summaryStatus" class="summary-value status-badge status-ok">OK</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label" data-i18n="summaryJobTypeLabel">Job Type</div>
+                <div id="summaryJobType" class="summary-value monospace">-</div>
+              </div>
+              <div class="summary-card">
+                <div class="summary-label" data-i18n="summaryGoalLabel">Goal</div>
+                <div id="summaryGoal" class="summary-value">-</div>
+              </div>
             </div>
           </div>
-          <div>
-            <div class="gate-label" data-i18n="triageTitle">Triage ヒント</div>
-            <ul id="triageList">
-              <li data-i18n="hintOk">runnerResult.status=ok</li>
-            </ul>
+          <div class="result-section" id="checksSection">
+            <h3 data-i18n="checksSectionTitle">Checks</h3>
+            <div id="checksList" class="checks-list"></div>
+            <div id="checksEmpty" class="placeholder" data-i18n="checksEmpty">チェックがありません</div>
+          </div>
+          <div class="result-section" id="logsSection">
+            <h3 data-i18n="logsSectionTitle">Logs</h3>
+            <ul id="logsList" class="log-list"></ul>
+            <div id="logsEmpty" class="placeholder" data-i18n="logsEmpty">ログはありません</div>
+          </div>
+          <div class="result-section" id="auditSection">
+            <h3 data-i18n="auditSectionTitle">Audit Parse Result</h3>
+            <ul id="auditEvents" class="audit-list"></ul>
+            <div id="auditEmpty" class="placeholder" data-i18n="auditEmpty">audit.jsonl は未入力です</div>
+            <div id="auditErrors" class="audit-errors"></div>
+          </div>
+          <div class="result-section" id="nextActionSection" hidden>
+            <h3>Next Action（推奨次ステップ）</h3>
+            <p id="nextActionMessage">-</p>
+            <div id="nextActionNote" class="next-action-note"></div>
+            <div id="nextActionReasonsWrapper" hidden>
+              <div>失敗理由（failing reason）</div>
+              <ul id="nextActionReasons" class="reason-list"></ul>
+            </div>
           </div>
         </div>
       </section>
@@ -355,24 +497,27 @@
             runJsonLabel: 'run.json を貼り付け',
             auditLabel: 'audit.jsonl を貼り付け（任意）',
             parseBtn: 'Parse',
-            gateTitle: 'Gate / Triage',
-            statusLabel: 'ステータス',
-            summaryLabel: 'checks_summary (total/passed/failing)',
-            failingLabel: 'failing IDs',
-            outputLangLabel: 'output_language',
-            auditTimelineLabel: 'Audit Timeline',
-            auditStartLabel: 'RUN_START',
-            auditEndLabel: 'RUN_END',
-            triageTitle: 'Triage ヒント',
-            hintErrorLine1: 'run.json.runnerResult.checks と logs を確認',
-            hintErrorLine2: 'audit.jsonl の RUN_END.checks_summary を確認',
-            hintMcp: '実行経路（spawn/exit/json parse/write）を疑う',
-            hintOk: 'runnerResult.status=ok',
-            noFailing: 'なし',
-            auditMissing: 'イベント無し',
+            summarySectionTitle: 'Summary',
+            summaryStatusLabel: 'Status',
+            summaryJobTypeLabel: 'Job Type',
+            summaryGoalLabel: 'Goal',
+            checksSectionTitle: 'Checks',
+            logsSectionTitle: 'Logs',
+            auditSectionTitle: 'Audit解析結果',
+            checksEmpty: 'チェックは記録されていません',
+            logsEmpty: 'ログ出力はありません',
+            auditEmpty: 'audit.jsonl は未入力です',
+            auditEventsLabel: '解析済み行',
+            auditErrorsLabel: 'エラー',
+            auditNoEvents: '解析できた行はありません',
+            auditLineError: 'この行は解析できません',
+            checkReasonLabel: '理由',
+            checkEvidenceLabel: 'エビデンス',
+            goalMissing: '記載なし',
+            okLabel: 'OK',
+            ngLabel: 'NG',
             parseMissingRun: 'run.json を貼り付けてから Parse を押してください。',
-            parseErrorPrefix: '解析失敗: ',
-            auditErrorPrefix: 'audit.jsonl 解析失敗: ',
+            runJsonInvalid: 'run.json のJSON形式が正しくありません。',
             outputLangMissing: '不明',
             runJsonPlaceholder: 'run.json の内容を貼り付け',
             auditPlaceholder: 'audit.jsonl の内容を貼り付け（省略可）',
@@ -407,24 +552,27 @@
             runJsonLabel: 'Paste run.json',
             auditLabel: 'Paste audit.jsonl (optional)',
             parseBtn: 'Parse',
-            gateTitle: 'Gate / Triage',
-            statusLabel: 'Status',
-            summaryLabel: 'checks_summary (total/passed/failing)',
-            failingLabel: 'Failing IDs',
-            outputLangLabel: 'output_language',
-            auditTimelineLabel: 'Audit Timeline',
-            auditStartLabel: 'RUN_START',
-            auditEndLabel: 'RUN_END',
-            triageTitle: 'Triage Hints',
-            hintErrorLine1: 'Review run.json.runnerResult.checks & logs',
-            hintErrorLine2: 'Review audit.jsonl RUN_END.checks_summary',
-            hintMcp: 'Suspect the execution path (spawn/exit/json parse write)',
-            hintOk: 'runnerResult.status=ok',
-            noFailing: 'none',
-            auditMissing: 'not available',
+            summarySectionTitle: 'Summary',
+            summaryStatusLabel: 'Status',
+            summaryJobTypeLabel: 'Job Type',
+            summaryGoalLabel: 'Goal',
+            checksSectionTitle: 'Checks',
+            logsSectionTitle: 'Logs',
+            auditSectionTitle: 'Audit parse result',
+            checksEmpty: 'No checks recorded.',
+            logsEmpty: 'No logs captured.',
+            auditEmpty: 'audit.jsonl not provided.',
+            auditEventsLabel: 'Parsed lines',
+            auditErrorsLabel: 'Errors',
+            auditNoEvents: 'No audit lines parsed.',
+            auditLineError: 'Could not parse this line',
+            checkReasonLabel: 'Reason',
+            checkEvidenceLabel: 'Evidence',
+            goalMissing: 'not provided',
+            okLabel: 'OK',
+            ngLabel: 'NG',
             parseMissingRun: 'Paste run.json before pressing Parse.',
-            parseErrorPrefix: 'Parse error: ',
-            auditErrorPrefix: 'audit.jsonl parse error: ',
+            runJsonInvalid: 'run.json is not valid JSON.',
             outputLangMissing: 'unknown',
             runJsonPlaceholder: 'Paste the contents of run.json',
             auditPlaceholder: 'Paste audit.jsonl (optional)',
@@ -439,14 +587,22 @@
           jobJson: document.getElementById('jobJson'),
           copyCommand: document.getElementById('copyCommand'),
           parseError: document.getElementById('parseError'),
-          gate: document.getElementById('gateSection'),
-          statusValue: document.getElementById('statusValue'),
-          summaryValue: document.getElementById('summaryValue'),
-          failingValue: document.getElementById('failingValue'),
-          outputLangValue: document.getElementById('outputLangValue'),
-          auditStartValue: document.getElementById('auditStartValue'),
-          auditEndValue: document.getElementById('auditEndValue'),
-          triageList: document.getElementById('triageList'),
+          resultsSection: document.getElementById('resultsSection'),
+          summaryStatus: document.getElementById('summaryStatus'),
+          summaryJobType: document.getElementById('summaryJobType'),
+          summaryGoal: document.getElementById('summaryGoal'),
+          checksList: document.getElementById('checksList'),
+          checksEmpty: document.getElementById('checksEmpty'),
+          logsList: document.getElementById('logsList'),
+          logsEmpty: document.getElementById('logsEmpty'),
+          auditEvents: document.getElementById('auditEvents'),
+          auditEmpty: document.getElementById('auditEmpty'),
+          auditErrors: document.getElementById('auditErrors'),
+          nextActionSection: document.getElementById('nextActionSection'),
+          nextActionMessage: document.getElementById('nextActionMessage'),
+          nextActionNote: document.getElementById('nextActionNote'),
+          nextActionReasonsWrapper: document.getElementById('nextActionReasonsWrapper'),
+          nextActionReasons: document.getElementById('nextActionReasons'),
           operatorInput: document.getElementById('operatorInput'),
           issueInput: document.getElementById('issueInput'),
           docPathInput: document.getElementById('docPathInput'),
@@ -467,7 +623,7 @@
           lang: 'ja',
           offlineTemplate: null,
           lastJobKind: null,
-          gatePayload: null
+          intakePayload: null
         };
 
         function clone(obj) {
@@ -540,8 +696,8 @@
           if (state.lastJobKind) {
             buildJob(state.lastJobKind, false);
           }
-          if (state.gatePayload) {
-            renderGate(state.gatePayload);
+          if (state.intakePayload) {
+            renderIntake(state.intakePayload);
           }
         }
 
@@ -670,92 +826,287 @@
           }
         }
 
-        function parseAudit(auditText, langDict) {
-          if (!auditText.trim()) {
-            return { start: null, end: null, error: null };
+        function parseAuditLines(auditText) {
+          const raw = auditText || '';
+          if (!raw.trim()) {
+            return { hasInput: false, events: [], errors: [] };
           }
-          const lines = auditText.split('\n').map((line) => line.trim()).filter(Boolean);
-          let start = null;
-          let end = null;
-          for (const line of lines) {
-            try {
-              const event = JSON.parse(line);
-              if (event.event === 'RUN_START' && !start) {
-                start = event.ts || event.timestamp || null;
-              }
-              if (event.event === 'RUN_END') {
-                end = event.ts || event.timestamp || null;
-              }
-            } catch (error) {
-              return { start: null, end: null, error: `${langDict.auditErrorPrefix}${error.message}` };
+          const lines = raw.split('\n');
+          const events = [];
+          const errors = [];
+          lines.forEach((lineContent, index) => {
+            const lineNumber = index + 1;
+            if (!lineContent.trim()) {
+              return;
             }
-          }
-          return { start, end, error: null };
-        }
-
-        function renderGate(payload) {
-          const langDict = copy[state.lang];
-          const { run, audit } = payload;
-          const runnerResult = run.runnerResult || {};
-          const summary = runnerResult.checks_summary || { total: 0, passed: 0, failing: [] };
-          const failing = Array.isArray(summary.failing) ? summary.failing : [];
-          const jobLang = (run.job && run.job.output_language) || langDict.outputLangMissing;
-          el.statusValue.textContent = runnerResult.status || 'unknown';
-          el.statusValue.classList.remove('status-ok', 'status-error');
-          el.statusValue.classList.add(runnerResult.status === 'ok' ? 'status-ok' : 'status-error');
-          el.summaryValue.textContent = `${summary.total || 0} / ${summary.passed || 0} / ${failing.length}`;
-          el.failingValue.textContent = failing.length ? failing.join(', ') : langDict.noFailing;
-          el.outputLangValue.textContent = jobLang;
-          el.auditStartValue.textContent = audit.start || langDict.auditMissing;
-          el.auditEndValue.textContent = audit.end || langDict.auditMissing;
-
-          const hints = [];
-          if (runnerResult.status !== 'ok') {
-            hints.push(langDict.hintErrorLine1);
-            hints.push(langDict.hintErrorLine2);
-          }
-          const checks = Array.isArray(runnerResult.checks) ? runnerResult.checks : [];
-          if (checks.some((c) => c && c.id === 'mcp_exec' && c.ok === false)) {
-            hints.push(langDict.hintMcp);
-          }
-          if (!hints.length) {
-            hints.push(langDict.hintOk);
-          }
-          el.triageList.innerHTML = '';
-          hints.forEach((hint) => {
-            const li = document.createElement('li');
-            li.textContent = hint;
-            el.triageList.appendChild(li);
+            try {
+              const parsed = JSON.parse(lineContent);
+              events.push({ line: lineNumber, data: parsed });
+            } catch (error) {
+              errors.push({ line: lineNumber, message: error.message });
+            }
           });
-          el.gate.hidden = false;
+          return { hasInput: true, events, errors };
         }
 
-        function parseGate() {
+        function renderChecks(checks, langDict) {
+          el.checksList.innerHTML = '';
+          if (!Array.isArray(checks) || !checks.length) {
+            el.checksEmpty.hidden = false;
+            return;
+          }
+          el.checksEmpty.hidden = true;
+          checks.forEach((check, idx) => {
+            if (!check) {
+              return;
+            }
+            const item = document.createElement('div');
+            item.className = 'check-item';
+            const header = document.createElement('div');
+            header.className = 'check-header';
+            const title = document.createElement('span');
+            title.textContent = check.name || check.id || `check_${idx + 1}`;
+            const ok = check.ok !== false;
+            const status = document.createElement('span');
+            status.className = `check-status ${ok ? 'ok' : 'ng'}`;
+            const rawValue = check.ok === undefined ? 'unknown' : String(check.ok);
+            status.textContent = `${ok ? langDict.okLabel : langDict.ngLabel} (${rawValue})`;
+            header.appendChild(title);
+            header.appendChild(status);
+            item.appendChild(header);
+            if (check.reason) {
+              const reason = document.createElement('div');
+              reason.className = 'check-body';
+              reason.textContent = `${langDict.checkReasonLabel}: ${check.reason}`;
+              item.appendChild(reason);
+            }
+            if (typeof check.evidence !== 'undefined') {
+              const evidence = document.createElement('div');
+              evidence.className = 'check-body';
+              const evidenceValue =
+                typeof check.evidence === 'string'
+                  ? check.evidence
+                  : JSON.stringify(check.evidence);
+              evidence.textContent = `${langDict.checkEvidenceLabel}: ${evidenceValue}`;
+              item.appendChild(evidence);
+            }
+            el.checksList.appendChild(item);
+          });
+        }
+
+        function renderLogs(logs, langDict) {
+          el.logsList.innerHTML = '';
+          if (!Array.isArray(logs) || !logs.length) {
+            el.logsEmpty.hidden = false;
+            return;
+          }
+          el.logsEmpty.hidden = true;
+          logs.forEach((log) => {
+            const li = document.createElement('li');
+            li.className = 'log-line';
+            li.textContent = typeof log === 'string' ? log : JSON.stringify(log);
+            el.logsList.appendChild(li);
+          });
+        }
+
+        function renderAudit(auditResult, langDict) {
+          el.auditEvents.innerHTML = '';
+          el.auditErrors.innerHTML = '';
+          if (!auditResult.hasInput) {
+            el.auditEmpty.textContent = langDict.auditEmpty;
+            el.auditEmpty.hidden = false;
+          } else if (!auditResult.events.length) {
+            el.auditEmpty.textContent = langDict.auditNoEvents;
+            el.auditEmpty.hidden = false;
+          } else {
+            el.auditEmpty.hidden = true;
+            auditResult.events.forEach((entry) => {
+              const li = document.createElement('li');
+              li.className = 'audit-item monospace';
+              li.textContent = `行 ${entry.line}: ${JSON.stringify(entry.data)}`;
+              el.auditEvents.appendChild(li);
+            });
+          }
+          if (auditResult.errors.length) {
+            auditResult.errors.forEach((err) => {
+              const div = document.createElement('div');
+              div.textContent = `行 ${err.line}: ${langDict.auditLineError} (${err.message})`;
+              el.auditErrors.appendChild(div);
+            });
+          }
+        }
+
+        function findCheckById(checks, targetId) {
+          if (!Array.isArray(checks)) {
+            return null;
+          }
+          const normalized = String(targetId || '').toLowerCase();
+          return checks.find((check) => {
+            if (!check) {
+              return false;
+            }
+            const idMatches =
+              typeof check.id === 'string' && check.id.toLowerCase() === normalized;
+            const nameMatches =
+              typeof check.name === 'string' && check.name.toLowerCase() === normalized;
+            return idMatches || nameMatches;
+          });
+        }
+
+        function deriveNextAction(run) {
+          const runnerResult = run.runnerResult || {};
+          const job = run.job || {};
+          const jobType = run.job_type || job.job_type || '';
+          const status = runnerResult.status || run.status || 'unknown';
+          const checks = Array.isArray(runnerResult.checks) ? runnerResult.checks : [];
+          const okStatus = status === 'ok';
+          const failingReasons = checks
+            .filter((check) => check && check.ok === false && typeof check.reason === 'string')
+            .map((check) => check.reason.trim())
+            .filter(Boolean);
+
+          let message =
+            'run.json と audit.jsonl を確認し、checks の failing reason を貼って次の修正ジョブを作成してください。';
+          let note = '';
+
+          const mcpCheck = findCheckById(checks, 'mcp_exec');
+          const docsCheck = findCheckById(checks, 'docs_update');
+          const repoCheck = findCheckById(checks, 'repo_patch');
+
+          if (jobType === 'integration_hub.phase2.mcp.offline_smoke' && okStatus && mcpCheck && mcpCheck.ok === true) {
+            message = '次は docs_update を実行してください（docs/.selftest-doc.md を更新して導線確認）。';
+          } else if (jobType === 'integration_hub.phase2.docs_update' && okStatus && docsCheck && docsCheck.ok === true) {
+            message = '次は repo_patch（noop）を実行してください（壊さない前提の確認）。';
+          } else if (jobType === 'integration_hub.phase2.repo_patch' && okStatus && repoCheck && repoCheck.ok === true) {
+            message = '絶対ルール：本番ジョブ前に offline_smoke（local_stub）を必ず実行する。';
+            note =
+              '次に進む場合：local_stub 以外（例：spawn/claude-cli等）の実行手段を有効化する設計に移る想定です。';
+          }
+          return { message, note, failingReasons };
+        }
+
+        function createReasonItem(text) {
+          const li = document.createElement('li');
+          li.className = 'reason-item';
+          if (!text || text.length <= 80) {
+            li.textContent = text || '';
+            return li;
+          }
+          const previewText = `${text.slice(0, 80)}…`;
+          const preview = document.createElement('span');
+          preview.textContent = previewText;
+          const full = document.createElement('span');
+          full.textContent = text;
+          full.hidden = true;
+          full.style.display = 'block';
+          const toggle = document.createElement('button');
+          toggle.type = 'button';
+          toggle.className = 'reason-toggle';
+          toggle.textContent = '(詳細)';
+          let expanded = false;
+          toggle.addEventListener('click', () => {
+            expanded = !expanded;
+            if (expanded) {
+              preview.hidden = true;
+              full.hidden = false;
+              toggle.textContent = '(閉じる)';
+            } else {
+              preview.hidden = false;
+              full.hidden = true;
+              toggle.textContent = '(詳細)';
+            }
+          });
+          li.appendChild(preview);
+          li.appendChild(full);
+          li.appendChild(toggle);
+          return li;
+        }
+
+        function renderNextAction(run) {
+          const action = deriveNextAction(run);
+          el.nextActionMessage.textContent = action.message;
+          if (action.note) {
+            el.nextActionNote.textContent = action.note;
+            el.nextActionNote.hidden = false;
+          } else {
+            el.nextActionNote.textContent = '';
+            el.nextActionNote.hidden = true;
+          }
+          el.nextActionReasons.innerHTML = '';
+          if (action.failingReasons.length) {
+            action.failingReasons.forEach((reason) => {
+              el.nextActionReasons.appendChild(createReasonItem(reason));
+            });
+            el.nextActionReasonsWrapper.hidden = false;
+          } else {
+            el.nextActionReasonsWrapper.hidden = true;
+          }
+          el.nextActionSection.hidden = false;
+        }
+
+        function renderIntake(payload) {
+          const langDict = copy[state.lang];
+          const run = payload.run || {};
+          const runnerResult = run.runnerResult || {};
+          const job = run.job || {};
+          const status = run.status || runnerResult.status || 'unknown';
+          const jobType = run.job_type || job.job_type || 'unknown';
+          const goal = run.goal || job.goal || langDict.goalMissing;
+          el.summaryStatus.textContent = status;
+          el.summaryStatus.classList.remove('status-ok', 'status-error');
+          el.summaryStatus.classList.add(status === 'ok' ? 'status-ok' : 'status-error');
+          el.summaryJobType.textContent = jobType;
+          el.summaryGoal.textContent = goal || langDict.goalMissing;
+          const checks =
+            (runnerResult && Array.isArray(runnerResult.checks) && runnerResult.checks) ||
+            (Array.isArray(run.checks) ? run.checks : []);
+          const logs =
+            (runnerResult && Array.isArray(runnerResult.logs) && runnerResult.logs) ||
+            (Array.isArray(run.logs) ? run.logs : []);
+          renderChecks(checks, langDict);
+          renderLogs(logs, langDict);
+          renderAudit(payload.audit, langDict);
+          renderNextAction(run);
+          el.resultsSection.hidden = false;
+        }
+
+        function clearIntakeResults() {
+          el.resultsSection.hidden = true;
+          el.checksList.innerHTML = '';
+          el.logsList.innerHTML = '';
+          el.auditEvents.innerHTML = '';
+          el.auditErrors.innerHTML = '';
+          el.checksEmpty.hidden = true;
+          el.logsEmpty.hidden = true;
+          el.auditEmpty.hidden = true;
+          state.intakePayload = null;
+          el.nextActionSection.hidden = true;
+          el.nextActionMessage.textContent = '-';
+          el.nextActionNote.hidden = true;
+          el.nextActionReasons.innerHTML = '';
+          el.nextActionReasonsWrapper.hidden = true;
+        }
+
+        function handleParse() {
           const langDict = copy[state.lang];
           const runText = el.runJsonInput.value.trim();
           if (!runText) {
             el.parseError.textContent = langDict.parseMissingRun;
-            el.gate.hidden = true;
-            state.gatePayload = null;
+            clearIntakeResults();
             return;
           }
+          let run;
           try {
-            const run = JSON.parse(runText);
-            const audit = parseAudit(el.auditInput.value || '', langDict);
-            if (audit.error) {
-              el.parseError.textContent = audit.error;
-              el.gate.hidden = true;
-              state.gatePayload = null;
-              return;
-            }
-            state.gatePayload = { run, audit };
-            el.parseError.textContent = '';
-            renderGate(state.gatePayload);
+            run = JSON.parse(runText);
           } catch (error) {
-            el.parseError.textContent = `${langDict.parseErrorPrefix}${error.message}`;
-            el.gate.hidden = true;
-            state.gatePayload = null;
+            el.parseError.textContent = langDict.runJsonInvalid;
+            clearIntakeResults();
+            return;
           }
+          const audit = parseAuditLines(el.auditInput.value || '');
+          el.parseError.textContent = '';
+          state.intakePayload = { run, audit };
+          renderIntake(state.intakePayload);
         }
 
         function loadOfflineFixture() {
@@ -779,7 +1130,7 @@
           el.offlineBtn.addEventListener('click', () => buildJob('offline', true));
           el.docsBtn.addEventListener('click', () => buildJob('docs', true));
           el.repoBtn.addEventListener('click', () => buildJob('repo', true));
-          el.parseBtn.addEventListener('click', parseGate);
+          el.parseBtn.addEventListener('click', handleParse);
           loadOfflineFixture().finally(() => {
             state.lastJobKind = 'offline';
             buildJob('offline', true);
