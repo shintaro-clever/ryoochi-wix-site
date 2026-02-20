@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { execSync } = require('child_process');
 const { validateJob } = require('../src/jobSpec');
 const { run: runAdapter } = require('../src/runnerAdapter');
 
@@ -250,6 +251,118 @@ async function executeRepoPatchJob(jobPayload) {
   }
 }
 
+function checkCommandAvailability(command) {
+  try {
+    const result = execSync(`command -v ${command}`, {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'pipe']
+    });
+    return result.trim();
+  } catch (error) {
+    return null;
+  }
+}
+
+function maskEnvValue(value) {
+  if (typeof value !== 'string' || value.length === 0) {
+    return 'NOT_SET';
+  }
+  return 'SET';
+}
+
+async function executeDiagnosticsJob(jobPayload) {
+  const job = cloneJob(jobPayload);
+  const runId = `${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
+  const runPaths = ensureRunDirectory(runId);
+  recordRunStart(runPaths, job);
+  const createdAt = new Date().toISOString();
+
+  const validation = validateJob(job);
+  if (!validation.ok) {
+    return finalizeRun(runPaths, job, buildValidationFailure(validation.errors), createdAt);
+  }
+
+  try {
+    const logs = [];
+    const checks = [];
+    let hasBlockingFailure = false;
+
+    function pushCheck(id, ok, reason, importance = 'optional') {
+      checks.push({ id, ok, reason });
+      if (!ok && importance === 'required') {
+        hasBlockingFailure = true;
+      }
+    }
+
+    const nodeVersion = process.version || 'unknown';
+    logs.push(`Node.js バージョン: ${nodeVersion}`);
+    pushCheck('node_version', nodeVersion !== 'unknown', `process.version=${nodeVersion}`, 'required');
+
+    const commandTargets = [
+      { name: 'node', importance: 'required' },
+      { name: 'npx', importance: 'required' },
+      { name: 'git', importance: 'required' },
+      { name: 'php', importance: 'optional' },
+      { name: 'claude', importance: 'optional' },
+      { name: 'codex', importance: 'optional' }
+    ];
+
+    const commandReport = {};
+    commandTargets.forEach((entry) => {
+      const pathResult = checkCommandAvailability(entry.name);
+      const found = Boolean(pathResult);
+      commandReport[entry.name] = pathResult || 'NOT_FOUND';
+      if (found) {
+        logs.push(`${entry.name} コマンド: ${pathResult}`);
+        pushCheck(`cmd_${entry.name}`, true, `${entry.name} コマンド検出: ${pathResult}`, entry.importance);
+      } else {
+        logs.push(`${entry.name} コマンド未検出`);
+        const message =
+          entry.importance === 'required'
+            ? `${entry.name} コマンドが見つかりません`
+            : `${entry.name} コマンドは任意ですが見つかりませんでした`;
+        pushCheck(`cmd_${entry.name}`, false, message, entry.importance);
+      }
+    });
+
+    const envTargets = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY'];
+    const envReport = {};
+    envTargets.forEach((key) => {
+      const masked = maskEnvValue(process.env[key]);
+      envReport[key] = masked;
+      logs.push(`環境変数 ${key}: ${masked}`);
+      const ok = masked === 'SET';
+      pushCheck(`env_${key.toLowerCase()}`, ok, `環境変数 ${key}: ${masked}`, 'required');
+    });
+
+    const artifactPath = resolveTargetPath(job.inputs.target_path, runId);
+    ensureAllowedPath(artifactPath, job.constraints.allowed_paths);
+    writeJsonArtifact(artifactPath, {
+      generated_at: new Date().toISOString(),
+      node_version: nodeVersion,
+      commands: commandReport,
+      env: envReport
+    });
+
+    const result = {
+      status: hasBlockingFailure ? 'error' : 'ok',
+      artifacts: [{ path: artifactPath, kind: 'json' }],
+      diff_summary: 'Diagnostics completed',
+      checks,
+      logs
+    };
+    return finalizeRun(runPaths, job, result, createdAt);
+  } catch (error) {
+    const result = {
+      status: 'error',
+      errors: [error.message],
+      checks: [{ id: 'diagnostics', ok: false, reason: error.message }],
+      logs: ['diagnostics failed']
+    };
+    return finalizeRun(runPaths, job, result, createdAt);
+  }
+}
+
 async function executeMcpJob(jobPayload, role) {
   const job = cloneJob(jobPayload);
   const runId = `${Date.now().toString(36)}-${crypto.randomBytes(3).toString('hex')}`;
@@ -297,6 +410,8 @@ async function main() {
     result = await executeDocsUpdateJob(jobPayload);
   } else if (jobType === 'integration_hub.phase2.repo_patch') {
     result = await executeRepoPatchJob(jobPayload);
+  } else if (jobType === 'integration_hub.phase2.diagnostics') {
+    result = await executeDiagnosticsJob(jobPayload);
   } else {
     result = await executeMcpJob(jobPayload, role);
   }

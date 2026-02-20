@@ -361,6 +361,7 @@
           <button id="offlineBtn" data-i18n="offlineBtn">Offline Smoke ジョブ生成</button>
           <button id="docsBtn" data-i18n="docsBtn">Docs Update ジョブ生成</button>
           <button id="repoBtn" data-i18n="repoBtn">Repo Patch ジョブ生成</button>
+          <button id="diagBtn" data-i18n="diagBtn">Diagnostics ジョブ生成</button>
         </div>
         <div class="output-area">
           <label>
@@ -478,7 +479,7 @@
             languageLabel: '言語',
             builderTitle: 'Job Builder',
             builderDescription:
-              'まず Offline smoke を生成・保存→ run-job 実行 → 成功後に Docs Update → Repo Patch の順で進めます。',
+              'Diagnostics で環境を確認 → Offline smoke を生成・保存 → 成功後に Docs Update → Repo Patch の順で進めます。',
             operatorLabel: 'Operator',
             issueLabel: 'Issue URL（任意）',
             docPathLabel: 'Docs path (docs_update)',
@@ -488,6 +489,7 @@
             offlineBtn: 'Offline Smoke ジョブ生成',
             docsBtn: 'Docs Update ジョブ生成',
             repoBtn: 'Repo Patch ジョブ生成',
+            diagBtn: 'Diagnostics ジョブ生成',
             jobJsonLabel: '生成ジョブ JSON',
             copyCommandLabel: '次に実行するコマンド',
             commandText: 'node scripts/run-job.js --job <job-json-file> --role operator',
@@ -533,7 +535,7 @@
             languageLabel: 'Language',
             builderTitle: 'Job Builder',
             builderDescription:
-              'Always run Offline smoke first. After it passes, move on to Docs Update and then Repo Patch.',
+              'Start with Diagnostics → run Offline smoke → after it passes, continue with Docs Update then Repo Patch.',
             operatorLabel: 'Operator',
             issueLabel: 'Issue URL (optional)',
             docPathLabel: 'Docs path (docs_update)',
@@ -543,6 +545,7 @@
             offlineBtn: 'Generate Offline Smoke Job',
             docsBtn: 'Generate Docs Update Job',
             repoBtn: 'Generate Repo Patch Job',
+            diagBtn: 'Generate Diagnostics Job',
             jobJsonLabel: 'Generated Job JSON',
             copyCommandLabel: 'Next command to run',
             commandText: 'node scripts/run-job.js --job <job-json-file> --role operator',
@@ -609,6 +612,7 @@
           docInstructionInput: document.getElementById('docInstructionInput'),
           repoPathInput: document.getElementById('repoPathInput'),
           repoInstructionInput: document.getElementById('repoInstructionInput'),
+          diagBtn: document.getElementById('diagBtn'),
           runJsonInput: document.getElementById('runJsonInput'),
           auditInput: document.getElementById('auditInput'),
           offlineBtn: document.getElementById('offlineBtn'),
@@ -804,10 +808,38 @@
           return job;
         }
 
+        function buildDiagnosticsJob() {
+          const job = {
+            job_type: 'integration_hub.phase2.diagnostics',
+            goal: 'Check local execution prerequisites',
+            inputs: {
+              message: 'Run diagnostics before enabling external execution',
+              target_path: '.ai-runs/{{run_id}}/diagnostics_report.json'
+            },
+            constraints: {
+              allowed_paths: ['.ai-runs/'],
+              max_files_changed: 0,
+              no_destructive_ops: true
+            },
+            acceptance_criteria: [
+              'Diagnostics report is saved under .ai-runs/<run_id>/',
+              'checks/logs capture command availability and env status'
+            ],
+            provenance: { issue: getIssue() || '', operator: getOperator() },
+            run_mode: 'local',
+            output_language: state.lang,
+            expected_artifacts: [
+              { name: 'diagnostics_report.json', description: 'Diagnostics report' }
+            ]
+          };
+          return job;
+        }
+
         const builders = {
           offline: buildOfflineJob,
           docs: buildDocsJob,
-          repo: buildRepoJob
+          repo: buildRepoJob,
+          diag: buildDiagnosticsJob
         };
 
         function renderJob(job) {
@@ -972,8 +1004,41 @@
           const mcpCheck = findCheckById(checks, 'mcp_exec');
           const docsCheck = findCheckById(checks, 'docs_update');
           const repoCheck = findCheckById(checks, 'repo_patch');
+          const envOpenai = findCheckById(checks, 'env_openai_api_key');
+          const envAnthropic = findCheckById(checks, 'env_anthropic_api_key');
+          const cmdClaude = findCheckById(checks, 'cmd_claude');
+          const diagSuffix = '設定後に diagnostics を再実行し、env_* が OK になることを確認してください。';
+          const diagMessages = [];
 
-          if (jobType === 'integration_hub.phase2.mcp.offline_smoke' && okStatus && mcpCheck && mcpCheck.ok === true) {
+          if (envOpenai && envOpenai.ok === false) {
+            diagMessages.push(
+              'OPENAI_API_KEY が未設定です。外部LLM（OpenAI）を使うジョブを実行するには環境変数を設定してください。'
+            );
+          }
+          if (envAnthropic && envAnthropic.ok === false) {
+            diagMessages.push('ANTHROPIC_API_KEY が未設定です（Claudeを使う場合のみ必要。今は任意）。');
+          }
+          if (cmdClaude && cmdClaude.ok === false) {
+            diagMessages.push('claude CLI は見つかりません（Claudeを使う場合のみ必要。今は任意）。');
+          }
+
+          if (jobType === 'integration_hub.phase2.diagnostics') {
+            if (diagMessages.length) {
+              message = `${diagMessages.join(' ')} ${diagSuffix}`.trim();
+            } else if (okStatus) {
+              message = '環境は概ねOKです。次は spawn 実行（ホワイトリスト付き）か、外部LLMジョブの有効化に進めます。';
+            } else {
+              message = `環境設定を再確認してください。${diagSuffix}`;
+            }
+            return { message, note, failingReasons };
+          }
+
+          if (
+            jobType === 'integration_hub.phase2.mcp.offline_smoke' &&
+            okStatus &&
+            mcpCheck &&
+            mcpCheck.ok === true
+          ) {
             message = '次は docs_update を実行してください（docs/.selftest-doc.md を更新して導線確認）。';
           } else if (jobType === 'integration_hub.phase2.docs_update' && okStatus && docsCheck && docsCheck.ok === true) {
             message = '次は repo_patch（noop）を実行してください（壊さない前提の確認）。';
@@ -1130,6 +1195,7 @@
           el.offlineBtn.addEventListener('click', () => buildJob('offline', true));
           el.docsBtn.addEventListener('click', () => buildJob('docs', true));
           el.repoBtn.addEventListener('click', () => buildJob('repo', true));
+          el.diagBtn.addEventListener('click', () => buildJob('diag', true));
           el.parseBtn.addEventListener('click', handleParse);
           loadOfflineFixture().finally(() => {
             state.lastJobKind = 'offline';
