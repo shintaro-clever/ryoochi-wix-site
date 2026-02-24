@@ -401,9 +401,14 @@
           const runLink = data.run_id
             ? `<div><a href="/runs/${data.run_id}" target="_blank">このRunを開く</a></div>`
             : '';
+          const reason =
+            data.status === 'error' && data.error
+              ? `<div>Reason: <strong>${String(data.error)}</strong></div>`
+              : '';
           resultEl.innerHTML = `
             <div>run_id: <code>${data.run_id}</code></div>
             <div>Status: <strong>${data.status || 'unknown'}</strong></div>
+            ${reason}
             <div>Artifacts:<br />${artifacts}</div>
             ${runLink}
           `;

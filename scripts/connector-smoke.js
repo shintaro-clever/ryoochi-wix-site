@@ -38,12 +38,23 @@ function normalizeRepo(input) {
     if (segments.length < 2) {
       throw new Error('GitHub リポジトリ URL が不正です');
     }
-    return `${segments[0]}/${segments[1]}`;
+    const owner = segments[0];
+    const repo = segments[1].replace(/\.git$/i, '');
+    return `${owner}/${repo}`;
+  }
+  const sshMatch = trimmed.match(/^git@github\.com:([^/]+)\/(.+?)(?:\.git)?$/i);
+  if (sshMatch) {
+    return `${sshMatch[1]}/${sshMatch[2]}`;
   }
   if (!trimmed.includes('/')) {
     throw new Error('GitHub リポジトリは owner/repo 形式で入力してください');
   }
-  return trimmed;
+  const [owner, repoRaw] = trimmed.split('/', 2);
+  const repo = (repoRaw || '').replace(/\.git$/i, '');
+  if (!owner || !repo) {
+    throw new Error('GitHub リポジトリは owner/repo 形式で入力してください');
+  }
+  return `${owner}/${repo}`;
 }
 
 async function githubSmoke(connections) {
@@ -88,7 +99,7 @@ function extractFigmaKey(raw) {
   if (!trimmed.includes('figma.com')) {
     return trimmed;
   }
-  const match = trimmed.match(/figma\\.com\\/(?:file|design)\\/([a-zA-Z0-9]+)(?:\\/|$)/);
+  const match = trimmed.match(/figma\.com\/(?:file|design)\/([a-zA-Z0-9]+)(?:\/|$)/);
   if (match && match[1]) {
     return match[1];
   }
