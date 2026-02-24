@@ -78,3 +78,31 @@ alias codex='codex --sandbox=workspace-write'
 - Codex に `rm -rf` を含む破壊的コマンドを単体で指示しない
 - Codex にシークレット（APIキー・トークン）を直接渡さない
 - `.env` ファイルや `auth.json` の内容を Codex に表示させない
+
+## PR失敗時のトラブルシューティング
+
+### 手順
+1. ブランチ状態を確認する
+   git branch -a
+   git status
+
+2. 不要なブランチを削除する（マージ済みのもの）
+   git branch --merged main | grep -v main | xargs git branch -d
+   git remote prune origin
+
+3. コンフリクトを解消する
+   git status で "Unmerged paths" を確認
+   コンフリクトファイルを編集して解消後、git add して git commit
+
+4. 再実行する
+   node scripts/pr-up.js
+
+### 原因パターン
+- 不要ブランチが残っているとセッションやネットワーク接続に干渉することがある
+- マージ済みブランチは作業完了後に必ず削除すること
+
+## ブランチ管理ルール
+- 作業完了・マージ後は必ずローカルとリモートのブランチを削除する
+  git branch -d <branch>
+  git push origin --delete <branch>
+- 定期的に git branch --merged main で残骸ブランチを確認する
