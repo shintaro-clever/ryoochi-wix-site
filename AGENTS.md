@@ -19,7 +19,7 @@ Codex should be able to:
 6) **Network policy**:
    - Before any `gh pr create/edit`, run `curl -I https://api.github.com`.
    - If unreachable, do NOT run `gh pr` commands. Instead print PR body for manual paste.
-   - If `getent hosts github.com` fails in the current environment, skip all `git push` / `gh pr` attempts and only output `/tmp/pr.md` plus the steps to run in a network-reachable environment.
+   - Network reachability is judged by `curl -I https://github.com` (or `git ls-remote origin HEAD`) succeeding. `getent hosts` may produce false negatives and must not be used as the gating condition (it can still be logged for diagnostics).
 
 ## Default workflow (Codex executes)
 0) Observe repo state:
@@ -54,8 +54,8 @@ Codex should be able to:
 - 失敗時は「失敗したコマンド」と「ログ抜粋（末尾数行）」を返す
 
 ### ネットワーク判定（既存ルールと整合）
-- `getent hosts github.com` が失敗する環境では `git push` / `gh pr` を試行しない
-- その場合は `/tmp/pr.md` を生成・検証し、`cat /tmp/pr.md` と「ネットワーク可環境で実行すべきコマンド」を提示して終了する
+- `curl -I https://github.com`（200系）または `git ls-remote origin HEAD` が成功すればネットワーク可と判断する
+- `getent hosts` は偽陰性が出やすいためゲート条件には使わず、必要ならログ用途に限る
 
 ### 2レーン運用（停止しない）
 - レーンA（ネットワーク可）：`node scripts/pr-up.js` で push→PR作成/更新まで完走
