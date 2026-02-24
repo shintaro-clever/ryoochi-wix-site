@@ -512,7 +512,39 @@ async function main() {
   console.log('Selftest ok');
 }
 
+<<<<<<< Updated upstream
 main().catch((error) => {
   console.error(error && error.message ? error.message : error);
   process.exit(1);
 });
+=======
+// --- Phase2 samples & docs (PR-C) existence checks ---
+function verifyPhase2SamplesExist() {
+  // Keep this lightweight: existence only (no execution, no network).
+  const paths = [
+    'scripts/sample-job.mcp.offline.smoke.json',
+    'scripts/sample-job.docs.update.json',
+    'scripts/sample-job.repo_patch.hub-static.json',
+    'scripts/sample-job.spawn_smoke.json',
+    'scripts/sample-job.diagnostics.json',
+    'scripts/sample-job.openai_exec_smoke.json',
+    'docs/.selftest-doc.md',
+    'apps/hub/static/offline-job.fixture.json'
+  ];
+  for (const fp of paths) {
+    if (!fs.existsSync(fp)) {
+      throw new Error(`missing: ${fp}`);
+    }
+  }
+  console.log('[selftest] OK: phase2 samples/docs exist');
+}
+
+main()
+  .then(() => {
+    verifyPhase2SamplesExist();
+  })
+  .catch((error) => {
+    console.error(error && error.message ? error.message : error);
+    process.exit(1);
+  });
+>>>>>>> Stashed changes
