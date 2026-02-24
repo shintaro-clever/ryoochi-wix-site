@@ -362,6 +362,38 @@ function ensureCodexPrompt(job) {
   return job;
 }
 
+function extractSmokeFailureReason(result, fallback = '') {
+  if (result && Array.isArray(result.errors)) {
+    const firstError = result.errors.find((entry) => typeof entry === 'string' && entry.trim());
+    if (firstError) {
+      return firstError.trim();
+    }
+  }
+  if (result && Array.isArray(result.checks)) {
+    const failedCheck = result.checks.find(
+      (entry) => entry && entry.ok === false && typeof entry.reason === 'string' && entry.reason.trim()
+    );
+    if (failedCheck) {
+      return failedCheck.reason.trim();
+    }
+  }
+  if (result && Array.isArray(result.logs)) {
+    const stderrLine = result.logs.find(
+      (entry) => typeof entry === 'string' && entry.startsWith('stderr preview:')
+    );
+    if (stderrLine) {
+      const preview = stderrLine.replace(/^stderr preview:\s*/, '').trim();
+      if (preview && preview !== '(empty)') {
+        return preview;
+      }
+    }
+  }
+  if (typeof fallback === 'string' && fallback.trim()) {
+    return fallback.trim();
+  }
+  return '疎通テストに失敗しました';
+}
+
 function buildConnectorJob(providerKey) {
   const baseJob = {
     constraints: {
@@ -743,19 +775,24 @@ async function handleSmokeApi(req, res, method) {
       env.OPENAI_API_KEY = connections.ai.apiKey.trim();
     }
     const execResult = await runJobCli(job, env);
+    const runStatus = (execResult.result && execResult.result.status) || (execResult.code === 0 ? 'ok' : 'error');
     let artifacts = getRunArtifactPaths(execResult.result);
-    if (providerKey === 'github' || providerKey === 'figma') {
+    if (runStatus === 'ok' && (providerKey === 'github' || providerKey === 'figma')) {
       const metaPath = await createConnectorMetadata(providerKey, execResult.runId);
       if (metaPath) {
         artifacts = artifacts.concat([metaPath]);
       }
     }
-    sendJson(res, 200, {
+    const responsePayload = {
       run_id: execResult.runId,
-      status: (execResult.result && execResult.result.status) || (execResult.code === 0 ? 'ok' : 'error'),
+      status: runStatus,
       artifacts,
       diff_summary: execResult.result && execResult.result.diff_summary
-    });
+    };
+    if (runStatus !== 'ok') {
+      responsePayload.error = extractSmokeFailureReason(execResult.result, execResult.stderr);
+    }
+    sendJson(res, 200, responsePayload);
   } catch (error) {
     const status = error.code === 'CONFIG_MISSING' ? 400 : 500;
     sendJson(res, status, { error: error.message });
