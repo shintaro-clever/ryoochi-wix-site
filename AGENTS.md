@@ -1,108 +1,119 @@
 # AGENTS.md
 
-## PR Up（「PRあげてください」運用）
+このファイルは「入口（Index）」です。詳細ルール/手順は `agents/rules/*` と `agents/commands/*` に分割して移設します。  
+このファイルには **最小限の絶対ルール**のみを残します。
 
-タスク完了後は必ず以下を実行する：
+---
 
-```
-node scripts/pr-up.js
-```
+## ⛔ PROHIBITED ACTIONS — Read Before Anything Else
 
-このスクリプトが以下をすべて自動処理する：
-- `npm test`
-- `scripts/gen-pr-body.js` → `/tmp/pr.md` 生成
-- `git push`
-- `gh pr create` または `gh pr edit`
+These rules are absolute. No exceptions, no overrides.
 
-## ブランチ命名規則
+- **MUST NOT** run on `main` or `master`. Always work on a feature branch.
+- **MUST NOT** use `--dangerously-bypass-approvals-and-sandbox`.
+- **MUST NOT** use `--sandbox=danger-full-access`.
+- **MUST NOT** issue destructive commands (e.g., `rm -rf`) as standalone Codex instructions.
+- **MUST NOT** pass secrets (API keys, tokens) directly to Codex.
+- **MUST NOT** expose `.env` or `auth.json` contents to Codex.
+- **MUST NOT** manually edit `/tmp/pr.md` — it will be overwritten by the script.
+- **MUST NOT** modify placeholder strings in `.github/PULL_REQUEST_TEMPLATE.md` — this breaks parsing in `gen-pr-body.js`.
 
-`issue-<番号>-<スラッグ>` 形式にすること。  
-例: `issue-42-ms0-schema`
+## ⛔ 禁止事項 — 必ず最初に読むこと
 
-main/master での実行は拒否される。必ず feature ブランチで作業すること。
+以下のルールは絶対厳守。例外・上書き不可。
 
-## PR作成後のローカル後始末
+- `main` または `master` ブランチで作業**禁止**。必ず feature ブランチで作業すること。
+- `--dangerously-bypass-approvals-and-sandbox` の使用**禁止**。
+- `--sandbox=danger-full-access` の使用**禁止**。
+- `rm -rf` 等の破壊的コマンドを Codex への単体指示として使用**禁止**。
+- シークレット（APIキー・トークン）を Codex に直接渡すこと**禁止**。
+- `.env` / `auth.json` の内容を Codex に表示させること**禁止**。
+- `/tmp/pr.md` の手動編集**禁止**（スクリプトが上書きする）。
+- `.github/PULL_REQUEST_TEMPLATE.md` のプレースホルダー変更**禁止**（`gen-pr-body.js` が壊れる）。
 
-```bash
-git checkout main
-git pull origin main
-git branch -d <作業ブランチ名>
-```
+---
 
-次のタスクは最新の main から新しいブランチを切って始める：
+## Launching Codex / Codex の起動
 
-```bash
-git checkout -b issue-<番号>-<スラッグ>
-```
+必ず `workspace-write` で起動すること：
 
-## stash pop 後の確認
-
-`git stash pop` を実行した後は必ず以下を確認してからコミットする：
-
-```bash
-git status
-```
-
-`Unmerged paths` が表示された場合はコンフリクトを解消してから `git add` する。
-
-## ネットワーク障害時のフォールバック
-
-`git push` または `gh pr create` が失敗した場合、スクリプトがコピペ可能なコマンドを出力する。
-その場合はネットワーク可のターミナルで出力されたコマンドを実行すること。
-
-## 失敗時のルール
-
-- 推測で原因を書かない
-- 失敗したコマンドと stderr 末尾をそのまま返す
-
-## 禁止事項
-
-- `.github/PULL_REQUEST_TEMPLATE.md` のプレースホルダー文字列を変更しないこと  
-  （`gen-pr-body.js` の正規表現が壊れる）
-- `/tmp/pr.md` を手動編集しないこと（上書きされる）
-
-## Codex の起動方法
-
-必ず以下のエイリアスが設定された状態で起動すること（~/.bashrc に設定済み）：
 ```bash
 alias codex='codex --sandbox=workspace-write'
 ```
 
-### サンドボックスモードの選択理由
-- `workspace-write`: ワークスペース内の読み書き＋ネットワークアクセスを許可。ワークスペース外のファイル操作は制限される。**通常運用はこれを使う。**
-- `danger-full-access`: 全操作無制限。セキュリティリスクが高いため使用禁止。
+- `workspace-write`: 通常運用 ✅
+- `danger-full-access`: 使用禁止 ❌
 
-### 禁則事項
-- `--dangerously-bypass-approvals-and-sandbox` オプションは使用禁止
-- `--sandbox=danger-full-access` は使用禁止
-- Codex に `rm -rf` を含む破壊的コマンドを単体で指示しない
-- Codex にシークレット（APIキー・トークン）を直接渡さない
-- `.env` ファイルや `auth.json` の内容を Codex に表示させない
+---
 
-## PR失敗時のトラブルシューティング
+## Branch Naming Convention / ブランチ命名規則
 
-### 手順
-1. ブランチ状態を確認する
-   git branch -a
-   git status
+Branch names **MUST** follow:
 
-2. 不要なブランチを削除する（マージ済みのもの）
-   git branch --merged main | grep -v main | xargs git branch -d
-   git remote prune origin
+```text
+issue-<number>-<slug>
+```
 
-3. コンフリクトを解消する
-   git status で "Unmerged paths" を確認
-   コンフリクトファイルを編集して解消後、git add して git commit
+例: `issue-42-ms0-schema`
 
-4. 再実行する
-   node scripts/pr-up.js
+Start each task from latest `main` (when network operations are allowed):
 
-### 原因パターン
-- 不要ブランチが残っているとセッションやネットワーク接続に干渉することがある
-- マージ済みブランチは作業完了後に必ず削除すること
+```bash
+git checkout main
+git pull --ff-only origin main
+git checkout -b issue-<number>-<slug>
+```
 
-## ブランチ管理ルール
-- 作業完了・マージ後は必ずローカルとリモートのブランチを削除する
-  git branch -d <branch>
-  git push origin --delete <branch>
-- 定期的に git branch --merged main で残骸ブランチを確認する
+---
+
+## PR Workflow ("PR あげてください")
+
+After completing a task, **MUST** run:
+
+```bash
+node scripts/pr-up.js
+```
+
+`pr-up.js` is the single entrypoint. Follow its output exactly.
+
+- If Step 1 (`npm test`) fails:
+  Stop. Fix tests. Re-run `node scripts/pr-up.js` from the beginning.
+- If `git push` or `gh pr *` fails:
+  Do not invent procedures. Use the copy-paste recovery commands printed by the script.
+
+Notes:
+
+- Depending on sandbox constraints, the script may instruct an "escalated" execution path.
+- Even in that case, `danger-full-access` and bypass options remain forbidden.
+
+---
+
+## Conflict Resolution / コンフリクト解消（必須）
+
+`git status` に `Unmerged paths` が出たら、マーカーを完全解消 → `git add <file>` → `git status` でゼロ確認 → `git commit`。  
+その後 `node scripts/pr-up.js` を再実行。
+
+---
+
+## Failure Reporting Rules / 失敗時の報告
+
+Report only:
+
+1. failed command (verbatim)
+2. last stderr lines (verbatim)
+
+推測・要約は禁止。
+
+---
+
+## Post-PR Local Cleanup / 後始末（推奨）
+
+PR作成後（またはPR更新後）、作業完了が確定したら：
+
+```bash
+git checkout main
+git pull --ff-only origin main
+git branch -d <working-branch>
+```
+
+リモートブランチ削除は PR マージ後（運用ルールに従う）。
