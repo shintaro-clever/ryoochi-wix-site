@@ -8,6 +8,25 @@ function run(cmd, args) {
   return (r.stdout || "").trim();
 }
 
+// 失敗時に throw せず空文字を返す安全版
+function safeRun(cmd, args) {
+  const r = spawnSync(cmd, args, { encoding: "utf8", timeout: 10000 });
+  return r.status === 0 ? (r.stdout || "").trim() : "";
+}
+
+// PR_BASE_BRANCH 環境変数 → git ローカル参照の順で base を解決する
+function detectBase() {
+  const envBase = process.env.PR_BASE_BRANCH;
+  const candidates = envBase
+    ? [envBase, "origin/main", "origin/master", "main", "master"]
+    : ["origin/main", "origin/master", "main", "master"];
+  for (const c of candidates) {
+    const r = spawnSync("git", ["rev-parse", "--verify", c], { encoding: "utf8", timeout: 5000 });
+    if (r.status === 0) return c;
+  }
+  return "HEAD~1";
+}
+
 function inferImpactFromFiles(files) {
   const impacts = new Set();
   files.forEach((f) => {
@@ -30,7 +49,6 @@ function runStatWithFallback(base) {
   const candidates = [
     ["git", ["diff", "--stat", `${base}...HEAD`]],
     ["git", ["diff", "--stat", `${base}..HEAD`]],
-    ["git", ["diff", "--stat", "main...HEAD"]],
     ["git", ["diff", "--stat", "HEAD~1..HEAD"]]
   ];
   const attempts = [];
@@ -68,7 +86,6 @@ function runNumstatWithFallback(base) {
   const candidates = [
     ["git", ["diff", "--numstat", `${base}...HEAD`]],
     ["git", ["diff", "--numstat", `${base}..HEAD`]],
-    ["git", ["diff", "--numstat", "main...HEAD"]],
     ["git", ["diff", "--numstat", "HEAD~1..HEAD"]]
   ];
   const attempts = [];
@@ -236,20 +253,13 @@ function main() {
   if (!fs.existsSync(templatePath)) throw new Error(`missing template: ${templatePath}`);
   const template = fs.readFileSync(templatePath, "utf8");
 
-  let base = "origin/main";
-  try {
-    run("git", ["rev-parse", "--verify", base]);
-  } catch {
-    base = "main";
-  }
+  const base = detectBase();
 
   const statResult = runStatWithFallback(base);
   const stat = statResult.ok ? statResult.stdout : "";
-  const nameStatus = run("git", ["diff", "--name-status", `${base}...HEAD`]);
-  const nameOnly = run("git", ["diff", "--name-only", `${base}...HEAD`]);
-  const diffText = run("git", ["diff", "--unified=0", `${base}...HEAD`]);
+  const nameOnly = safeRun("git", ["diff", "--name-only", `${base}...HEAD`]);
+  const diffText = safeRun("git", ["diff", "--unified=0", `${base}...HEAD`]);
   let files = nameOnly ? nameOnly.split("\n").filter(Boolean) : [];
-  const statusLines = nameStatus ? nameStatus.split("\n").filter(Boolean) : [];
 
   if (files.length === 0) {
     const lastNames = run("git", ["show", "--name-only", "--pretty=format:", "-1"]);

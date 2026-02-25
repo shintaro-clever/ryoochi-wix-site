@@ -11,6 +11,8 @@
  */
 
 const { spawnSync } = require("child_process");
+const fs = require("fs");
+const path = require("path");
 
 function sh(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { encoding: "utf8", ...opts });
@@ -61,7 +63,61 @@ function printFallback({ branch, repoNwo, defaultBranch, title }) {
   info(`  gh pr create --repo ${repoNwo} --base ${defaultBranch} --head ${branch} --title "${title}" --body-file /tmp/pr.md`);
 }
 
+function runDoctor() {
+  return sh("node", ["scripts/hub-doctor.js"]);
+}
+
+function readDoctorJson() {
+  const doctorPath = path.join(process.cwd(), "doctor.json");
+  if (!fs.existsSync(doctorPath)) return null;
+  try {
+    return JSON.parse(fs.readFileSync(doctorPath, "utf8"));
+  } catch {
+    return null;
+  }
+}
+
+function printNativeBlock() {
+  const nodeVersion = (process.version || "").trim();
+  const nodeModules = process.versions && process.versions.modules ? String(process.versions.modules) : "unknown";
+  info(`[PR-UP] Node: ${nodeVersion}`);
+  info(`[PR-UP] Node modules ABI: ${nodeModules}`);
+  info("[PR-UP] Recovery (recommended):");
+  info("  volta pin node@22");
+  info("  rm -rf node_modules");
+  info("  npm install");
+}
+
 function main() {
+  const doctorRun = runDoctor();
+  const doctor = readDoctorJson();
+  if (!doctorRun || doctorRun.status !== 0 || !doctor) {
+    const reason = doctorRun && doctorRun.status !== 0
+      ? `hub-doctor.js failed (code=${doctorRun.status})`
+      : "doctor.json missing or invalid";
+    info(`[PR-UP] ${reason}. Aborting before npm test/push/gh.`);
+    printNativeBlock();
+    process.exit(1);
+  }
+  const nativeStatus = doctor && doctor.native && doctor.native.better_sqlite3;
+  if (nativeStatus && nativeStatus.ok === false) {
+    info("[PR-UP] native.better_sqlite3.ok=false detected in doctor.json. Aborting before npm test/push/gh.");
+    printNativeBlock();
+    process.exit(1);
+  }
+
+  // ネットワークガード: NET_NG なら push/gh の前に中断
+  const netOk = doctor.network && doctor.network.ok;
+  if (netOk === false) {
+    const detail = doctor.network.detail || "(詳細なし)";
+    info(`[PR-UP] NET_NG: ネットワーク到達不可 (${detail})`);
+    info("[PR-UP] git push / gh pr create を中止します。");
+    info("[PR-UP] 復旧方法:");
+    info("  bash scripts/fix-dns.sh");
+    info("  node scripts/pr-up.js");
+    process.exit(1);
+  }
+
   const branch = must("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
   if (branch === "main" || branch === "master") {
     warn(`[PR-UP] REFUSED: current branch is ${branch}. Create a feature branch first.`);
@@ -69,16 +125,16 @@ function main() {
     process.exit(1);
   }
 
+  // repo/base を早期解決して gen-pr-body.js に渡す
+  const repoNwo       = getRepoNwo();
+  const defaultBranch = getDefaultBranch(repoNwo);
+  const title         = must("git", ["log", "-1", "--pretty=%s"]);
+  info(`[PR-UP] repo=${repoNwo} base=${defaultBranch} head=${branch}`);
+
   // ローカルステップ
   must("npm", ["test"], { env: { ...process.env, SKIP_INTEGRATION_TESTS: "1" } });
-  must("node", ["scripts/gen-pr-body.js"]);
+  must("node", ["scripts/gen-pr-body.js"], { env: { ...process.env, PR_BASE_BRANCH: defaultBranch } });
   must("node", ["scripts/pr-body-verify.js", "/tmp/pr.md"]);
-
-  // repo / branch / title
-  const repoNwo      = getRepoNwo();
-  const defaultBranch = getDefaultBranch(repoNwo);
-  const title        = must("git", ["log", "-1", "--pretty=%s"]);
-  info(`[PR-UP] repo=${repoNwo} base=${defaultBranch} head=${branch}`);
 
   // push
   const push = sh("git", ["push", "-u", "origin", branch], { timeout: 30000 });
@@ -89,7 +145,6 @@ function main() {
   }
 
   // PR create or edit
-  const title_ = must("git", ["log", "-1", "--pretty=%s"]);
   const list = sh("gh", ["pr", "list", "--repo", repoNwo, "--head", branch, "--json", "number", "--jq", ".[0].number"], { timeout: 30000 });
   const prNumber = list.status === 0 ? (list.stdout || "").trim() : "";
 
@@ -97,15 +152,15 @@ function main() {
     const edit = sh("gh", ["pr", "edit", prNumber, "--repo", repoNwo, "--body-file", "/tmp/pr.md"], { timeout: 30000 });
     if (edit.status !== 0) {
       warn(`[PR-UP] gh pr edit failed\n` + tailText(((edit.stdout || "") + "\n" + (edit.stderr || "")).trim(), 20));
-      printFallback({ branch, repoNwo, defaultBranch, title: title_ });
+      printFallback({ branch, repoNwo, defaultBranch, title });
       process.exit(1);
     }
     info(`[PR-UP] Updated PR #${prNumber}`);
   } else {
-    const create = sh("gh", ["pr", "create", "--repo", repoNwo, "--base", defaultBranch, "--head", branch, "--title", title_, "--body-file", "/tmp/pr.md"], { timeout: 30000 });
+    const create = sh("gh", ["pr", "create", "--repo", repoNwo, "--base", defaultBranch, "--head", branch, "--title", title, "--body-file", "/tmp/pr.md"], { timeout: 30000 });
     if (create.status !== 0) {
       warn(`[PR-UP] gh pr create failed\n` + tailText(((create.stdout || "") + "\n" + (create.stderr || "")).trim(), 20));
-      printFallback({ branch, repoNwo, defaultBranch, title: title_ });
+      printFallback({ branch, repoNwo, defaultBranch, title });
       process.exit(1);
     }
     info(`[PR-UP] Created PR: ${(create.stdout || "").trim()}`);
