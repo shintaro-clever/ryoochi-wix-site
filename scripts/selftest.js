@@ -18,12 +18,35 @@ const {
   expireTimedOutRuns
 } = require('../src/db/runs');
 const { db: hubDb, DEFAULT_TENANT } = require('../src/db');
-const { run: runMs2TargetPath } = require('../tests/selftest/ms2_targetPath.test');
-const { run: runMs2Runs } = require('../tests/selftest/ms2_runs.test');
-const { run: runMs2Artifacts } = require('../tests/selftest/ms2_artifacts.test');
-const { run: runMs2Events } = require('../tests/selftest/ms2_events.test');
 
 const RUNS_ROOT = path.join(process.cwd(), '.ai-runs');
+
+function loadSelftestRunners() {
+  const dir = path.join(__dirname, '..', 'tests', 'selftest');
+  const order = [
+    'ms2_targetPath.test.js',
+    'ms2_runs.test.js',
+    'ms2_artifacts.test.js',
+    'ms2_events.test.js',
+    'ms4_targetPath_cases.test.js',
+    'ms4_figma_verify.test.js',
+    'integration_ms0_ms4.test.js'
+  ];
+  const runners = [];
+  for (const name of order) {
+    const filePath = path.join(dir, name);
+    if (!fs.existsSync(filePath)) {
+      console.warn(`[selftest] SKIP missing ${name}`);
+      continue;
+    }
+    const mod = require(filePath);
+    if (typeof mod.run !== 'function') {
+      throw new Error(`[selftest] invalid selftest module: ${name} (missing run)`);
+    }
+    runners.push({ name, run: mod.run });
+  }
+  return runners;
+}
 
 function assert(condition, message) {
   if (!condition) {
@@ -93,11 +116,19 @@ function requestLocal(app, options = {}) {
     const res = new PassThrough();
     const resHeaders = {};
     let statusCode = 200;
+    Object.defineProperty(res, 'statusCode', {
+      get() {
+        return statusCode;
+      },
+      set(value) {
+        statusCode = value;
+      }
+    });
     res.setHeader = (key, value) => {
       resHeaders[String(key).toLowerCase()] = value;
     };
     res.writeHead = (code, hdrs = {}) => {
-      statusCode = code;
+      res.statusCode = code;
       Object.entries(hdrs).forEach(([k, v]) => {
         resHeaders[String(k).toLowerCase()] = v;
       });
@@ -137,7 +168,7 @@ function runJob(jobPath, extraEnv = {}) {
 
 function runJobWithRunId(jobPath, extraEnv = {}) {
   const before = listRuns();
-  const result = spawnSync('node', ['scripts/run-job.js', '--job', jobPath, '--role', 'operator'], {
+  const result = spawnSync(process.execPath, ['scripts/run-job.js', '--job', jobPath, '--role', 'operator'], {
     encoding: 'utf8',
     timeout: 30000, // 30秒
     env: { ...process.env, ...extraEnv }
@@ -580,7 +611,7 @@ function verifyHubDoctor() {
     // ignore cleanup failures
   }
 
-  const result = spawnSync('node', ['scripts/hub-doctor.js'], {
+  const result = spawnSync(process.execPath, ['scripts/hub-doctor.js'], {
     encoding: 'utf8',
     timeout: 30000 // 30秒
   });
@@ -594,6 +625,21 @@ function verifyHubDoctor() {
   assert(
     'nodeModules' in payload.native.better_sqlite3,
     'doctor.json missing native.better_sqlite3.nodeModules'
+  );
+}
+
+function verifyPrUpFlowLock() {
+  const prUpPath = path.join(process.cwd(), 'scripts', 'pr-up.js');
+  const text = fs.readFileSync(prUpPath, 'utf8');
+  assert(text.includes('function shNodeTool('), 'pr-up.js must use shNodeTool wrapper');
+  assert(
+    text.includes('ネットワーク診断はNGですが、push/gh を継続して実行します。'),
+    'pr-up.js must not abort only on NET_NG'
+  );
+  assert(text.includes('shNodeTool("npm", ["test"]'), 'pr-up.js must run npm test via shNodeTool');
+  assert(
+    text.includes('shNodeTool("node", ["scripts/gen-pr-body.js"]'),
+    'pr-up.js must run gen-pr-body via shNodeTool'
   );
 }
 
@@ -704,12 +750,13 @@ async function main() {
   verifyFigmaPlanGuarantee();
   verifyPhase2SamplesExist();
   verifyHubDoctor();
+  verifyPrUpFlowLock();
   await verifyRunJobClientDepth();
   await verifyRunTimeout();
-  await runMs2TargetPath();
-  await runMs2Runs();
-  await runMs2Artifacts();
-  await runMs2Events();
+  const runners = loadSelftestRunners();
+  for (const runner of runners) {
+    await runner.run();
+  }
   console.log('Selftest ok');
 }
 
