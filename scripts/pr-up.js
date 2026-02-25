@@ -88,6 +88,34 @@ function printNativeBlock() {
   info("  npm install");
 }
 
+function isNativeAbiMismatch(text) {
+  const s = String(text || "");
+  const hasNativeModule =
+    /better_sqlite3\.node/i.test(s) ||
+    /better-sqlite3/i.test(s) ||
+    /ERR_DLOPEN_FAILED/i.test(s);
+  const hasAbiSignal =
+    /compiled against a different Node\.js version/i.test(s) ||
+    /NODE_MODULE_VERSION/i.test(s) ||
+    /Module version mismatch/i.test(s);
+  return hasNativeModule && hasAbiSignal;
+}
+
+function printAbiMismatchRecovery() {
+  warn("[PR-UP] failure_code=native_module_abi_mismatch");
+  warn("[PR-UP] better-sqlite3 / native module ABI mismatch detected.");
+  warn("[PR-UP] Recovery (copy-paste):");
+  warn("  volta pin node@22");
+  warn("  rm -rf node_modules package-lock.json");
+  warn("  npm ci");
+  warn("  npm rebuild better-sqlite3 --build-from-source");
+  warn("  npm test");
+  warn("[PR-UP] Alternate environment flow (copy-paste):");
+  warn("  npm test");
+  warn("  git push -u origin $(git rev-parse --abbrev-ref HEAD)");
+  warn("  gh pr create --fill --body-file /tmp/pr.md");
+}
+
 function main() {
   const doctorRun = runDoctor();
   const doctor = readDoctorJson();
@@ -106,34 +134,33 @@ function main() {
     process.exit(1);
   }
 
-  // ネットワークガード: CHECK_* が OK 以外なら push/gh の前に中断
+  // ネットワーク判定は警告のみ。push/gh は実行して実際の成否で判断する。
   // "ネットワーク診断はNGですが、push/gh を継続して実行します。"
   const netOk = doctor.network && doctor.network.ok;
   if (netOk === false) {
     const status = doctor.network.status || "CHECK_NET_NG";
     const detail = doctor.network.detail || "(詳細なし)";
     if (status === "CHECK_BLOCKED") {
-      info(`[PR-UP] ${status}: ネットワーク判定が実行不能 (${detail})`);
+      warn(`[PR-UP] WARN ${status}: ネットワーク判定が実行不能 (${detail})`);
     } else if (status === "CHECK_DNS_NG") {
-      info(`[PR-UP] ${status}: DNS 解決に失敗 (${detail})`);
+      warn(`[PR-UP] WARN ${status}: DNS 解決に失敗 (${detail})`);
     } else {
-      info(`[PR-UP] ${status}: ネットワーク到達不可 (${detail})`);
+      warn(`[PR-UP] WARN ${status}: ネットワーク到達不可 (${detail})`);
     }
-    info("[PR-UP] git push / gh pr create を中止します。");
+    warn("[PR-UP] ネットワーク診断はNGですが、push/gh を継続して実行します。");
     if (status === "CHECK_DNS_NG") {
-      info("[PR-UP] 復旧方法:");
-      info("  bash scripts/fix-dns.sh");
-      info("  node scripts/pr-up.js");
+      warn("[PR-UP] 復旧方法:");
+      warn("  bash scripts/fix-dns.sh");
+      warn("  node scripts/pr-up.js");
     } else if (status === "CHECK_BLOCKED") {
-      info("[PR-UP] 復旧方法:");
-      info("  コンテナ権限/ネットワークポリシーを確認してください。");
-      info("  node scripts/pr-up.js");
+      warn("[PR-UP] 復旧方法:");
+      warn("  コンテナ権限/ネットワークポリシーを確認してください。");
+      warn("  node scripts/pr-up.js");
     } else {
-      info("[PR-UP] 復旧方法:");
-      info("  ネットワーク設定を確認してください。");
-      info("  node scripts/pr-up.js");
+      warn("[PR-UP] 復旧方法:");
+      warn("  ネットワーク設定を確認してください。");
+      warn("  node scripts/pr-up.js");
     }
-    process.exit(1);
   }
 
   const branch = must("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
@@ -153,6 +180,10 @@ function main() {
   const npmTest = shNodeTool("npm", ["test"], { env: { ...process.env, SKIP_INTEGRATION_TESTS: "1" } });
   if (npmTest.status !== 0) {
     const out = ((npmTest.stdout || "") + "\n" + (npmTest.stderr || "")).trim();
+    if (isNativeAbiMismatch(out)) {
+      printAbiMismatchRecovery();
+      process.exit(1);
+    }
     throw new Error(`npm test failed (code=${npmTest.status})\n${out}`);
   }
   const prBody = shNodeTool("node", ["scripts/gen-pr-body.js"], { env: { ...process.env, PR_BASE_BRANCH: defaultBranch } });
