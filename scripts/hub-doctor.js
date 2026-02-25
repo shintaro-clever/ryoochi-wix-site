@@ -2,6 +2,7 @@
 const fs = require('fs');
 const path = require('path');
 const { spawnSync } = require('child_process');
+const https = require('https');
 
 function runCommand(cmd, args, options = {}) {
   const result = spawnSync(cmd, args, {
@@ -22,13 +23,34 @@ function runCommand(cmd, args, options = {}) {
 }
 
 function checkNetwork() {
-  const res = runCommand('curl', ['-fsSI', '-o', '/dev/null', 'https://github.com']);
-  const status = res.ok ? 'NET_OK' : 'NET_NG';
-  return {
-    status,
-    ok: res.ok,
-    detail: res.ok ? null : res.error || res.stderr || `curl exit ${res.status}`
-  };
+  return new Promise((resolve) => {
+    const req = https.request(
+      {
+        method: 'HEAD',
+        hostname: 'github.com',
+        path: '/',
+        timeout: 5000
+      },
+      (res) => {
+        res.resume();
+        const ok = res.statusCode >= 200 && res.statusCode < 400;
+        resolve({
+          status: ok ? 'NET_OK' : 'NET_NG',
+          ok,
+          detail: ok ? null : `HTTP ${res.statusCode}`
+        });
+      }
+    );
+    req.on('timeout', () => req.destroy(new Error('timeout')));
+    req.on('error', (error) => {
+      resolve({
+        status: 'NET_NG',
+        ok: false,
+        detail: error && error.message ? error.message : String(error)
+      });
+    });
+    req.end();
+  });
 }
 
 function checkVersion(cmd, args) {
@@ -68,9 +90,9 @@ function parseNodeModuleVersions(message) {
   return { required: null, found: null };
 }
 
-function main() {
+async function main() {
   const cwd = process.cwd();
-  const network = checkNetwork();
+  const network = await checkNetwork();
   const nodeVersion = checkVersion('node', ['-v']);
   const npmVersion = checkVersion('npm', ['-v']);
   const nodeModules = checkVersion('node', ['-p', 'process.versions.modules']);
@@ -143,4 +165,8 @@ function main() {
   process.stdout.write(lines.join('\n') + '\n');
 }
 
-main();
+main().catch((error) => {
+  const message = error && error.message ? error.message : String(error);
+  process.stderr.write(`[hub-doctor] FAILED: ${message}\n`);
+  process.exit(1);
+});
