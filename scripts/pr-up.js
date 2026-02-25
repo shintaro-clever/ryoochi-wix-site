@@ -113,7 +113,11 @@ function main() {
   const genRes = shNodeTool("node", ["scripts/gen-pr-body.js"], { env: { ...process.env, PR_BASE_BRANCH: defaultBranch } });
   if (genRes.status !== 0) failWithCommand("node", ["scripts/gen-pr-body.js"], genRes, 20);
 
-  must("node", ["scripts/pr-body-verify.js", "/tmp/pr.md"]);
+  const verifyRes = shNodeTool("node", ["scripts/pr-body-verify.js", "/tmp/pr.md"]);
+  if (verifyRes.status !== 0) {
+    warn((verifyRes.stderr || verifyRes.stdout || "").trim());
+    process.exit(1);
+  }
 
   const pushArgs = ["push", "-u", "origin", branch];
   const pushRes = shNodeTool("git", pushArgs, { timeout: 30000 });

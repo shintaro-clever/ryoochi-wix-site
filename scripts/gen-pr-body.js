@@ -27,19 +27,6 @@ function detectBase() {
   return "HEAD~1";
 }
 
-function inferImpactFromFiles(files) {
-  const impacts = new Set();
-  files.forEach((f) => {
-    if (f.startsWith("docs/") || f.endsWith(".md")) impacts.add("Docs");
-    else if (f.includes("server") || f.startsWith("src/server")) impacts.add("API");
-    else if (f.startsWith("apps/hub/static") || f.includes("/ui") || f.endsWith(".html")) impacts.add("UI");
-    else if (f.includes("db") || f.includes("sqlite")) impacts.add("DB");
-    else if (f.includes("config") || f.endsWith(".yml") || f.endsWith(".yaml")) impacts.add("Config");
-    else impacts.add("Code");
-  });
-  return Array.from(impacts);
-}
-
 function parseDiffStat(statText) {
   if (!statText) return [];
   return statText.split("\n").filter(Boolean);
@@ -248,56 +235,33 @@ function buildRiskFlags(files, statEntries, numstatResult) {
   return flags;
 }
 
-function ensureAtLeastTwoAcChecked(md) {
-  // 「完了条件」セクション内の AC チェックを最低2つ[x]にする（Gate対策）
-  // 既存本文は極力壊さない：該当セクションのAC行だけを最小編集する
+function stripAiPlaceholders(md) {
+  return md
+    .split("\n")
+    .filter((line) => !line.includes("（AI）"))
+    .join("\n");
+}
 
-  const sectionRe = /(##\s*完了条件[\s\S]*?)(\n##\s|$)/m;
-  const m = md.match(sectionRe);
-  if (!m) return md;
+function escapeRegex(text) {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
-  const section = m[1];
-  const tail = m[2] || "";
-
-  const lines = section.split("\n");
-  const acIdx = [];
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    if (/^- \[[ xX]\]\s*AC[:：]/.test(line)) acIdx.push(i);
+function appendToSection(md, heading, addition) {
+  const headingRe = new RegExp(`^##\\s*${escapeRegex(heading)}\\s*$`, "m");
+  const match = md.match(headingRe);
+  if (!match || typeof match.index !== "number") {
+    return `${md}\n\n## ${heading}\n${addition}\n`;
   }
-  if (acIdx.length === 0) return md;
-
-  const checked = acIdx.filter((i) => /^- \[[xX]\]/.test(lines[i])).length;
-  if (checked >= 2) return md;
-
-  // 優先的にチェックしたいAC（文言揺れを吸収）
-  const prefer = [
-    /npm\s*test/i,
-    /差分|一致/
-  ];
-
-  // まず優先ACを[x]にする
-  for (const re of prefer) {
-    if (acIdx.every((i) => /^- \[[xX]\]/.test(lines[i]))) break;
-    for (const i of acIdx) {
-      if (!/^-\s*\[[xX]\]/.test(lines[i]) && re.test(lines[i])) {
-        lines[i] = lines[i].replace(/^- \[[ xX]\]/, "- [x]");
-      }
-    }
-  }
-
-  // まだ足りなければ先頭から埋める
-  let nowChecked = acIdx.filter((i) => /^- \[[xX]\]/.test(lines[i])).length;
-  for (const i of acIdx) {
-    if (nowChecked >= 2) break;
-    if (!/^-\s*\[[xX]\]/.test(lines[i])) {
-      lines[i] = lines[i].replace(/^- \[[ xX]\]/, "- [x]");
-      nowChecked++;
-    }
-  }
-
-  const newSection = lines.join("\n");
-  return md.replace(sectionRe, `${newSection}${tail}`);
+  const headingStart = match.index;
+  const headingEnd = headingStart + match[0].length;
+  const rest = md.slice(headingEnd);
+  const nextHeading = rest.match(/\n##\s+/m);
+  const insertPos = nextHeading ? headingEnd + nextHeading.index : md.length;
+  const before = md.slice(0, insertPos);
+  const after = md.slice(insertPos);
+  const separator = before.endsWith("\n") ? "" : "\n";
+  const additionBlock = `${separator}${addition}\n`;
+  return `${before}${additionBlock}${after}`;
 }
 
 function main() {
@@ -319,9 +283,6 @@ function main() {
   }
 
   const effectiveStat = stat || run("git", ["show", "--stat", "--oneline", "-1"]);
-  const impacts = inferImpactFromFiles(files);
-  const impactLine = impacts.length ? impacts.join(" / ") : "Code";
-
   const summaryBlock = inferChangeSummary({ files, diffText });
 
   const statEntries = parseDiffStat(stat);
@@ -338,37 +299,33 @@ function main() {
   const riskText = riskFlags.length ? riskFlags.join(", ") : "なし";
   const humanRequired = riskFlags.length ? "YES" : "NO";
 
-  const summaryLine = files.length
-    ? files.slice(0, 7).map((f) => `- ${f}`).join("\n")
+  const fileListLines = files.length
+    ? files.map((f) => `- ${f}`).join("\n")
     : "- （差分ファイルの検出に失敗。git diff を確認してください）";
 
-  const riskLine =
-    files.length === 1 && files[0].endsWith(".md")
-      ? "リスク: なし（ドキュメントのみ）"
-      : "リスク: 既存挙動への影響がある場合は差分に基づき確認が必要";
+  const diffFilesBlock = [
+    "### 差分ファイル一覧",
+    `- base: ${base}...HEAD`,
+    fileListLines
+  ].join("\n");
 
-  let out = template;
+  const diffStatBlock = [
+    "### diff統計",
+    `- base: ${base}...HEAD`,
+    "",
+    "```",
+    effectiveStat,
+    "```"
+  ].join("\n");
 
-  out = out.replace(/## 概要[\s\S]*?- （AI）.*?\n/, `## 概要\n- 差分（${base}...HEAD）の変更を反映する\n`);
-  out = out.replace(
-    /## 変更内容（AIが埋める）[\s\S]*?- （AI）変更点を箇条書きで3〜7行.*?\n- （AI）影響範囲.*?\n- （AI）リスクがあれば1行.*?\n/,
-    `## 変更内容（AIが埋める）\n- 変更差分（${base}...HEAD）:\n${summaryLine}\n- 影響範囲: ${impactLine}\n- ${riskLine}\n`
-  );
+  const verificationBlock = [
+    "### 検証結果",
+    "- npm test: PASS (pr-up)"
+  ].join("\n");
 
-  out = out.replace(
-    /## 関連Issue（どちらか1つチェック）[\s\S]*?- \[ \] 関連Issueあり: #<issue_number>\n- \[ \] No Issue（理由）: <.*?>\n/,
-    `## 関連Issue（どちらか1つチェック）\n- [ ] 関連Issueあり: #<issue_number>\n- [x] No Issue（理由）: 軽度修正/調整のため\n`
-  );
-
-  out = out.replace(
-    /## 完了条件（最低1つチェック）[\s\S]*?- \[ \] AC: \n- \[ \] AC: \n- \[ \] AC: \n/,
-    `## 完了条件（最低1つチェック）\n- [x] AC: npm test が成功する\n- [ ] AC: PR Gate を通過してマージ可能な状態になる\n- [ ] AC: 変更内容が差分と一致している\n`
-  );
-
-  out = out.replace(
-    /## 補足（任意）[\s\S]*?- （AI）参照リンクが必要ならここ（原則はIssueに集約）\n?/,
-    `## 補足（任意）\n- diff summary:\n\n\`\`\`\n${effectiveStat}\n\`\`\`\n`
-  );
+  let out = stripAiPlaceholders(template);
+  out = appendToSection(out, "変更内容（AIが埋める）", diffFilesBlock);
+  out = appendToSection(out, "補足（任意）", `${diffStatBlock}\n\n${verificationBlock}`);
 
   const statFileLines = statEntries
     .map((line) => line.trim())
@@ -395,9 +352,7 @@ function main() {
   ].filter(Boolean).join("\n");
 
   const reviewPack = reviewPackJa;
-
   out = `${out}\n${reviewPack}\n`;
-  out = ensureAtLeastTwoAcChecked(out);
 
   fs.writeFileSync("/tmp/pr.md", out, "utf8");
   console.log("/tmp/pr.md generated");
