@@ -1,0 +1,37 @@
+{
+  "timestamp": "2026-02-25T04:56:12.826Z",
+  "network": {
+    "status": "NET_OK",
+    "ok": true,
+    "detail": null
+  },
+  "versions": {
+    "node": {
+      "ok": true,
+      "version": "v22.22.0",
+      "detail": null
+    },
+    "npm": {
+      "ok": true,
+      "version": "10.9.4",
+      "detail": null
+    }
+  },
+  "native": {
+    "better_sqlite3": {
+      "ok": true,
+      "nodeModules": "127",
+      "required": null,
+      "found": null
+    }
+  },
+  "repo": {
+    "writable": {
+      "ok": true,
+      "detail": null
+    }
+  },
+  "env": {
+    "present": false
+  }
+}
