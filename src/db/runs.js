@@ -1,5 +1,6 @@
 const crypto = require("crypto");
 const { db, DEFAULT_TENANT } = require("./index");
+const { withRetry } = require("./retry");
 
 const DEFAULT_TIMEOUT_MS = 1800000;
 
@@ -26,11 +27,13 @@ function createRunRecord({
   }
   const runId = crypto.randomUUID();
   const ts = nowIso();
-  dbConn
-    .prepare(
-      "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,created_at,updated_at,failure_code) VALUES(?,?,?,?,?,?,?,?)"
-    )
-    .run(tenantId, runId, projectId, "queued", JSON.stringify(inputsJson || {}), ts, ts, null);
+  withRetry(() =>
+    dbConn
+      .prepare(
+        "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,created_at,updated_at,failure_code) VALUES(?,?,?,?,?,?,?,?)"
+      )
+      .run(tenantId, runId, projectId, "queued", JSON.stringify(inputsJson || {}), ts, ts, null)
+  );
   return runId;
 }
 
@@ -42,11 +45,13 @@ function getRunById({
   if (!runId) {
     throw new Error("runId is required");
   }
-  return dbConn
-    .prepare(
-      "SELECT tenant_id,id,project_id,status,inputs_json,created_at,updated_at,failure_code FROM runs WHERE tenant_id=? AND id=?"
-    )
-    .get(tenantId, runId);
+  return withRetry(() =>
+    dbConn
+      .prepare(
+        "SELECT tenant_id,id,project_id,status,inputs_json,created_at,updated_at,failure_code FROM runs WHERE tenant_id=? AND id=?"
+      )
+      .get(tenantId, runId)
+  );
 }
 
 function transitionToRunning({
@@ -57,9 +62,11 @@ function transitionToRunning({
   if (!runId) {
     throw new Error("runId is required");
   }
-  const info = dbConn
-    .prepare("UPDATE runs SET status=?, updated_at=? WHERE tenant_id=? AND id=? AND status='queued'")
-    .run("running", nowIso(), tenantId, runId);
+  const info = withRetry(() =>
+    dbConn
+      .prepare("UPDATE runs SET status=?, updated_at=? WHERE tenant_id=? AND id=? AND status='queued'")
+      .run("running", nowIso(), tenantId, runId)
+  );
   return info.changes > 0;
 }
 
@@ -77,11 +84,13 @@ function transitionToFinal({
     throw new Error("invalid status");
   }
   const failure = status === "failed" ? failureCode || null : null;
-  const info = dbConn
-    .prepare(
-      "UPDATE runs SET status=?, failure_code=?, updated_at=? WHERE tenant_id=? AND id=? AND status='running'"
-    )
-    .run(status, failure, nowIso(), tenantId, runId);
+  const info = withRetry(() =>
+    dbConn
+      .prepare(
+        "UPDATE runs SET status=?, failure_code=?, updated_at=? WHERE tenant_id=? AND id=? AND status='running'"
+      )
+      .run(status, failure, nowIso(), tenantId, runId)
+  );
   return info.changes > 0;
 }
 
@@ -92,11 +101,13 @@ function expireTimedOutRuns({
 } = {}) {
   const timeoutMs = getRunTimeoutMs(env);
   const cutoff = new Date(Date.now() - timeoutMs).toISOString();
-  const info = dbConn
-    .prepare(
-      "UPDATE runs SET status='failed', failure_code='service_unavailable', updated_at=? WHERE tenant_id=? AND status='running' AND updated_at <= ?"
-    )
-    .run(nowIso(), tenantId, cutoff);
+  const info = withRetry(() =>
+    dbConn
+      .prepare(
+        "UPDATE runs SET status='failed', failure_code='service_unavailable', updated_at=? WHERE tenant_id=? AND status='running' AND updated_at <= ?"
+      )
+      .run(nowIso(), tenantId, cutoff)
+  );
   return info.changes;
 }
 
