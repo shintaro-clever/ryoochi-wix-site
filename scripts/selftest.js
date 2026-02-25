@@ -211,20 +211,23 @@ function runJobWithRunId(jobPath, extraEnv = {}) {
   if (stdout) {
     payload = JSON.parse(stdout);
   }
+  let runId = payload && payload.run_id ? String(payload.run_id) : '';
   const after = listRuns();
   const afterSnapshot = snapshotRuns();
   let newRuns = diffRuns(before, after);
-  if (newRuns.length === 0) {
-    const candidates = Object.entries(afterSnapshot)
-      .filter(([, info]) => info && info.isDir)
-      .filter(([name, info]) => !beforeSnapshot[name] || info.mtimeMs > beforeSnapshot[name].mtimeMs)
-      .sort((a, b) => (b[1].mtimeMs || 0) - (a[1].mtimeMs || 0));
-    if (candidates.length > 0) {
-      newRuns = [candidates[0][0]];
+  if (!runId) {
+    if (newRuns.length === 0) {
+      const candidates = Object.entries(afterSnapshot)
+        .filter(([, info]) => info && info.isDir)
+        .filter(([name, info]) => !beforeSnapshot[name] || info.mtimeMs > beforeSnapshot[name].mtimeMs)
+        .sort((a, b) => (b[1].mtimeMs || 0) - (a[1].mtimeMs || 0));
+      if (candidates.length > 0) {
+        newRuns = [candidates[0][0]];
+      }
     }
+    assert(newRuns.length === 1, 'run-job.js missing run directory (unexpected)');
+    runId = newRuns[0];
   }
-  assert(newRuns.length === 1, 'run-job.js missing run directory (unexpected)');
-  const runId = newRuns[0];
   if (!payload) {
     const runJsonPath = path.join(RUNS_ROOT, runId, 'run.json');
     assert(fs.existsSync(runJsonPath), 'run.json missing for fallback JSON');
