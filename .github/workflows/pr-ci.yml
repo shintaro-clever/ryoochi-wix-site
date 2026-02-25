@@ -4,6 +4,10 @@ on:
   pull_request:
     types: [opened, synchronize, reopened]
 
+permissions:
+  contents: read
+  pull-requests: read
+
 concurrency:
   group: pr-ci-${{ github.ref }}
   cancel-in-progress: true
