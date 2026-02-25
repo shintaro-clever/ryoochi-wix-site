@@ -14,8 +14,35 @@ const { spawnSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-function shNodeTool(cmd, args, opts = {}) {
+function shRaw(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { encoding: "utf8", ...opts });
+}
+
+function resolveVoltaBin() {
+  const candidates = [];
+  if (process.env.VOLTA_HOME) {
+    candidates.push(path.join(process.env.VOLTA_HOME, "bin", "volta"));
+  }
+  candidates.push("/home/codespace/.volta/bin/volta");
+  candidates.push("volta");
+  for (const candidate of candidates) {
+    const r = shRaw(candidate, ["--version"], { timeout: 3000 });
+    if (r.status === 0) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
+const VOLTA_BIN = resolveVoltaBin();
+const HAS_VOLTA = Boolean(VOLTA_BIN);
+const VOLTA_TARGETS = new Set(["node", "npm", "npx"]);
+
+function shNodeTool(cmd, args, opts = {}) {
+  if (HAS_VOLTA && VOLTA_TARGETS.has(cmd)) {
+    return shRaw(VOLTA_BIN, ["run", cmd, ...args], opts);
+  }
+  return shRaw(cmd, args, opts);
 }
 
 function must(cmd, args, opts = {}) {
