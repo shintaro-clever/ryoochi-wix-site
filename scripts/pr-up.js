@@ -90,6 +90,99 @@ function printFallback({ branch, repoNwo, defaultBranch, title }) {
   info(`  gh pr create --repo ${repoNwo} --base ${defaultBranch} --head ${branch} --title "${title}" --body-file /tmp/pr.md`);
 }
 
+function isDnsResolutionFailure(text) {
+  const s = String(text || "");
+  return (
+    /Could not resolve host/i.test(s) ||
+    /\bEAI_AGAIN\b/i.test(s) ||
+    /\bENOTFOUND\b/i.test(s)
+  );
+}
+
+function isReachabilityFailure(text) {
+  const s = String(text || "");
+  return (
+    isDnsResolutionFailure(s) ||
+    /Failed to connect/i.test(s) ||
+    /Connection timed out/i.test(s) ||
+    /Network is unreachable/i.test(s) ||
+    /No route to host/i.test(s) ||
+    /Operation timed out/i.test(s)
+  );
+}
+
+function resolveBundleBaseRef(defaultBranch) {
+  const candidates = [
+    `origin/${defaultBranch}`,
+    defaultBranch,
+    "origin/main",
+    "main",
+    "origin/master",
+    "master",
+    "HEAD~1"
+  ];
+  for (const ref of candidates) {
+    const r = shNodeTool("git", ["rev-parse", "--verify", ref], { timeout: 5000 });
+    if (r.status === 0) {
+      return ref;
+    }
+  }
+  return "HEAD~1";
+}
+
+function createOfflineBundle(branch, defaultBranch) {
+  const safeBranch = String(branch).replace(/[^\w.-]/g, "_");
+  const bundlePath = `/tmp/${safeBranch}.bundle`;
+  const baseRef = resolveBundleBaseRef(defaultBranch);
+  const bundle = shNodeTool("git", ["bundle", "create", bundlePath, `${baseRef}..HEAD`], { timeout: 30000 });
+  if (bundle.status !== 0) {
+    const detail = ((bundle.stdout || "") + "\n" + (bundle.stderr || "")).trim();
+    return { ok: false, bundlePath, baseRef, detail };
+  }
+  return { ok: true, bundlePath, baseRef, detail: null };
+}
+
+function printBundleRecovery(bundleInfo, { branch, repoNwo, defaultBranch }) {
+  if (!bundleInfo || !bundleInfo.ok) {
+    warn("[PR-UP] bundle生成に失敗しました。通常の手動手順を利用してください。");
+    if (bundleInfo && bundleInfo.detail) {
+      warn(tailText(bundleInfo.detail, 8));
+    }
+    return;
+  }
+  warn("[PR-UP] 到達性エラーを検知したため bundle を生成しました。");
+  warn(`[PR-UP] bundle: ${bundleInfo.bundlePath}`);
+  warn("[PR-UP] 復旧方法 (bundle):");
+  warn(`  # 1) ${bundleInfo.bundlePath} をネットワーク可端末へコピー`);
+  warn("  # 2) PR本文は次のどちらかで準備");
+  warn("  #    A) /tmp/pr.md を同時にコピー");
+  warn("  #    B) ネットワーク可端末で再生成:");
+  warn("  #       node scripts/gen-pr-body.js");
+  warn("  #       node scripts/pr-body-verify.js /tmp/pr.md");
+  warn("  # 3) ネットワーク可端末で対象repoへ移動");
+  warn(`  git fetch ${bundleInfo.bundlePath} ${branch}:${branch}`);
+  warn(`  git checkout ${branch}`);
+  warn(`  git push -u origin ${branch}`);
+  warn(`  PR_NO=$(gh pr list --repo ${repoNwo} --head ${branch} --json number --jq '.[0].number')`);
+  warn("  if [ -n \"$PR_NO\" ]; then");
+  warn(`    gh pr edit \"$PR_NO\" --repo ${repoNwo} --body-file /tmp/pr.md`);
+  warn("  else");
+  warn(`    gh pr create --repo ${repoNwo} --base ${defaultBranch} --head ${branch} --fill --body-file /tmp/pr.md`);
+  warn("  fi");
+}
+
+function printRecoveryByRuntimeError(text) {
+  if (isDnsResolutionFailure(text)) {
+    warn("[PR-UP] 復旧方法 (DNS):");
+    warn("  bash scripts/fix-dns.sh");
+    warn("  node scripts/pr-up.js");
+    return;
+  }
+  warn("[PR-UP] 復旧方法:");
+  warn("  ネットワーク設定を確認してください。");
+  warn("  node scripts/pr-up.js");
+}
+
 function runDoctor() {
   return shNodeTool("node", ["scripts/hub-doctor.js"]);
 }
@@ -175,19 +268,7 @@ function main() {
       warn(`[PR-UP] WARN ${status}: ネットワーク到達不可 (${detail})`);
     }
     warn("[PR-UP] ネットワーク診断はNGですが、push/gh を継続して実行します。");
-    if (status === "CHECK_DNS_NG") {
-      warn("[PR-UP] 復旧方法:");
-      warn("  bash scripts/fix-dns.sh");
-      warn("  node scripts/pr-up.js");
-    } else if (status === "CHECK_BLOCKED") {
-      warn("[PR-UP] 復旧方法:");
-      warn("  コンテナ権限/ネットワークポリシーを確認してください。");
-      warn("  node scripts/pr-up.js");
-    } else {
-      warn("[PR-UP] 復旧方法:");
-      warn("  ネットワーク設定を確認してください。");
-      warn("  node scripts/pr-up.js");
-    }
+    warn("[PR-UP] 復旧方法は実コマンド失敗(stderr)に基づいて案内します。");
   }
 
   const branch = must("git", ["rev-parse", "--abbrev-ref", "HEAD"]);
@@ -223,7 +304,14 @@ function main() {
   // push
   const push = shNodeTool("git", ["push", "-u", "origin", branch], { timeout: 30000 });
   if (push.status !== 0) {
-    warn(`[PR-UP] PUSH FAILED\n` + tailText(((push.stdout || "") + "\n" + (push.stderr || "")).trim(), 20));
+    const pushOut = ((push.stdout || "") + "\n" + (push.stderr || "")).trim();
+    warn(`[PR-UP] PUSH FAILED\n` + tailText(pushOut, 20));
+    if (isReachabilityFailure(pushOut)) {
+      const bundleInfo = createOfflineBundle(branch, defaultBranch);
+      printBundleRecovery(bundleInfo, { branch, repoNwo, defaultBranch });
+      process.exit(1);
+    }
+    printRecoveryByRuntimeError(pushOut);
     printFallback({ branch, repoNwo, defaultBranch, title });
     process.exit(1);
   }
@@ -235,7 +323,14 @@ function main() {
   if (prNumber) {
     const edit = shNodeTool("gh", ["pr", "edit", prNumber, "--repo", repoNwo, "--body-file", "/tmp/pr.md"], { timeout: 30000 });
     if (edit.status !== 0) {
-      warn(`[PR-UP] gh pr edit failed\n` + tailText(((edit.stdout || "") + "\n" + (edit.stderr || "")).trim(), 20));
+      const editOut = ((edit.stdout || "") + "\n" + (edit.stderr || "")).trim();
+      warn(`[PR-UP] gh pr edit failed\n` + tailText(editOut, 20));
+      if (isReachabilityFailure(editOut)) {
+        const bundleInfo = createOfflineBundle(branch, defaultBranch);
+        printBundleRecovery(bundleInfo, { branch, repoNwo, defaultBranch });
+        process.exit(1);
+      }
+      printRecoveryByRuntimeError(editOut);
       printFallback({ branch, repoNwo, defaultBranch, title });
       process.exit(1);
     }
@@ -243,7 +338,14 @@ function main() {
   } else {
     const create = shNodeTool("gh", ["pr", "create", "--repo", repoNwo, "--base", defaultBranch, "--head", branch, "--title", title, "--body-file", "/tmp/pr.md"], { timeout: 30000 });
     if (create.status !== 0) {
-      warn(`[PR-UP] gh pr create failed\n` + tailText(((create.stdout || "") + "\n" + (create.stderr || "")).trim(), 20));
+      const createOut = ((create.stdout || "") + "\n" + (create.stderr || "")).trim();
+      warn(`[PR-UP] gh pr create failed\n` + tailText(createOut, 20));
+      if (isReachabilityFailure(createOut)) {
+        const bundleInfo = createOfflineBundle(branch, defaultBranch);
+        printBundleRecovery(bundleInfo, { branch, repoNwo, defaultBranch });
+        process.exit(1);
+      }
+      printRecoveryByRuntimeError(createOut);
       printFallback({ branch, repoNwo, defaultBranch, title });
       process.exit(1);
     }
