@@ -18,3 +18,6 @@ mode: "workspace-write"
 
 ## Notes
 - 章立てだけ先に定義し、詳細手順は必要時に追記します。
+- commands は目的/引数/参照/フローのみを記述します。
+- 詳細は `@docs/ai/implementation-guides` または `@agents/skills` に分離します。
+- 目安として 200 行を超えたら分割します。
