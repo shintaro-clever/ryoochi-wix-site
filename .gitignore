@@ -9,3 +9,9 @@ node_modules/
 
 .ai-runs/
 doctor.json
+
+# local generated outputs
+tmp/*
+reports/*
+!tmp/.gitkeep
+!reports/.gitkeep

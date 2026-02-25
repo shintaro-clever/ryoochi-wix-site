@@ -1,0 +1,26 @@
+name: agents-structure
+
+on:
+  pull_request:
+    paths:
+      - "agents/**"
+      - "docs/ai/**"
+      - "scripts/check-structure.js"
+      - "package.json"
+
+concurrency:
+  group: agents-structure-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check-structure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install (minimal)
+        run: npm install --ignore-scripts --no-audit --no-fund
+      - name: Check structure
+        run: npm run check:structure
