@@ -5,12 +5,16 @@ arguments:
     description: "引数の説明"
     required: false
 mode: "workspace-write"
+output_language: "ja"
 ---
 
 # Command Template
 
 ## Purpose
 - このコマンドの目的を短く記載します。
+
+## Output Language
+- Japanese (default)
 
 ## References
 - `@.github/PULL_REQUEST_TEMPLATE.md`

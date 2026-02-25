@@ -3,3 +3,4 @@
 目的:
 - 禁止事項と必須ポリシーの基準点を定義する。
 - 他ルールの前提となる最上位方針を示す。
+- 返答言語の契約: `@agents/contracts/response-language.md`
