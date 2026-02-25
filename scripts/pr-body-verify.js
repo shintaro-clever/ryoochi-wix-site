@@ -63,6 +63,38 @@ if (!verifySection) {
   }
 }
 
+// --- 追加チェック: 概要が空でない ---
+const overview = extractSection(body, "## 概要");
+const overviewBullets = overview
+  .split("\n")
+  .map((l) => l.trim())
+  .filter((l) => l.startsWith("- "));
+if (overviewBullets.length === 0) {
+  errors.push("概要が空です（## 概要 に - から始まる1行以上が必要）");
+}
+
+// --- 追加チェック: 関連Issueはどちらか1つチェック ---
+const issueSection = extractSection(body, "## 関連Issue（どちらか1つチェック）");
+const hasIssueChecked = /-\s*\[x\]\s*関連Issueあり:/i.test(issueSection);
+const noIssueChecked = /-\s*\[x\]\s*No Issue/i.test(issueSection);
+if (!hasIssueChecked && !noIssueChecked) {
+  errors.push("関連Issue が未選択です（関連Issueあり か No Issue のどちらかを [x] にしてください）");
+}
+if (noIssueChecked && /<[^>]+>/.test(issueSection)) {
+  errors.push("No Issue の理由がプレースホルダーのままです（<...> を残さないでください）");
+}
+
+// --- 追加チェック: 完了条件（AC）は最低1つチェック ---
+const acSection = extractSection(body, "## 完了条件（最低1つチェック）");
+if (!/-\s*\[x\]/i.test(acSection)) {
+  errors.push("完了条件（AC）が未チェックです（最低1つは [x] にしてください）");
+}
+
+// --- 追加チェック: Review Pack に外部前提が残っていない ---
+if (/ネットNG|手動で行う|別端末|ネットワーク可端末/i.test(body)) {
+  errors.push("Review Pack に外部前提（ネットNG/手動/別端末 等）の文言が残っています（この端末実働方針に反します）");
+}
+
 if (!body.includes("## Review Pack")) {
   errors.push("Review Pack が見つかりません");
 }
