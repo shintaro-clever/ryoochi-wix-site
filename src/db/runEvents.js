@@ -1,4 +1,5 @@
 const { db, DEFAULT_TENANT } = require("./index");
+const { withRetry } = require("./retry");
 
 const ALLOWED_EVENTS = new Set([
   "run_created",
@@ -6,6 +7,7 @@ const ALLOWED_EVENTS = new Set([
   "run_completed",
   "run_failed",
   "run_cancelled",
+  "run_preflight_failed",
 ]);
 
 function nowIso() {
@@ -24,9 +26,11 @@ function recordRunEvent({
   if (!ALLOWED_EVENTS.has(eventType)) {
     throw new Error("invalid event_type");
   }
-  dbConn
-    .prepare("INSERT INTO run_events(tenant_id, run_id, event_type, created_at) VALUES(?,?,?,?)")
-    .run(tenantId, runId, eventType, nowIso());
+  withRetry(() =>
+    dbConn
+      .prepare("INSERT INTO run_events(tenant_id, run_id, event_type, created_at) VALUES(?,?,?,?)")
+      .run(tenantId, runId, eventType, nowIso())
+  );
 }
 
 module.exports = {

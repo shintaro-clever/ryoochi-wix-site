@@ -1,4 +1,5 @@
 const { db, DEFAULT_TENANT } = require("./index");
+const { withRetry } = require("./retry");
 
 function nowIso() {
   return new Date().toISOString();
@@ -18,11 +19,13 @@ function createArtifact({
   }
   const ts = nowIso();
   try {
-    dbConn
-      .prepare(
-        "INSERT INTO artifacts(tenant_id,name,path,created_at,updated_at) VALUES(?,?,?,?,?)"
-      )
-      .run(tenantId, name, path, ts, ts);
+    withRetry(() =>
+      dbConn
+        .prepare(
+          "INSERT INTO artifacts(tenant_id,name,path,created_at,updated_at) VALUES(?,?,?,?,?)"
+        )
+        .run(tenantId, name, path, ts, ts)
+    );
     return { ok: true };
   } catch (error) {
     if (
@@ -44,9 +47,11 @@ function getArtifactByName({
   if (!name) {
     throw new Error("name is required");
   }
-  return dbConn
-    .prepare("SELECT tenant_id,name,path,created_at,updated_at FROM artifacts WHERE tenant_id=? AND name=?")
-    .get(tenantId, name);
+  return withRetry(() =>
+    dbConn
+      .prepare("SELECT tenant_id,name,path,created_at,updated_at FROM artifacts WHERE tenant_id=? AND name=?")
+      .get(tenantId, name)
+  );
 }
 
 module.exports = {
