@@ -13,6 +13,7 @@ const { recordAudit, AUDIT_ACTIONS } = require("../middleware/audit");
 const { sendJson, jsonError, readJsonBody } = require("../api/projects");
 
 const runJobScript = path.join(__dirname, "..", "..", "scripts", "run-job.js");
+const PROJECT_RUN_JOB_TYPE = "integration_hub.phase2.project_run";
 
 function nowIso() {
   return new Date().toISOString();
@@ -25,13 +26,36 @@ function writeTempJobFile(jobPayload) {
   return { jobPath, cleanup: () => fs.rmSync(tempDir, { recursive: true, force: true }) };
 }
 
+function resolveProjectRunTargetPath(inputsJson, runId) {
+  const rawTarget = typeof inputsJson?.target_path === "string" ? inputsJson.target_path.trim() : "";
+  if (rawTarget && rawTarget.startsWith(".ai-runs/")) {
+    return rawTarget;
+  }
+  const template = ".ai-runs/{{run_id}}/project_run.json";
+  if (!runId) {
+    return template;
+  }
+  return template.replace("{{run_id}}", runId);
+}
+
 function createRun(db, projectId, inputsJson) {
   const runId = crypto.randomUUID();
   const ts = nowIso();
+  const targetPath = resolveProjectRunTargetPath(inputsJson, runId);
   withRetry(() =>
     db.prepare(
-      "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)"
-    ).run(DEFAULT_TENANT, runId, projectId, "queued", JSON.stringify(inputsJson), ts, ts)
+      "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,job_type,target_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)"
+    ).run(
+      DEFAULT_TENANT,
+      runId,
+      projectId,
+      "queued",
+      JSON.stringify(inputsJson),
+      PROJECT_RUN_JOB_TYPE,
+      targetPath,
+      ts,
+      ts
+    )
   );
   return runId;
 }
@@ -181,18 +205,29 @@ function buildProjectJob(projectId, inputs) {
   };
 }
 
-function runJobAsync(jobPayload, onStart) {
+function runJobAsync(jobPayload, { onStart, onDone } = {}) {
   const { jobPath, cleanup } = writeTempJobFile(jobPayload);
   const child = spawn(process.execPath, [runJobScript, "--job", jobPath, "--role", "operator"], {
     cwd: process.cwd(),
     env: process.env,
     stdio: "ignore",
   });
+  let settled = false;
+  const finalize = (code, error) => {
+    if (settled) {
+      return;
+    }
+    settled = true;
+    if (typeof onDone === "function") {
+      onDone(code, error);
+    }
+    cleanup();
+  };
   if (typeof onStart === "function") {
     onStart();
   }
-  child.on("error", () => cleanup());
-  child.on("close", () => cleanup());
+  child.on("error", (error) => finalize(1, error));
+  child.on("close", (code) => finalize(code, null));
 }
 
 async function handleProjectRunsPost(req, res, db, projectId) {
@@ -280,15 +315,29 @@ async function handleProjectRunsPost(req, res, db, projectId) {
   const runId = createRun(db, projectId, inputsJson);
   const jobPayload = buildProjectJob(projectId, inputsJson);
 
-  runJobAsync(jobPayload, () => {
-    updateRunStatus(db, runId, "running");
-    recordAudit({
-      db,
-      action: AUDIT_ACTIONS.RUN_START,
-      tenantId: DEFAULT_TENANT,
-      actorId: req.user?.id || null,
-      meta: { run_id: runId, project_id: projectId },
-    });
+  runJobAsync(jobPayload, {
+    onStart: () => {
+      updateRunStatus(db, runId, "running");
+      recordAudit({
+        db,
+        action: AUDIT_ACTIONS.RUN_START,
+        tenantId: DEFAULT_TENANT,
+        actorId: req.user?.id || null,
+        meta: { run_id: runId, project_id: projectId },
+      });
+    },
+    onDone: (code) => {
+      const status = code === 0 ? "completed" : "failed";
+      updateRunStatus(db, runId, status);
+      recordRunEvent({ runId, eventType: status === "completed" ? "run_completed" : "run_failed" });
+      recordAudit({
+        db,
+        action: AUDIT_ACTIONS.RUN_UPDATE,
+        tenantId: DEFAULT_TENANT,
+        actorId: req.user?.id || null,
+        meta: { run_id: runId, project_id: projectId, status },
+      });
+    },
   });
 
   return sendJson(res, 202, { runId, status: "queued" });
