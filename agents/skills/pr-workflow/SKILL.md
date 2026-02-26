@@ -1,28 +1,33 @@
 ---
 name: pr-workflow
-description: PR作成時に `node scripts/pr-up.js` を必ずescalatedで実行し、PR後にローカルを最新化する運用手順。
+description: /api/runs のPR作成運用（mainに無い場合は実装、main以外にある場合は差分取り込み）。PR時は `node scripts/pr-up.js` を必ずescalatedで実行し、PR後にローカルを最新化する。
 ---
 
 # PR Workflow
 
 ## Purpose
-PR作成時の必須フローを固定する。
+`/api/runs` のPR作成運用を固定する。
 
 ## Inputs
+- `/api/runs` の有無確認結果
 - 作業ブランチ名
 - PR作成の依頼
 - PRマージ完了の報告
 
 ## Outputs
-- PR作成済み
+- `/api/runs` のPR作成済み
 - PR後のローカル最新化完了
 
 ## Steps
-1. 作業ブランチ上であることを確認する（`main`/`master`禁止）。
-2. `node scripts/pr-up.js` を **escalated** で実行する。
-3. 出力された手順に従ってPR作成まで完了させる。
-4. PRマージ完了後、ローカルを最新化する。
-5. ローカル最新化の手順:
+1. `main` に `/api/runs` が無い場合:
+   `/api/runs` を実装するPRを作る。
+2. `main` 以外のブランチに `/api/runs` がある場合:
+   その差分を `main` に取り込むPRを作る。
+3. 作業ブランチ上であることを確認する（`main`/`master`禁止）。
+4. `node scripts/pr-up.js` を **escalated** で実行する。
+5. 出力された手順に従ってPR作成まで完了させる。
+6. PRマージ完了後、ローカルを最新化する。
+7. ローカル最新化の手順:
    `git checkout main`
    `git pull --ff-only origin main`
    `git branch -d <working-branch>`
