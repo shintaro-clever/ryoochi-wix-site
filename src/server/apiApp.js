@@ -24,6 +24,7 @@ const { logRequest } = require("../middleware/requestLog");
 const ROOT_DIR = path.join(__dirname, "..", "..");
 const connectionsDataPath = path.join(ROOT_DIR, "apps", "hub", "data", "connections.json");
 const connectorsCatalogPath = path.join(ROOT_DIR, "apps", "hub", "data", "connectors.catalog.json");
+const CONNECTION_SCHEMA_VERSION = "1.0";
 
 function isServiceUnavailableError(error) {
   return Boolean(error && error.status === 503 && error.failure_code === "service_unavailable");
@@ -36,6 +37,14 @@ function hasValue(value) {
 function tokenNote(label, value) {
   if (!hasValue(value)) return `${label}: missing`;
   return `${label}: present len=${String(value).length}`;
+}
+
+function secretMeta(value) {
+  const present = hasValue(value);
+  return {
+    has_secret: present,
+    secret_len: present ? String(value).length : 0,
+  };
 }
 
 function createEmptyConnections() {
@@ -102,30 +111,36 @@ function isConnected(providerKey, connections) {
 function buildConnectionItems(connections, updatedAt) {
   return [
     {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       id: "conn-ai",
       key: "ai",
       name: "AI Provider",
       enabled: hasValue(connections.ai?.provider) || hasValue(connections.ai?.name) || hasValue(connections.ai?.apiKey),
       connected: hasValue(connections.ai?.apiKey),
       last_checked_at: updatedAt,
+      ...secretMeta(connections.ai?.apiKey),
       notes: [tokenNote("api_key", connections.ai?.apiKey), `provider=${connections.ai?.provider || "(none)"}`],
     },
     {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       id: "conn-github",
       key: "github",
       name: "GitHub",
       enabled: hasValue(connections.github?.repo) || hasValue(connections.github?.token),
       connected: hasValue(connections.github?.token),
       last_checked_at: updatedAt,
+      ...secretMeta(connections.github?.token),
       notes: [tokenNote("token", connections.github?.token), `repo=${connections.github?.repo || "(none)"}`],
     },
     {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       id: "conn-figma",
       key: "figma",
       name: "Figma",
       enabled: hasValue(connections.figma?.fileUrl) || hasValue(connections.figma?.token),
       connected: hasValue(connections.figma?.token),
       last_checked_at: updatedAt,
+      ...secretMeta(connections.figma?.token),
       notes: [tokenNote("token", connections.figma?.token), `file_url=${connections.figma?.fileUrl || "(none)"}`],
     },
   ];
@@ -173,10 +188,18 @@ function createApiServer(dbConn) {
         const updatedAt = getConnectionsUpdatedAt();
         const rows = readConnectorsCatalog().map((item) => ({
           ...item,
+          schema_version: CONNECTION_SCHEMA_VERSION,
           key: item.provider_key,
           enabled: true,
           connected: isConnected(item.provider_key, connections),
           last_checked_at: updatedAt,
+          ...(item.provider_key === "ai"
+            ? secretMeta(connections.ai?.apiKey)
+            : item.provider_key === "github"
+              ? secretMeta(connections.github?.token)
+              : item.provider_key === "figma"
+                ? secretMeta(connections.figma?.token)
+                : secretMeta("")),
           notes: [tokenNote("credentials", item.provider_key === "ai"
             ? connections.ai?.apiKey
             : item.provider_key === "github"
@@ -196,6 +219,7 @@ function createApiServer(dbConn) {
         const connections = readConnections();
         const updatedAt = getConnectionsUpdatedAt();
         return sendJson(res, 200, {
+          schema_version: CONNECTION_SCHEMA_VERSION,
           ai: {
             provider: connections.ai?.provider || "",
             name: connections.ai?.name || "",

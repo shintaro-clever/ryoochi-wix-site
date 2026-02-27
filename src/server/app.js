@@ -23,6 +23,7 @@ const connectorSmokeScript = path.relative(process.cwd(), path.join(scriptsDir, 
 const connectionsDataDir = path.join(ROOT_DIR, 'apps', 'hub', 'data');
 const connectionsDataPath = path.join(connectionsDataDir, 'connections.json');
 const connectorsCatalogPath = path.join(ROOT_DIR, 'apps', 'hub', 'data', 'connectors.catalog.json');
+const CONNECTION_SCHEMA_VERSION = '1.0';
 // Quick smoke test: node server.js → curl -I http://127.0.0.1:3000/jobs
 
 function fileExists(filePath) {
@@ -188,33 +189,47 @@ function tokenNote(label, value) {
   return `${label}: present len=${String(value).length}`;
 }
 
+function secretMeta(value) {
+  const present = hasValue(value);
+  return {
+    has_secret: present,
+    secret_len: present ? String(value).length : 0
+  };
+}
+
 function buildConnectionItems(connections, updatedAt) {
   const items = [
     {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       id: 'conn-ai',
       key: 'ai',
       name: 'AI Provider',
       enabled: hasValue(connections.ai?.provider) || hasValue(connections.ai?.name) || hasValue(connections.ai?.apiKey),
       connected: hasValue(connections.ai?.apiKey),
       last_checked_at: updatedAt,
+      ...secretMeta(connections.ai?.apiKey),
       notes: [tokenNote('api_key', connections.ai?.apiKey), `provider=${connections.ai?.provider || '(none)'}`]
     },
     {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       id: 'conn-github',
       key: 'github',
       name: 'GitHub',
       enabled: hasValue(connections.github?.repo) || hasValue(connections.github?.token),
       connected: hasValue(connections.github?.token),
       last_checked_at: updatedAt,
+      ...secretMeta(connections.github?.token),
       notes: [tokenNote('token', connections.github?.token), `repo=${connections.github?.repo || '(none)'}`]
     },
     {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       id: 'conn-figma',
       key: 'figma',
       name: 'Figma',
       enabled: hasValue(connections.figma?.fileUrl) || hasValue(connections.figma?.token),
       connected: hasValue(connections.figma?.token),
       last_checked_at: updatedAt,
+      ...secretMeta(connections.figma?.token),
       notes: [tokenNote('token', connections.figma?.token), `file_url=${connections.figma?.fileUrl || '(none)'}`]
     }
   ];
@@ -776,6 +791,7 @@ async function handleConnectionsApi(req, res, method) {
     const data = readConnections();
     const updatedAt = getConnectionsUpdatedAt();
     sendJson(res, 200, {
+      schema_version: CONNECTION_SCHEMA_VERSION,
       ...sanitizeConnectionsForGet(data),
       items: buildConnectionItems(data, updatedAt),
       updated_at: updatedAt
@@ -811,10 +827,18 @@ async function handleConnectorsApi(req, res, method) {
     const updatedAt = getConnectionsUpdatedAt();
     const enriched = catalog.map((item) => ({
       ...item,
+      schema_version: CONNECTION_SCHEMA_VERSION,
       key: item.provider_key,
       enabled: true,
       connected: computeConnectorStatus(item.provider_key, connections, updatedAt).configured,
       last_checked_at: updatedAt,
+      ...(item.provider_key === 'ai'
+        ? secretMeta(connections.ai?.apiKey)
+        : item.provider_key === 'github'
+          ? secretMeta(connections.github?.token)
+          : item.provider_key === 'figma'
+            ? secretMeta(connections.figma?.token)
+            : secretMeta('')),
       notes: [tokenNote('credentials', item.provider_key === 'ai'
         ? connections.ai?.apiKey
         : item.provider_key === 'github'

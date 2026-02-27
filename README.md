@@ -64,6 +64,7 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 
 - 正規ルートと運用ルール: `docs/ai/core/workflow.md`
 - Decisionの残し方: `docs/ai/core/decision-policy.md`
+- Connectors/Connections APIスキーマSoT: `docs/connectors-connections-schema.md`
 
 ---
 
