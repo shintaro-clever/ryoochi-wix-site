@@ -45,6 +45,40 @@ async function run() {
     { algorithm: "HS256", expiresIn: "1h" }
   );
   const token = `Bearer ${jwtToken}`;
+
+  const connectorsRes = await requestLocal(handler, {
+    method: "GET",
+    url: "/api/connectors",
+    headers: { Authorization: token },
+  });
+  assert(connectorsRes.statusCode === 200, "connectors should return 200");
+  const connectors = JSON.parse(connectorsRes.body.toString("utf8"));
+  assert(Array.isArray(connectors) && connectors.length >= 1, "connectors should be a non-empty array");
+  connectors.forEach((row) => {
+    ["id", "key", "name", "enabled", "connected", "last_checked_at", "notes"].forEach((k) =>
+      assert(Object.prototype.hasOwnProperty.call(row, k), `connector missing key: ${k}`)
+    );
+    assert(Array.isArray(row.notes), "connector notes should be array");
+  });
+
+  const connectionsRes = await requestLocal(handler, {
+    method: "GET",
+    url: "/api/connections",
+    headers: { Authorization: token },
+  });
+  assert(connectionsRes.statusCode === 200, "connections should return 200");
+  const connections = JSON.parse(connectionsRes.body.toString("utf8"));
+  assert(Array.isArray(connections.items), "connections.items should be array");
+  connections.items.forEach((row) => {
+    ["id", "key", "name", "enabled", "connected", "last_checked_at", "notes"].forEach((k) =>
+      assert(Object.prototype.hasOwnProperty.call(row, k), `connection item missing key: ${k}`)
+    );
+    assert(Array.isArray(row.notes), "connection item notes should be array");
+  });
+  assert(!connections.ai?.apiKey, "connections GET should not expose ai apiKey");
+  assert(!connections.github?.token, "connections GET should not expose github token");
+  assert(!connections.figma?.token, "connections GET should not expose figma token");
+
   const createRes = await requestLocal(handler, {
     method: "POST",
     url: "/api/projects",

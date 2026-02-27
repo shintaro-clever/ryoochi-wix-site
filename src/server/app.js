@@ -167,6 +167,78 @@ function normalizeConnectionsPayload(payload = {}) {
   };
 }
 
+function mergeConnectionSecrets(existing, incoming) {
+  const merged = JSON.parse(JSON.stringify(incoming));
+  if (!hasValue(merged.ai?.apiKey) && hasValue(existing.ai?.apiKey)) {
+    merged.ai.apiKey = existing.ai.apiKey;
+  }
+  if (!hasValue(merged.github?.token) && hasValue(existing.github?.token)) {
+    merged.github.token = existing.github.token;
+  }
+  if (!hasValue(merged.figma?.token) && hasValue(existing.figma?.token)) {
+    merged.figma.token = existing.figma.token;
+  }
+  return merged;
+}
+
+function tokenNote(label, value) {
+  if (!hasValue(value)) {
+    return `${label}: missing`;
+  }
+  return `${label}: present len=${String(value).length}`;
+}
+
+function buildConnectionItems(connections, updatedAt) {
+  const items = [
+    {
+      id: 'conn-ai',
+      key: 'ai',
+      name: 'AI Provider',
+      enabled: hasValue(connections.ai?.provider) || hasValue(connections.ai?.name) || hasValue(connections.ai?.apiKey),
+      connected: hasValue(connections.ai?.apiKey),
+      last_checked_at: updatedAt,
+      notes: [tokenNote('api_key', connections.ai?.apiKey), `provider=${connections.ai?.provider || '(none)'}`]
+    },
+    {
+      id: 'conn-github',
+      key: 'github',
+      name: 'GitHub',
+      enabled: hasValue(connections.github?.repo) || hasValue(connections.github?.token),
+      connected: hasValue(connections.github?.token),
+      last_checked_at: updatedAt,
+      notes: [tokenNote('token', connections.github?.token), `repo=${connections.github?.repo || '(none)'}`]
+    },
+    {
+      id: 'conn-figma',
+      key: 'figma',
+      name: 'Figma',
+      enabled: hasValue(connections.figma?.fileUrl) || hasValue(connections.figma?.token),
+      connected: hasValue(connections.figma?.token),
+      last_checked_at: updatedAt,
+      notes: [tokenNote('token', connections.figma?.token), `file_url=${connections.figma?.fileUrl || '(none)'}`]
+    }
+  ];
+  return items;
+}
+
+function sanitizeConnectionsForGet(connections) {
+  return {
+    ai: {
+      provider: connections.ai?.provider || '',
+      name: connections.ai?.name || '',
+      apiKey: ''
+    },
+    github: {
+      repo: connections.github?.repo || '',
+      token: ''
+    },
+    figma: {
+      fileUrl: connections.figma?.fileUrl || '',
+      token: ''
+    }
+  };
+}
+
 function readConnections() {
   if (!fileExists(connectionsDataPath)) {
     return createEmptyConnections();
@@ -702,7 +774,12 @@ function parseJsonBody(req, limitBytes = 1024 * 1024) {
 async function handleConnectionsApi(req, res, method) {
   if (method === 'GET') {
     const data = readConnections();
-    sendJson(res, 200, data);
+    const updatedAt = getConnectionsUpdatedAt();
+    sendJson(res, 200, {
+      ...sanitizeConnectionsForGet(data),
+      items: buildConnectionItems(data, updatedAt),
+      updated_at: updatedAt
+    });
     return;
   }
   if (method === 'POST') {
@@ -714,8 +791,9 @@ async function handleConnectionsApi(req, res, method) {
       return;
     }
     try {
+      const existing = readConnections();
       const normalized = normalizeConnectionsPayload(payload);
-      writeConnections(normalized);
+      writeConnections(mergeConnectionSecrets(existing, normalized));
       sendJson(res, 200, { ok: true });
     } catch (error) {
       console.error('Failed to save connections:', error);
@@ -733,6 +811,17 @@ async function handleConnectorsApi(req, res, method) {
     const updatedAt = getConnectionsUpdatedAt();
     const enriched = catalog.map((item) => ({
       ...item,
+      key: item.provider_key,
+      enabled: true,
+      connected: computeConnectorStatus(item.provider_key, connections, updatedAt).configured,
+      last_checked_at: updatedAt,
+      notes: [tokenNote('credentials', item.provider_key === 'ai'
+        ? connections.ai?.apiKey
+        : item.provider_key === 'github'
+          ? connections.github?.token
+          : item.provider_key === 'figma'
+            ? connections.figma?.token
+            : '')],
       status: computeConnectorStatus(item.provider_key, connections, updatedAt)
     }));
     sendJson(res, 200, enriched);

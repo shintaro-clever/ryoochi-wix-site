@@ -1,4 +1,6 @@
 const http = require("http");
+const fs = require("fs");
+const path = require("path");
 const { initDB } = require("../db");
 const {
   sendJson,
@@ -19,8 +21,114 @@ const { handleArtifactsPost, handleArtifactsGet } = require("../routes/artifacts
 const { requireAuth } = require("../middleware/auth");
 const { logRequest } = require("../middleware/requestLog");
 
+const ROOT_DIR = path.join(__dirname, "..", "..");
+const connectionsDataPath = path.join(ROOT_DIR, "apps", "hub", "data", "connections.json");
+const connectorsCatalogPath = path.join(ROOT_DIR, "apps", "hub", "data", "connectors.catalog.json");
+
 function isServiceUnavailableError(error) {
   return Boolean(error && error.status === 503 && error.failure_code === "service_unavailable");
+}
+
+function hasValue(value) {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function tokenNote(label, value) {
+  if (!hasValue(value)) return `${label}: missing`;
+  return `${label}: present len=${String(value).length}`;
+}
+
+function createEmptyConnections() {
+  return {
+    ai: { provider: "", name: "", apiKey: "" },
+    github: { repo: "", token: "" },
+    figma: { fileUrl: "", token: "" },
+  };
+}
+
+function readConnections() {
+  if (!fs.existsSync(connectionsDataPath)) {
+    return createEmptyConnections();
+  }
+  try {
+    const raw = fs.readFileSync(connectionsDataPath, "utf8");
+    const parsed = JSON.parse(raw);
+    return {
+      ai: {
+        provider: typeof parsed.ai?.provider === "string" ? parsed.ai.provider.trim() : "",
+        name: typeof parsed.ai?.name === "string" ? parsed.ai.name.trim() : "",
+        apiKey: typeof parsed.ai?.apiKey === "string" ? parsed.ai.apiKey.trim() : "",
+      },
+      github: {
+        repo: typeof parsed.github?.repo === "string" ? parsed.github.repo.trim() : "",
+        token: typeof parsed.github?.token === "string" ? parsed.github.token.trim() : "",
+      },
+      figma: {
+        fileUrl: typeof parsed.figma?.fileUrl === "string" ? parsed.figma.fileUrl.trim() : "",
+        token: typeof parsed.figma?.token === "string" ? parsed.figma.token.trim() : "",
+      },
+    };
+  } catch {
+    return createEmptyConnections();
+  }
+}
+
+function getConnectionsUpdatedAt() {
+  if (!fs.existsSync(connectionsDataPath)) return null;
+  try {
+    return fs.statSync(connectionsDataPath).mtime.toISOString();
+  } catch {
+    return null;
+  }
+}
+
+function readConnectorsCatalog() {
+  if (!fs.existsSync(connectorsCatalogPath)) return [];
+  try {
+    const parsed = JSON.parse(fs.readFileSync(connectorsCatalogPath, "utf8"));
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
+function isConnected(providerKey, connections) {
+  if (providerKey === "ai") return hasValue(connections.ai?.apiKey);
+  if (providerKey === "github") return hasValue(connections.github?.token);
+  if (providerKey === "figma") return hasValue(connections.figma?.token);
+  return false;
+}
+
+function buildConnectionItems(connections, updatedAt) {
+  return [
+    {
+      id: "conn-ai",
+      key: "ai",
+      name: "AI Provider",
+      enabled: hasValue(connections.ai?.provider) || hasValue(connections.ai?.name) || hasValue(connections.ai?.apiKey),
+      connected: hasValue(connections.ai?.apiKey),
+      last_checked_at: updatedAt,
+      notes: [tokenNote("api_key", connections.ai?.apiKey), `provider=${connections.ai?.provider || "(none)"}`],
+    },
+    {
+      id: "conn-github",
+      key: "github",
+      name: "GitHub",
+      enabled: hasValue(connections.github?.repo) || hasValue(connections.github?.token),
+      connected: hasValue(connections.github?.token),
+      last_checked_at: updatedAt,
+      notes: [tokenNote("token", connections.github?.token), `repo=${connections.github?.repo || "(none)"}`],
+    },
+    {
+      id: "conn-figma",
+      key: "figma",
+      name: "Figma",
+      enabled: hasValue(connections.figma?.fileUrl) || hasValue(connections.figma?.token),
+      connected: hasValue(connections.figma?.token),
+      last_checked_at: updatedAt,
+      notes: [tokenNote("token", connections.figma?.token), `file_url=${connections.figma?.fileUrl || "(none)"}`],
+    },
+  ];
 }
 
 function createApiServer(dbConn) {
@@ -54,6 +162,56 @@ function createApiServer(dbConn) {
 
       if (method === "GET" && urlPath === "/healthz") {
         return sendJson(res, 200, { status: "ok" });
+      }
+
+      if (urlPath === "/api/connectors") {
+        if (method !== "GET") {
+          res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+          return res.end("Method not allowed");
+        }
+        const connections = readConnections();
+        const updatedAt = getConnectionsUpdatedAt();
+        const rows = readConnectorsCatalog().map((item) => ({
+          ...item,
+          key: item.provider_key,
+          enabled: true,
+          connected: isConnected(item.provider_key, connections),
+          last_checked_at: updatedAt,
+          notes: [tokenNote("credentials", item.provider_key === "ai"
+            ? connections.ai?.apiKey
+            : item.provider_key === "github"
+              ? connections.github?.token
+              : item.provider_key === "figma"
+                ? connections.figma?.token
+                : "")],
+        }));
+        return sendJson(res, 200, rows);
+      }
+
+      if (urlPath === "/api/connections") {
+        if (method !== "GET") {
+          res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+          return res.end("Method not allowed");
+        }
+        const connections = readConnections();
+        const updatedAt = getConnectionsUpdatedAt();
+        return sendJson(res, 200, {
+          ai: {
+            provider: connections.ai?.provider || "",
+            name: connections.ai?.name || "",
+            apiKey: "",
+          },
+          github: {
+            repo: connections.github?.repo || "",
+            token: "",
+          },
+          figma: {
+            fileUrl: connections.figma?.fileUrl || "",
+            token: "",
+          },
+          items: buildConnectionItems(connections, updatedAt),
+          updated_at: updatedAt,
+        });
       }
 
       // GET/HEAD /api/projects

@@ -74,16 +74,25 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 - Phase1 Integration Hub Stub（検証器としての `/jobs`）
 - Connections 設定UI（暫定）
 
+## API Notes（P2-01 最小）
+
+- `GET /api/connectors`: `id/key/name`, `enabled/connected`, `last_checked_at`, `notes` を返します。
+- `GET /api/connections`: `items[]` に同一shape（`id/key/name/enabled/connected/last_checked_at/notes`）を返します。
+- Secrets値は返しません。`notes` には presence/LEN のみを含めます。
+
 ---
 
 ## Quickstart（ローカル起動）
 
 ```bash
-npm test
+volta run npm test
 ./bin/dev
 # open:
 # http://127.0.0.1:3000/jobs
 ```
+
+Node は Volta で固定します（`package.json` の `volta.node=22.22.0`）。
+`better-sqlite3` の ABI 不一致を避けるため、テストは `volta run npm test` を使用してください。
 
 ## Hub Jobs 最短ループ（手動確認フロー）
 
