@@ -27,6 +27,31 @@ const FAILURE_CODES_13 = [
   "internal_error",
 ];
 
+function typeOfValue(value) {
+  if (value === null) return "null";
+  if (Array.isArray(value)) return "array";
+  return typeof value;
+}
+
+function assertShape(label, object, schema) {
+  const errors = [];
+  schema.forEach((rule) => {
+    const has = Object.prototype.hasOwnProperty.call(object, rule.key);
+    if (!has) {
+      errors.push(`missing key: ${rule.key}`);
+      return;
+    }
+    const actual = object[rule.key];
+    const actualType = typeOfValue(actual);
+    if (!rule.types.includes(actualType)) {
+      errors.push(`type mismatch: ${rule.key} expected=${rule.types.join("|")} actual=${actualType}`);
+    }
+  });
+  if (errors.length > 0) {
+    assert(false, `${label} shape errors -> ${errors.join(", ")}`);
+  }
+}
+
 async function run() {
   process.env.JWT_SECRET = "x".repeat(32);
   process.env.SECRET_KEY = "1".repeat(64);
@@ -45,6 +70,53 @@ async function run() {
     { algorithm: "HS256", expiresIn: "1h" }
   );
   const token = `Bearer ${jwtToken}`;
+
+  const connectorsRes = await requestLocal(handler, {
+    method: "GET",
+    url: "/api/connectors",
+    headers: { Authorization: token },
+  });
+  assert(connectorsRes.statusCode === 200, "connectors should return 200");
+  const connectors = JSON.parse(connectorsRes.body.toString("utf8"));
+  assert(Array.isArray(connectors) && connectors.length >= 1, "connectors should be a non-empty array");
+  const rowSchema = [
+    { key: "schema_version", types: ["string"] },
+    { key: "id", types: ["string"] },
+    { key: "key", types: ["string"] },
+    { key: "name", types: ["string"] },
+    { key: "enabled", types: ["boolean"] },
+    { key: "connected", types: ["boolean"] },
+    { key: "last_checked_at", types: ["string", "null"] },
+    { key: "has_secret", types: ["boolean"] },
+    { key: "secret_len", types: ["number"] },
+    { key: "notes", types: ["array"] },
+  ];
+  connectors.forEach((row) => {
+    assertShape("connector", row, rowSchema);
+    assert(Array.isArray(row.notes), "connector notes should be array");
+  });
+
+  const connectionsRes = await requestLocal(handler, {
+    method: "GET",
+    url: "/api/connections",
+    headers: { Authorization: token },
+  });
+  assert(connectionsRes.statusCode === 200, "connections should return 200");
+  const connections = JSON.parse(connectionsRes.body.toString("utf8"));
+  assertShape("connections", connections, [
+    { key: "schema_version", types: ["string"] },
+    { key: "updated_at", types: ["string", "null"] },
+    { key: "items", types: ["array"] },
+  ]);
+  assert(Array.isArray(connections.items), "connections.items should be array");
+  connections.items.forEach((row) => {
+    assertShape("connection item", row, rowSchema);
+    assert(Array.isArray(row.notes), "connection item notes should be array");
+  });
+  assert(!connections.ai?.apiKey, "connections GET should not expose ai apiKey");
+  assert(!connections.github?.token, "connections GET should not expose github token");
+  assert(!connections.figma?.token, "connections GET should not expose figma token");
+
   const createRes = await requestLocal(handler, {
     method: "POST",
     url: "/api/projects",
