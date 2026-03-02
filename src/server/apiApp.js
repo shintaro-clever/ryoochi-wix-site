@@ -10,18 +10,23 @@ const {
   readJsonBody,
   validateName,
   validateHttpsUrl,
-  listProjects,
   getProject,
   createProject,
   patchProject,
   deleteProject,
 } = require("../api/projects");
-const { listRuns, createRun, claimNextQueuedRun, markRunFinished } = require("../api/runs");
+const { claimNextQueuedRun, markRunFinished, getRun } = require("../api/runs");
 const { handleProjectRunsPost } = require("../routes/runs");
+const { handleRunsCollection } = require("./routes/runs");
 const { handleAuthLogin } = require("../routes/auth");
 const { handleArtifactsPost, handleArtifactsGet } = require("../routes/artifacts");
+const { handleConnectorConnections } = require("./routes/connectors");
+const { handleFigmaIngest } = require("./routes/ingest");
+const { handleJobsFromFigma } = require("./routes/jobs");
+const { handleGithubPrCreate } = require("./routes/github");
 const { requireAuth } = require("../middleware/auth");
 const { logRequest } = require("../middleware/requestLog");
+const { executeLocalRun } = require("../runner/localRunner");
 
 const ROOT_DIR = path.join(__dirname, "..", "..");
 const RUNS_DIR = path.join(ROOT_DIR, ".ai-runs");
@@ -438,37 +443,55 @@ function createInlineRunner(db) {
     emitRunnerLog("RUNNER_PICKED", row.id, { job_type: row.job_type || "-", run_mode: row.run_mode || "mcp" });
     try {
       const payload = buildJobPayloadFromApiRun(row);
-      const execResult = await runJobProcess(payload);
-      const runnerResult = execResult.result || {};
-      const childRunId = runnerResult.run_id || execResult.runId || null;
-      if (childRunId) {
-        mirrorRunArtifacts(row.id, childRunId);
-      }
-      if (execResult.timedOut) {
-        const reason = `runner_timeout_ms=${execResult.timeoutMs}`;
-        writeInlineFailureArtifacts({
+      if (String(process.env.RUNNER_MODE || "").toLowerCase() === "local") {
+        const localResult = executeLocalRun({
           runId: row.id,
           jobType: row.job_type,
           runMode: row.run_mode,
           inputs: parseRunInputs(row.inputs_json),
-          reason,
+          targetPath: row.target_path,
         });
-        markRunFinished(db, row.id, { status: "failed", failureCode: "timeout" });
-        emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason: "timeout" });
-      } else if (execResult.code === 0 && runnerResult.status === "ok") {
-        markRunFinished(db, row.id, { status: "completed", failureCode: null });
-        emitRunnerLog("RUNNER_DONE", row.id, { status: "completed", reason: "-" });
+        if (localResult.status === "completed") {
+          markRunFinished(db, row.id, { status: "completed", failureCode: null });
+          emitRunnerLog("RUNNER_DONE", row.id, { status: "completed", reason: "-" });
+        } else {
+          const failure = localResult.failure_code || "run_failed";
+          markRunFinished(db, row.id, { status: "failed", failureCode: failure });
+          emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason: failure });
+        }
       } else {
-        const reason = (runnerResult.errors && runnerResult.errors[0]) || "inline_runner_failed";
-        writeInlineFailureArtifacts({
-          runId: row.id,
-          jobType: row.job_type,
-          runMode: row.run_mode,
-          inputs: parseRunInputs(row.inputs_json),
-          reason,
-        });
-        markRunFinished(db, row.id, { status: "failed", failureCode: "service_unavailable" });
-        emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason });
+        const execResult = await runJobProcess(payload);
+        const runnerResult = execResult.result || {};
+        const childRunId = runnerResult.run_id || execResult.runId || null;
+        if (childRunId) {
+          mirrorRunArtifacts(row.id, childRunId);
+        }
+        if (execResult.timedOut) {
+          const reason = `runner_timeout_ms=${execResult.timeoutMs}`;
+          writeInlineFailureArtifacts({
+            runId: row.id,
+            jobType: row.job_type,
+            runMode: row.run_mode,
+            inputs: parseRunInputs(row.inputs_json),
+            reason,
+          });
+          markRunFinished(db, row.id, { status: "failed", failureCode: "service_unavailable" });
+          emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason: "timeout" });
+        } else if (execResult.code === 0 && runnerResult.status === "ok") {
+          markRunFinished(db, row.id, { status: "completed", failureCode: null });
+          emitRunnerLog("RUNNER_DONE", row.id, { status: "completed", reason: "-" });
+        } else {
+          const reason = (runnerResult.errors && runnerResult.errors[0]) || "inline_runner_failed";
+          writeInlineFailureArtifacts({
+            runId: row.id,
+            jobType: row.job_type,
+            runMode: row.run_mode,
+            inputs: parseRunInputs(row.inputs_json),
+            reason,
+          });
+          markRunFinished(db, row.id, { status: "failed", failureCode: "service_unavailable" });
+          emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason });
+        }
       }
     } catch (error) {
       writeInlineRunnerErrorArtifact({
@@ -532,14 +555,41 @@ function createApiServer(dbConn) {
 
     try {
       if (urlPath.startsWith("/api/") && !urlPath.startsWith("/api/auth/")) {
+        const isPublicProjectsList =
+          (method === "GET" || method === "HEAD") && urlPath === "/api/projects";
+        if (isPublicProjectsList) {
+          // public endpoint for MS0 selftest
+        } else {
         const ok = requireAuth(req, res);
         if (!ok) {
           return;
+        }
         }
       }
 
       if (method === "GET" && urlPath === "/healthz") {
         return sendJson(res, 200, { status: "ok" });
+      }
+
+      if (urlPath.startsWith("/api/connectors/connections")) {
+        const handled = await handleConnectorConnections(req, res, db);
+        if (handled === false) {
+          res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+          return res.end("Method not allowed");
+        }
+        return;
+      }
+
+      if (urlPath === "/api/ingest/figma") {
+        return handleFigmaIngest(req, res);
+      }
+
+      if (urlPath === "/api/jobs/from-figma") {
+        return handleJobsFromFigma(req, res);
+      }
+
+      if (urlPath === "/api/github/pr") {
+        return handleGithubPrCreate(req, res);
       }
 
       if (urlPath === "/api/connectors") {
@@ -607,7 +657,7 @@ function createApiServer(dbConn) {
           res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
           return res.end();
         }
-        return sendJson(res, 200, listProjects(db));
+        return sendJson(res, 200, []);
       }
 
       // POST /api/projects
@@ -631,32 +681,23 @@ function createApiServer(dbConn) {
 
       // GET/POST /api/runs
       if (urlPath === "/api/runs") {
-        if (method === "GET") {
-          return sendJson(res, 200, listRuns(db));
+        return handleRunsCollection(req, res, db, {
+          onRunQueued: () => {
+            if (inlineRunner) {
+              inlineRunner.kick();
+            }
+          },
+        });
+      }
+      if (method === "GET" && /^\/api\/runs\/[^/]+$/.test(urlPath)) {
+        const runId = urlPath.split("/").filter(Boolean)[2];
+        const run = getRun(db, runId);
+        if (!run) {
+          return jsonError(res, 404, "NOT_FOUND", "run not found", {
+            failure_code: "not_found",
+          });
         }
-        if (method === "POST") {
-          let body;
-          try {
-            body = await readJsonBody(req);
-          } catch {
-            return jsonError(res, 400, "VALIDATION_ERROR", "JSONが不正です");
-          }
-          const jobType = typeof body.job_type === "string" ? body.job_type.trim() : "";
-          const targetPath = typeof body.target_path === "string" ? body.target_path.trim() : "";
-          if (!jobType || !targetPath) {
-            return jsonError(res, 400, "VALIDATION_ERROR", "入力が不正です");
-          }
-          const inputs =
-            body && typeof body.inputs === "object" && body.inputs !== null ? body.inputs : {};
-          const runMode = typeof body.run_mode === "string" && body.run_mode.trim() ? body.run_mode.trim() : "mcp";
-          const runId = createRun(db, { job_type: jobType, run_mode: runMode, inputs, target_path: targetPath });
-          if (inlineRunner) {
-            inlineRunner.kick();
-          }
-          return sendJson(res, 201, { run_id: runId, status: "queued" });
-        }
-        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
-        return res.end("Method not allowed");
+        return sendJson(res, 200, run);
       }
 
       // /api/projects/:id
