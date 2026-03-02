@@ -19,70 +19,27 @@ function openDb() {
   const dbPath = getDbPath();
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS projects (
-      tenant_id   TEXT NOT NULL,
-      id          TEXT NOT NULL,
-      name        TEXT NOT NULL,
-      staging_url TEXT NOT NULL,
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL,
-      PRIMARY KEY (tenant_id, id)
-    );
-    CREATE TABLE IF NOT EXISTS connections (
-      tenant_id  TEXT NOT NULL,
-      id         TEXT NOT NULL,
-      provider   TEXT,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (tenant_id, id)
-    );
-    CREATE TABLE IF NOT EXISTS runs (
-      tenant_id   TEXT NOT NULL,
-      id          TEXT NOT NULL,
-      project_id  TEXT NOT NULL,
-      status      TEXT NOT NULL,
-      inputs_json TEXT NOT NULL,
-      created_at  TEXT NOT NULL,
-      updated_at  TEXT NOT NULL,
-      PRIMARY KEY (tenant_id, id)
-    );
-    CREATE TABLE IF NOT EXISTS artifacts (
-      tenant_id  TEXT NOT NULL,
-      name       TEXT NOT NULL,
-      path       TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      PRIMARY KEY (tenant_id, name)
-    );
-    CREATE TABLE IF NOT EXISTS run_events (
-      tenant_id  TEXT NOT NULL,
-      run_id     TEXT NOT NULL,
-      event_type TEXT NOT NULL,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS audit_logs (
-      tenant_id  TEXT NOT NULL,
-      actor_id   TEXT,
-      action     TEXT NOT NULL,
-      meta_json  TEXT,
-      created_at TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS job_templates (
-      name                  TEXT NOT NULL,
-      direction             TEXT NOT NULL,
-      required_mode         TEXT NOT NULL,
-      required_capabilities TEXT NOT NULL,
-      required_inputs       TEXT NOT NULL,
-      description           TEXT,
-      PRIMARY KEY (name)
-    );
-    CREATE INDEX IF NOT EXISTS runs_project_status
-      ON runs(tenant_id, project_id, status);
-  `);
+  const schemaPath = path.join(__dirname, "schema.sql");
+  const schemaSql = fs.existsSync(schemaPath)
+    ? fs.readFileSync(schemaPath, "utf8")
+    : "";
+  if (schemaSql.trim()) {
+    db.exec(schemaSql);
+  }
+  ensureConnectionColumns(db);
   ensureRunColumns(db);
   ensureJobTemplates(db);
   return db;
+}
+
+function ensureConnectionColumns(db) {
+  const columns = db.prepare("PRAGMA table_info(connections)").all().map((row) => row.name);
+  if (!columns.includes("provider_key")) {
+    db.exec("ALTER TABLE connections ADD COLUMN provider_key TEXT");
+  }
+  if (!columns.includes("config_json")) {
+    db.exec("ALTER TABLE connections ADD COLUMN config_json TEXT");
+  }
 }
 
 function ensureRunColumns(db) {
@@ -98,6 +55,18 @@ function ensureRunColumns(db) {
   }
   if (!columns.includes("run_mode")) {
     db.exec("ALTER TABLE runs ADD COLUMN run_mode TEXT");
+  }
+  if (!columns.includes("figma_file_key")) {
+    db.exec("ALTER TABLE runs ADD COLUMN figma_file_key TEXT");
+  }
+  if (!columns.includes("ingest_artifact_path")) {
+    db.exec("ALTER TABLE runs ADD COLUMN ingest_artifact_path TEXT");
+  }
+  if (!columns.includes("github_pr_url")) {
+    db.exec("ALTER TABLE runs ADD COLUMN github_pr_url TEXT");
+  }
+  if (!columns.includes("github_pr_number")) {
+    db.exec("ALTER TABLE runs ADD COLUMN github_pr_number INTEGER");
   }
 }
 

@@ -26,6 +26,8 @@ const RUNS_ROOT = path.join(process.cwd(), '.ai-runs');
 function loadSelftestRunners() {
   const dir = path.join(__dirname, '..', 'tests', 'selftest');
   const order = [
+    'ms1_connectors_ingest_jobs_patch.test.js',
+    'ms2_github_pr_trace.test.js',
     'ms2_targetPath.test.js',
     'ms2_runs.test.js',
     'ms2_api_runs.test.js',

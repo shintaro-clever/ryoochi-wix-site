@@ -46,6 +46,12 @@ function validateJob(job) {
     if (!isString(job.inputs.target_path)) {
       errors.push('inputs.target_path must be a non-empty string');
     }
+    if (
+      job.inputs.ingest_artifact_path !== undefined &&
+      !isString(job.inputs.ingest_artifact_path)
+    ) {
+      errors.push('inputs.ingest_artifact_path must be a non-empty string when provided');
+    }
   }
 
   if (job.constraints) {
@@ -80,6 +86,12 @@ function validateJob(job) {
     }
     if (!isStringArray(job.inputs.allowed_paths) || job.inputs.allowed_paths.length === 0) {
       errors.push('repo_patch requires inputs.allowed_paths array');
+    }
+    if (
+      job.inputs.ingest_artifact_path !== undefined &&
+      !String(job.inputs.ingest_artifact_path).startsWith('vault/tmp/')
+    ) {
+      errors.push('repo_patch inputs.ingest_artifact_path must be under vault/tmp/');
     }
   }
 
