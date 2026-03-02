@@ -1,4 +1,6 @@
 const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
 const { DEFAULT_TENANT } = require("../db/sqlite");
 const { withRetry } = require("../db/retry");
 
@@ -20,11 +22,27 @@ function parseInputs(inputsJson) {
   }
 }
 
+function resolveArtifacts(runId, targetPath) {
+  const artifacts = [];
+  if (targetPath && typeof targetPath === "string") {
+    const normalizedTarget = targetPath.replace(/\{\{run_id\}\}/g, runId);
+    const absolute = path.join(process.cwd(), normalizedTarget);
+    if (fs.existsSync(absolute)) {
+      artifacts.push(normalizedTarget);
+    }
+  }
+  const logPath = `.ai-runs/${runId}/runner.log`;
+  if (fs.existsSync(path.join(process.cwd(), logPath))) {
+    artifacts.push(logPath);
+  }
+  return artifacts;
+}
+
 function listRuns(db) {
   return withRetry(() =>
     db
       .prepare(
-        "SELECT id,status,job_type,run_mode,inputs_json,target_path,failure_code,created_at,updated_at FROM runs WHERE tenant_id=? ORDER BY created_at DESC"
+        "SELECT id,status,job_type,run_mode,inputs_json,target_path,failure_code,figma_file_key,ingest_artifact_path,github_pr_url,github_pr_number,created_at,updated_at FROM runs WHERE tenant_id=? ORDER BY created_at DESC"
       )
       .all(DEFAULT_TENANT)
       .map((row) => ({
@@ -34,21 +52,26 @@ function listRuns(db) {
         run_mode: row.run_mode || null,
         inputs: parseInputs(row.inputs_json),
         target_path: row.target_path || null,
+        artifacts: resolveArtifacts(row.id, row.target_path || null),
         failure_code: row.failure_code || null,
+        figma_file_key: row.figma_file_key || null,
+        ingest_artifact_path: row.ingest_artifact_path || null,
+        github_pr_url: row.github_pr_url || null,
+        github_pr_number: typeof row.github_pr_number === "number" ? row.github_pr_number : null,
         created_at: row.created_at,
         updated_at: row.updated_at,
       }))
   );
 }
 
-function createRun(db, { job_type, run_mode, inputs, target_path }) {
+function createRun(db, { job_type, run_mode, inputs, target_path, figma_file_key = null, ingest_artifact_path = null }) {
   const runId = crypto.randomUUID();
   const ts = nowIso();
   const inputsJson = JSON.stringify(inputs || {});
   withRetry(() =>
     db
       .prepare(
-        "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,job_type,run_mode,target_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)"
+        "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,job_type,run_mode,target_path,figma_file_key,ingest_artifact_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)"
       )
       .run(
         DEFAULT_TENANT,
@@ -59,6 +82,8 @@ function createRun(db, { job_type, run_mode, inputs, target_path }) {
         job_type,
         run_mode || "mcp",
         target_path,
+        figma_file_key,
+        ingest_artifact_path,
         ts,
         ts
       )
@@ -66,11 +91,40 @@ function createRun(db, { job_type, run_mode, inputs, target_path }) {
   return runId;
 }
 
+function getRun(db, runId) {
+  const row = withRetry(() =>
+    db
+      .prepare(
+        "SELECT id,status,job_type,run_mode,inputs_json,target_path,failure_code,figma_file_key,ingest_artifact_path,github_pr_url,github_pr_number,created_at,updated_at FROM runs WHERE tenant_id=? AND id=?"
+      )
+      .get(DEFAULT_TENANT, runId)
+  );
+  if (!row) {
+    return null;
+  }
+  return {
+    run_id: row.id,
+    status: row.status,
+    job_type: row.job_type || null,
+    run_mode: row.run_mode || null,
+    inputs: parseInputs(row.inputs_json),
+    target_path: row.target_path || null,
+    artifacts: resolveArtifacts(row.id, row.target_path || null),
+    failure_code: row.failure_code || null,
+    figma_file_key: row.figma_file_key || null,
+    ingest_artifact_path: row.ingest_artifact_path || null,
+    github_pr_url: row.github_pr_url || null,
+    github_pr_number: typeof row.github_pr_number === "number" ? row.github_pr_number : null,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  };
+}
+
 function claimNextQueuedRun(db) {
   const tx = db.transaction(() => {
     const row = db
       .prepare(
-        "SELECT id,job_type,run_mode,inputs_json,target_path,created_at,updated_at FROM runs WHERE tenant_id=? AND status='queued' ORDER BY created_at ASC LIMIT 1"
+        "SELECT id,job_type,run_mode,inputs_json,target_path,figma_file_key,ingest_artifact_path,created_at,updated_at FROM runs WHERE tenant_id=? AND status='queued' ORDER BY created_at ASC LIMIT 1"
       )
       .get(DEFAULT_TENANT);
     if (!row || !row.id) {
@@ -96,16 +150,21 @@ function claimNextQueuedRun(db) {
 }
 
 function markRunFinished(db, runId, { status, failureCode = null }) {
+  if (status === "failed" && (!failureCode || !String(failureCode).trim())) {
+    throw new Error("failureCode is required when status=failed");
+  }
+  const normalizedFailure = status === "failed" ? String(failureCode).trim() : null;
   const ts = nowIso();
   withRetry(() =>
     db
-      .prepare("UPDATE runs SET status=?, failure_code=?, updated_at=? WHERE tenant_id=? AND id=?")
-      .run(status, failureCode, ts, DEFAULT_TENANT, runId)
+      .prepare("UPDATE runs SET status=?, failure_code=?, updated_at=? WHERE tenant_id=? AND id=? AND status='running'")
+      .run(status, normalizedFailure, ts, DEFAULT_TENANT, runId)
   );
 }
 
 module.exports = {
   listRuns,
+  getRun,
   createRun,
   claimNextQueuedRun,
   markRunFinished,

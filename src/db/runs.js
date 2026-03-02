@@ -83,7 +83,10 @@ function transitionToFinal({
   if (!["succeeded", "failed", "cancelled"].includes(status)) {
     throw new Error("invalid status");
   }
-  const failure = status === "failed" ? failureCode || null : null;
+  if (status === "failed" && (!failureCode || !String(failureCode).trim())) {
+    throw new Error("failureCode is required when status=failed");
+  }
+  const failure = status === "failed" ? String(failureCode).trim() : null;
   const info = withRetry(() =>
     dbConn
       .prepare(
