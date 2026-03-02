@@ -32,11 +32,28 @@ async function run() {
   const runId = createRunRecord({ projectId: `project-${Date.now()}`, inputsJson: {} });
   const moved = transitionToRunning({ runId });
   assert(moved, "queued -> running should succeed");
+  const movedAgain = transitionToRunning({ runId });
+  assert(movedAgain === false, "running should be written exactly once");
   const finished = transitionToFinal({ runId, status: "succeeded" });
   assert(finished, "running -> succeeded should succeed");
   const runRow = getRunById({ runId });
   assert(runRow.status === "succeeded", "run status should be succeeded");
   db.prepare("DELETE FROM runs WHERE tenant_id=? AND id=?").run(DEFAULT_TENANT, runId);
+
+  const failedRunId = createRunRecord({ projectId: `project-${Date.now()}`, inputsJson: {} });
+  transitionToRunning({ runId: failedRunId });
+  let missingFailureRejected = false;
+  try {
+    transitionToFinal({ runId: failedRunId, status: "failed" });
+  } catch (error) {
+    missingFailureRejected = /failureCode/.test(String(error && error.message));
+  }
+  assert(missingFailureRejected, "failed transition should require non-null failure_code");
+  const failedOk = transitionToFinal({ runId: failedRunId, status: "failed", failureCode: "run_failed" });
+  assert(failedOk, "running -> failed should succeed with failure_code");
+  const failedRow = getRunById({ runId: failedRunId });
+  assert(failedRow.failure_code === "run_failed", "failed run should persist failure_code");
+  db.prepare("DELETE FROM runs WHERE tenant_id=? AND id=?").run(DEFAULT_TENANT, failedRunId);
 
   const timeoutRunId = createRunRecord({ projectId: `project-${Date.now()}`, inputsJson: {} });
   transitionToRunning({ runId: timeoutRunId });

@@ -51,7 +51,7 @@ function createRun(db, projectId, inputsJson) {
   const targetPath = resolveProjectRunTargetPath(inputsToStore, runId);
   withRetry(() =>
     db.prepare(
-      "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,job_type,target_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)"
+      "INSERT INTO runs(tenant_id,id,project_id,status,inputs_json,job_type,target_path,figma_file_key,ingest_artifact_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)"
     ).run(
       DEFAULT_TENANT,
       runId,
@@ -60,6 +60,8 @@ function createRun(db, projectId, inputsJson) {
       JSON.stringify(inputsToStore),
       PROJECT_RUN_JOB_TYPE,
       targetPath,
+      typeof inputsToStore.figma_file_key === "string" ? inputsToStore.figma_file_key : null,
+      typeof inputsToStore.ingest_artifact_path === "string" ? inputsToStore.ingest_artifact_path : null,
       ts,
       ts
     )
@@ -67,14 +69,19 @@ function createRun(db, projectId, inputsJson) {
   return runId;
 }
 
-function updateRunStatus(db, runId, status) {
+function updateRunStatus(db, runId, status, { fromStatus = null, failureCode = null } = {}) {
+  if (status === "failed" && (!failureCode || !String(failureCode).trim())) {
+    throw new Error("failureCode is required when status=failed");
+  }
+  const nextFailure = status === "failed" ? String(failureCode).trim() : null;
   withRetry(() =>
-    db.prepare("UPDATE runs SET status=?, updated_at=? WHERE tenant_id=? AND id=?").run(
-      status,
-      nowIso(),
-      DEFAULT_TENANT,
-      runId
-    )
+    fromStatus
+      ? db
+          .prepare("UPDATE runs SET status=?, failure_code=?, updated_at=? WHERE tenant_id=? AND id=? AND status=?")
+          .run(status, nextFailure, nowIso(), DEFAULT_TENANT, runId, fromStatus)
+      : db
+          .prepare("UPDATE runs SET status=?, failure_code=?, updated_at=? WHERE tenant_id=? AND id=?")
+          .run(status, nextFailure, nowIso(), DEFAULT_TENANT, runId)
   );
 }
 
@@ -389,7 +396,7 @@ async function handleProjectRunsPost(req, res, db, projectId) {
 
   runJobAsync(jobPayload, {
     onStart: () => {
-      updateRunStatus(db, runId, "running");
+      updateRunStatus(db, runId, "running", { fromStatus: "queued" });
       try {
         emitAuditEvent({
           req,
@@ -416,7 +423,10 @@ async function handleProjectRunsPost(req, res, db, projectId) {
     },
     onDone: (code) => {
       const status = code === 0 ? "completed" : "failed";
-      updateRunStatus(db, runId, status);
+      updateRunStatus(db, runId, status, {
+        fromStatus: "running",
+        failureCode: status === "failed" ? "run_failed" : null,
+      });
       try {
         emitAuditEvent({
           req,
