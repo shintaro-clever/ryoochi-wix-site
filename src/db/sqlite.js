@@ -25,6 +25,68 @@ function openDb() {
     : "";
   if (schemaSql.trim()) {
     db.exec(schemaSql);
+  } else {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS projects (
+        tenant_id   TEXT NOT NULL,
+        id          TEXT NOT NULL,
+        name        TEXT NOT NULL,
+        staging_url TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, id)
+      );
+      CREATE TABLE IF NOT EXISTS connections (
+        tenant_id  TEXT NOT NULL,
+        id         TEXT NOT NULL,
+        provider   TEXT,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, id)
+      );
+      CREATE TABLE IF NOT EXISTS runs (
+        tenant_id   TEXT NOT NULL,
+        id          TEXT NOT NULL,
+        project_id  TEXT NOT NULL,
+        status      TEXT NOT NULL,
+        inputs_json TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, id)
+      );
+      CREATE TABLE IF NOT EXISTS artifacts (
+        tenant_id  TEXT NOT NULL,
+        name       TEXT NOT NULL,
+        path       TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, name)
+      );
+      CREATE TABLE IF NOT EXISTS run_events (
+        tenant_id  TEXT NOT NULL,
+        run_id     TEXT NOT NULL,
+        event_type TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        tenant_id  TEXT NOT NULL,
+        actor_id   TEXT,
+        action     TEXT NOT NULL,
+        meta_json  TEXT,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS job_templates (
+        name                  TEXT NOT NULL,
+        direction             TEXT NOT NULL,
+        required_mode         TEXT NOT NULL,
+        required_capabilities TEXT NOT NULL,
+        required_inputs       TEXT NOT NULL,
+        description           TEXT,
+        PRIMARY KEY (name)
+      );
+      CREATE INDEX IF NOT EXISTS runs_project_status
+        ON runs(tenant_id, project_id, status);
+    `);
   }
   ensureConnectionColumns(db);
   ensureRunColumns(db);
