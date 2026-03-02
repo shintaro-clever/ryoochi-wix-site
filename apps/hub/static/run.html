@@ -92,6 +92,14 @@
             <strong>Created</strong>
             <div id="summaryCreated">-</div>
           </div>
+          <div class="summary-item">
+            <strong>Figma File Key</strong>
+            <div id="summaryFigmaFileKey">-</div>
+          </div>
+          <div class="summary-item">
+            <strong>GitHub PR</strong>
+            <div id="summaryGithubPrUrl">-</div>
+          </div>
         </div>
       </section>
       <section class="card">
@@ -135,6 +143,20 @@
         document.getElementById('summaryJobType').textContent = detail.job_type;
         document.getElementById('summaryStatus').textContent = detail.status;
         document.getElementById('summaryCreated').textContent = detail.created_at || '-';
+        document.getElementById('summaryFigmaFileKey').textContent =
+          detail.figma_file_key ||
+          (detail.run_json && detail.run_json.job && detail.run_json.job.inputs && detail.run_json.job.inputs.figma_file_key) ||
+          '-';
+        const prUrl =
+          detail.github_pr_url ||
+          (detail.run_json && detail.run_json.runnerResult && detail.run_json.runnerResult.github_pr_url) ||
+          '';
+        const prEl = document.getElementById('summaryGithubPrUrl');
+        if (prUrl) {
+          prEl.innerHTML = `<a href=\"${prUrl}\" target=\"_blank\">${prUrl}</a>`;
+        } else {
+          prEl.textContent = '-';
+        }
       }
 
       function renderArtifacts(runId, artifacts) {

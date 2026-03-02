@@ -72,6 +72,8 @@
             <th>job_type</th>
             <th>Status</th>
             <th>Created</th>
+            <th>Figma</th>
+            <th>PR</th>
             <th>Artifacts</th>
           </tr>
         </thead>
@@ -97,6 +99,8 @@
             <td>${run.job_type}</td>
             <td>${run.status}</td>
             <td>${run.created_at || '-'}</td>
+            <td>${run.figma_file_key || '-'}</td>
+            <td>${run.github_pr_url ? '<a href=\"' + run.github_pr_url + '\" target=\"_blank\">PR</a>' : '-'}</td>
             <td class="artifacts">${(run.artifacts || []).length}</td>
           `;
           tr.addEventListener('click', () => {
