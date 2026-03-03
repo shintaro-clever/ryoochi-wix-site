@@ -10,6 +10,7 @@ const {
   readJsonBody,
   validateName,
   validateHttpsUrl,
+  validateDriveFolderId,
   listProjects,
   getProject,
   createProject,
@@ -654,7 +655,7 @@ function createApiServer(dbConn) {
           res.writeHead(200, { "Content-Type": "application/json; charset=utf-8" });
           return res.end();
         }
-        return sendJson(res, 200, []);
+        return sendJson(res, 200, listProjects(db));
       }
 
       // POST /api/projects
@@ -668,11 +669,15 @@ function createApiServer(dbConn) {
 
         const nameErr = validateName(body.name);
         const urlErr = validateHttpsUrl(body.staging_url);
-        if (nameErr || urlErr) {
-          return jsonError(res, 400, "VALIDATION_ERROR", "入力が不正です", { nameErr, urlErr });
+        const driveErr = body.drive_folder_id !== undefined ? validateDriveFolderId(body.drive_folder_id) : null;
+        if (nameErr || urlErr || driveErr) {
+          return jsonError(res, 400, "VALIDATION_ERROR", "入力が不正です", { nameErr, urlErr, driveErr });
         }
 
-        const created = createProject(db, body.name.trim(), body.staging_url.trim(), req.user?.id);
+        const created = createProject(db, body.name.trim(), body.staging_url.trim(), req.user?.id, {
+          description: body.description,
+          drive_folder_id: body.drive_folder_id,
+        });
         return sendJson(res, 201, created);
       }
 
@@ -755,6 +760,10 @@ function createApiServer(dbConn) {
           if (body.staging_url !== undefined) {
             const e = validateHttpsUrl(body.staging_url);
             if (e) return jsonError(res, 400, "VALIDATION_ERROR", "入力が不正です", { urlErr: e });
+          }
+          if (body.drive_folder_id !== undefined) {
+            const e = validateDriveFolderId(body.drive_folder_id);
+            if (e) return jsonError(res, 400, "VALIDATION_ERROR", "入力が不正です", { driveErr: e });
           }
 
           const updated = patchProject(db, id, body, req.user?.id);

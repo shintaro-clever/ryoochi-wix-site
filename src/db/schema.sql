@@ -2,7 +2,9 @@ CREATE TABLE IF NOT EXISTS projects (
   tenant_id   TEXT NOT NULL DEFAULT 'internal',
   id          TEXT NOT NULL,
   name        TEXT NOT NULL,
+  description TEXT,
   staging_url TEXT NOT NULL,
+  drive_folder_id TEXT,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   PRIMARY KEY (tenant_id, id)

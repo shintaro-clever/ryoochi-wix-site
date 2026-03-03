@@ -310,6 +310,9 @@ async function handleProjectRunsPost(req, res, db, projectId) {
   const normalizedInputsPayload = {
     ...(inputs || {}),
   };
+  if (!normalizedInputsPayload.project_id) {
+    normalizedInputsPayload.project_id = projectId;
+  }
   const baseValidation = validateRunInputs(DEFAULT_TENANT, normalizedInputsPayload);
   if (!baseValidation.valid) {
     const status = baseValidation.status || 400;
