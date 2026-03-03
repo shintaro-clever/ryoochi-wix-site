@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { DEFAULT_TENANT } = require("../db/sqlite");
 const { withRetry } = require("../db/retry");
+const { encrypt, decrypt } = require("../crypto/secrets");
 
 function nowIso() {
   return new Date().toISOString();
@@ -10,8 +11,14 @@ function parseConfig(configJson) {
   if (typeof configJson !== "string" || !configJson.trim()) {
     return {};
   }
+  let jsonText = configJson;
   try {
-    const parsed = JSON.parse(configJson);
+    jsonText = decrypt(configJson);
+  } catch {
+    jsonText = configJson;
+  }
+  try {
+    const parsed = JSON.parse(jsonText);
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
@@ -39,7 +46,7 @@ function createConnection(
   { tenantId = DEFAULT_TENANT, providerKey, config = {}, id = crypto.randomUUID() } = {}
 ) {
   const ts = nowIso();
-  const configJson = JSON.stringify(config || {});
+  const configJson = encrypt(JSON.stringify(config || {}));
   withRetry(() =>
     db
       .prepare(

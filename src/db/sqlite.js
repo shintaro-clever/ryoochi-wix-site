@@ -1,6 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const Database = require("better-sqlite3");
+const { encrypt, decrypt } = require("../crypto/secrets");
 
 const DEFAULT_TENANT = "internal";
 
@@ -91,6 +92,7 @@ function openDb() {
   ensureConnectionColumns(db);
   ensureRunColumns(db);
   ensureJobTemplates(db);
+  migrateConnectionConfigJsonEncryption(db);
   return db;
 }
 
@@ -193,4 +195,27 @@ function ensureJobTemplates(db) {
   });
 }
 
-module.exports = { openDb, DEFAULT_TENANT };
+function migrateConnectionConfigJsonEncryption(db) {
+  const rows = db
+    .prepare(
+      "SELECT tenant_id, id, config_json FROM connections WHERE config_json IS NOT NULL AND trim(config_json) <> ''"
+    )
+    .all();
+  const update = db.prepare(
+    "UPDATE connections SET config_json=?, updated_at=? WHERE tenant_id=? AND id=?"
+  );
+  const now = new Date().toISOString();
+  rows.forEach((row) => {
+    const text = typeof row.config_json === "string" ? row.config_json : "";
+    if (!text) return;
+    try {
+      decrypt(text);
+      return;
+    } catch {
+      const encrypted = encrypt(text);
+      update.run(encrypted, now, row.tenant_id, row.id);
+    }
+  });
+}
+
+module.exports = { openDb, DEFAULT_TENANT, migrateConnectionConfigJsonEncryption };

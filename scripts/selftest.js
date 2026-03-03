@@ -33,6 +33,10 @@ function loadSelftestRunners() {
     'ms2_api_runs.test.js',
     'ms2_artifacts.test.js',
     'ms2_events.test.js',
+    'ms3_auth_mode.test.js',
+    'ms3_login_jwt.test.js',
+    'ms3_config_json_encryption.test.js',
+    'ms3_audit_events.test.js',
     'ms4_targetPath_cases.test.js',
     'ms4_figma_verify.test.js',
     'integration_ms0_ms4.test.js'
