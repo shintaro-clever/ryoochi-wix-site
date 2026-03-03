@@ -56,6 +56,34 @@ function validateName(name) {
   return null;
 }
 
+function normalizeDriveFolderId(value) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) return "";
+  const urlMatch = text.match(/\/folders\/([a-zA-Z0-9_-]+)/);
+  if (urlMatch && urlMatch[1]) {
+    return urlMatch[1];
+  }
+  const queryMatch = text.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (queryMatch && queryMatch[1]) {
+    return queryMatch[1];
+  }
+  if (/^[a-zA-Z0-9_-]{10,}$/.test(text)) {
+    return text;
+  }
+  return "";
+}
+
+function validateDriveFolderId(value, { required = false } = {}) {
+  const normalized = normalizeDriveFolderId(value);
+  if (!normalized) {
+    return required ? "drive_folder_id is required" : null;
+  }
+  if (!/^[a-zA-Z0-9_-]{10,}$/.test(normalized)) {
+    return "drive_folder_id is invalid";
+  }
+  return null;
+}
+
 function nowIso() {
   return new Date().toISOString();
 }
@@ -64,7 +92,7 @@ function listProjects(db) {
   return withRetry(() =>
     db
       .prepare(
-        "SELECT id,name,staging_url,created_at,updated_at FROM projects WHERE tenant_id=? ORDER BY created_at DESC"
+        "SELECT id,name,description,staging_url,drive_folder_id,created_at,updated_at FROM projects WHERE tenant_id=? ORDER BY created_at DESC"
       )
       .all(DEFAULT_TENANT)
   );
@@ -73,18 +101,22 @@ function listProjects(db) {
 function getProject(db, id) {
   return withRetry(() =>
     db
-      .prepare("SELECT id,name,staging_url,created_at,updated_at FROM projects WHERE tenant_id=? AND id=?")
+      .prepare(
+        "SELECT id,name,description,staging_url,drive_folder_id,created_at,updated_at FROM projects WHERE tenant_id=? AND id=?"
+      )
       .get(DEFAULT_TENANT, id)
   );
 }
 
-function createProject(db, name, stagingUrl, actorId) {
+function createProject(db, name, stagingUrl, actorId, options = {}) {
   const id = crypto.randomUUID();
   const ts = nowIso();
+  const description = typeof options.description === "string" ? options.description.trim() : "";
+  const driveFolderId = normalizeDriveFolderId(options.drive_folder_id);
   withRetry(() =>
     db.prepare(
-      "INSERT INTO projects(tenant_id,id,name,staging_url,created_at,updated_at) VALUES(?,?,?,?,?,?)"
-    ).run(DEFAULT_TENANT, id, name, stagingUrl, ts, ts)
+      "INSERT INTO projects(tenant_id,id,name,description,staging_url,drive_folder_id,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)"
+    ).run(DEFAULT_TENANT, id, name, description, stagingUrl, driveFolderId || null, ts, ts)
   );
   recordAudit({
     db,
@@ -102,15 +134,19 @@ function patchProject(db, id, patch, actorId) {
 
   const nextName = typeof patch.name === "string" ? patch.name : existing.name;
   const nextUrl = typeof patch.staging_url === "string" ? patch.staging_url : existing.staging_url;
+  const nextDescription =
+    typeof patch.description === "string" ? patch.description : existing.description || "";
+  const nextDriveFolderId =
+    patch.drive_folder_id !== undefined
+      ? normalizeDriveFolderId(patch.drive_folder_id) || null
+      : existing.drive_folder_id || null;
 
   withRetry(() =>
-    db.prepare("UPDATE projects SET name=?, staging_url=?, updated_at=? WHERE tenant_id=? AND id=?").run(
-      nextName,
-      nextUrl,
-      nowIso(),
-      DEFAULT_TENANT,
-      id
-    )
+    db
+      .prepare(
+        "UPDATE projects SET name=?, description=?, staging_url=?, drive_folder_id=?, updated_at=? WHERE tenant_id=? AND id=?"
+      )
+      .run(nextName, nextDescription, nextUrl, nextDriveFolderId, nowIso(), DEFAULT_TENANT, id)
   );
   recordAudit({
     db,
@@ -144,6 +180,8 @@ module.exports = {
   readJsonBody,
   validateName,
   validateHttpsUrl,
+  validateDriveFolderId,
+  normalizeDriveFolderId,
   listProjects,
   getProject,
   createProject,

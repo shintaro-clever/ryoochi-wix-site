@@ -90,10 +90,21 @@ function openDb() {
     `);
   }
   ensureConnectionColumns(db);
+  ensureProjectColumns(db);
   ensureRunColumns(db);
   ensureJobTemplates(db);
   migrateConnectionConfigJsonEncryption(db);
   return db;
+}
+
+function ensureProjectColumns(db) {
+  const columns = db.prepare("PRAGMA table_info(projects)").all().map((row) => row.name);
+  if (!columns.includes("description")) {
+    db.exec("ALTER TABLE projects ADD COLUMN description TEXT");
+  }
+  if (!columns.includes("drive_folder_id")) {
+    db.exec("ALTER TABLE projects ADD COLUMN drive_folder_id TEXT");
+  }
 }
 
 function ensureConnectionColumns(db) {

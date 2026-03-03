@@ -64,7 +64,10 @@ function listRuns(db) {
   );
 }
 
-function createRun(db, { job_type, run_mode, inputs, target_path, figma_file_key = null, ingest_artifact_path = null }) {
+function createRun(
+  db,
+  { job_type, run_mode, inputs, target_path, project_id = null, figma_file_key = null, ingest_artifact_path = null }
+) {
   const runId = crypto.randomUUID();
   const ts = nowIso();
   const inputsJson = JSON.stringify(inputs || {});
@@ -76,7 +79,7 @@ function createRun(db, { job_type, run_mode, inputs, target_path, figma_file_key
       .run(
         DEFAULT_TENANT,
         runId,
-        API_RUNS_PROJECT_ID,
+        project_id || API_RUNS_PROJECT_ID,
         "queued",
         inputsJson,
         job_type,
