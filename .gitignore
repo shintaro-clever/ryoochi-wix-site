@@ -16,3 +16,6 @@ reports/*
 !tmp/.gitkeep
 !reports/.gitkeep
 .env.pm2
+vault/tmp/
+ecosystem.config.cjs.bak*
+sue-0-mcp-runner-doc-fix
