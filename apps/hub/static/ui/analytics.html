@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html class="dark" lang="ja">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Orchestrator AI - アナリティクス</title>
+
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+
+  <script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          colors: {
+            "primary": "#a55c50",
+            "background-light": "#f7f6f6",
+            "background-dark": "#1d1615",
+            "card-dark": "#251f1e",
+            "border-dark": "#3d3432",
+            "text-muted": "#b1a7a5"
+          },
+          fontFamily: { "display": ["Inter", "sans-serif"] },
+          borderRadius: { "DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px" }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body { font-family: 'Inter', 'Noto Sans JP', sans-serif; }
+    .material-symbols-outlined { font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+    .active-nav { background-color: #a55c50; color: white; }
+    .custom-scrollbar::-webkit-scrollbar { width: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #3d3432; border-radius: 9999px; }
+  </style>
+</head>
+<body class="bg-background-dark text-white min-h-screen">
+  <div class="min-h-screen flex">
+    <aside class="w-64 border-r border-border-dark p-4 hidden md:block">
+      <h1 class="text-xl font-semibold mb-6">Orchestrator AI</h1>
+      <nav class="space-y-2 text-sm">
+        <a class="block px-3 py-2 rounded-lg hover:bg-card-dark" href="/jobs">ジョブ</a>
+        <a class="block px-3 py-2 rounded-lg hover:bg-card-dark" href="/runs">実行履歴</a>
+        <a class="block px-3 py-2 rounded-lg active-nav" href="/ui/analytics.html">アナリティクス</a>
+        <a class="block px-3 py-2 rounded-lg hover:bg-card-dark" href="/projects">プロジェクト</a>
+      </nav>
+    </aside>
+
+    <main class="flex-1 p-6 md:p-10">
+      <header class="flex items-center justify-between mb-8">
+        <div>
+          <h2 class="text-2xl font-semibold">アナリティクス</h2>
+          <p class="text-text-muted mt-1">実行トレンドと成功率のモニタリング</p>
+        </div>
+        <button class="bg-primary px-4 py-2 rounded-lg text-sm font-semibold">エクスポート</button>
+      </header>
+
+      <section class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
+        <article class="bg-card-dark border border-border-dark rounded-xl p-4">
+          <p class="text-text-muted text-sm">総実行数</p>
+          <p class="text-2xl font-semibold mt-2">1,284</p>
+        </article>
+        <article class="bg-card-dark border border-border-dark rounded-xl p-4">
+          <p class="text-text-muted text-sm">成功率</p>
+          <p class="text-2xl font-semibold mt-2">96.4%</p>
+        </article>
+        <article class="bg-card-dark border border-border-dark rounded-xl p-4">
+          <p class="text-text-muted text-sm">平均所要時間</p>
+          <p class="text-2xl font-semibold mt-2">2m 18s</p>
+        </article>
+        <article class="bg-card-dark border border-border-dark rounded-xl p-4">
+          <p class="text-text-muted text-sm">本日の失敗数</p>
+          <p class="text-2xl font-semibold mt-2">7</p>
+        </article>
+      </section>
+
+      <section class="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <article class="xl:col-span-2 bg-card-dark border border-border-dark rounded-xl p-4">
+          <h3 class="font-semibold mb-4">日次実行トレンド</h3>
+          <div class="h-64 rounded-lg bg-[#1b1514] border border-border-dark flex items-end gap-2 p-3">
+            <div class="bg-primary/70 w-full rounded-t" style="height: 30%"></div>
+            <div class="bg-primary/70 w-full rounded-t" style="height: 45%"></div>
+            <div class="bg-primary/70 w-full rounded-t" style="height: 40%"></div>
+            <div class="bg-primary/70 w-full rounded-t" style="height: 60%"></div>
+            <div class="bg-primary/70 w-full rounded-t" style="height: 55%"></div>
+            <div class="bg-primary/70 w-full rounded-t" style="height: 78%"></div>
+            <div class="bg-primary/70 w-full rounded-t" style="height: 66%"></div>
+          </div>
+        </article>
+
+        <article class="bg-card-dark border border-border-dark rounded-xl p-4">
+          <h3 class="font-semibold mb-4">失敗理由トップ</h3>
+          <ul class="space-y-3 text-sm custom-scrollbar max-h-64 overflow-y-auto pr-2">
+            <li class="flex items-center justify-between"><span>service_unavailable</span><span class="text-text-muted">35%</span></li>
+            <li class="flex items-center justify-between"><span>validation_error</span><span class="text-text-muted">24%</span></li>
+            <li class="flex items-center justify-between"><span>permission</span><span class="text-text-muted">18%</span></li>
+            <li class="flex items-center justify-between"><span>run_failed</span><span class="text-text-muted">13%</span></li>
+            <li class="flex items-center justify-between"><span>rate_limit</span><span class="text-text-muted">10%</span></li>
+          </ul>
+        </article>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
