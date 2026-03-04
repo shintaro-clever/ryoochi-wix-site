@@ -1,5 +1,7 @@
 const { readJsonBody, sendJson, jsonError } = require("../../api/projects");
 const { listRuns, createRun } = require("../../api/runs");
+const { validateRunInputs } = require("../../validation/runInputs");
+const { DEFAULT_TENANT } = require("../../db/sqlite");
 
 async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
   const method = (req.method || "GET").toUpperCase();
@@ -22,6 +24,28 @@ async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
     return jsonError(res, 400, "VALIDATION_ERROR", "入力が不正です");
   }
   const inputs = body && typeof body.inputs === "object" && body.inputs !== null ? body.inputs : {};
+  const requestedProjectId =
+    typeof body.project_id === "string" && body.project_id.trim()
+      ? body.project_id.trim()
+      : typeof inputs.project_id === "string" && inputs.project_id.trim()
+        ? inputs.project_id.trim()
+        : null;
+  const validation = validateRunInputs(DEFAULT_TENANT, {
+    ...inputs,
+    project_id: requestedProjectId,
+    target_path: targetPath,
+    export_provider: body.export_provider,
+    google_native_type: body.google_native_type,
+    thread_title: body.thread_title,
+  });
+  if (!validation.valid) {
+    return jsonError(res, validation.status || 400, "VALIDATION_ERROR", "入力が不正です", {
+      failure_code: validation.failure_code || "validation_error",
+      error: validation.error || "INVALID_INPUT",
+      ...(validation.details || {}),
+    });
+  }
+
   const runMode = typeof body.run_mode === "string" && body.run_mode.trim() ? body.run_mode.trim() : "mcp";
   const figmaFileKey =
     typeof body.figma_file_key === "string" && body.figma_file_key.trim()
@@ -38,7 +62,8 @@ async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
   const runId = createRun(db, {
     job_type: jobType,
     run_mode: runMode,
-    inputs,
+    inputs: { ...inputs, ...validation.normalized },
+    project_id: validation.normalized.project_id || null,
     target_path: targetPath,
     figma_file_key: figmaFileKey,
     ingest_artifact_path: ingestArtifactPath,

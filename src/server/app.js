@@ -15,6 +15,16 @@ const {
   getConnectionsResponseBody,
   updateConnections
 } = require('./connectionsStore');
+const { initDB } = require('../db');
+const {
+  validateName,
+  validateHttpsUrl,
+  validateDriveFolderId,
+  listProjects,
+  getProject,
+  createProject,
+  patchProject
+} = require('../api/projects');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 const distDir = path.join(ROOT_DIR, 'apps', 'hub', 'dist');
@@ -25,6 +35,7 @@ const staticConnectors = path.join(staticDir, 'connectors.html');
 const staticConnectorDetail = path.join(staticDir, 'connector-detail.html');
 const staticAccount = path.join(staticDir, 'account.html');
 const staticChat = path.join(staticDir, 'chat.html');
+const staticProjects = path.join(staticDir, 'projects.html');
 const staticRunsList = path.join(staticDir, 'runs.html');
 const staticRunDetail = path.join(staticDir, 'run.html');
 const STATIC_ROUTE_PREFIX = '/static';
@@ -32,6 +43,7 @@ const RUNS_DIR = path.join(ROOT_DIR, '.ai-runs');
 const scriptsDir = path.join(ROOT_DIR, 'scripts');
 const runJobScript = path.join(scriptsDir, 'run-job.js');
 const connectorSmokeScript = path.relative(process.cwd(), path.join(scriptsDir, 'connector-smoke.js'));
+const appDb = initDB();
 // Quick smoke test: node server.js → curl -I http://127.0.0.1:3000/jobs
 
 function fileExists(filePath) {
@@ -146,6 +158,14 @@ function handleConnectorDetailPage(res, method) {
   res.end('Connector detail UI not found');
 }
 
+function handleProjectsPage(res, method) {
+  if (fileExists(staticProjects)) {
+    serveFile(res, staticProjects, method);
+    return;
+  }
+  res.writeHead(404, { 'Content-Type': 'text/plain' });
+  res.end('Projects UI not found');
+}
 function computeConnectorStatus(providerKey, connections, updatedAt) {
   let configured = false;
   switch (providerKey) {
@@ -995,6 +1015,14 @@ async function handleRequest(req, res) {
     }
     return;
   }
+  if (isGetLikeMethod && (urlPath === '/projects' || urlPath === '/projects/')) {
+    handleProjectsPage(res, method);
+    return;
+  }
+  if (isGetLikeMethod && urlPath.startsWith('/projects/') && urlPath.split('/').filter(Boolean).length === 2) {
+    handleProjectsPage(res, method);
+    return;
+  }
   if (urlPath === '/api/connections') {
     await handleConnectionsApi(req, res, method);
     return;
@@ -1013,8 +1041,79 @@ async function handleRequest(req, res) {
       res.end();
       return;
     }
-    sendJson(res, 200, []);
+    sendJson(res, 200, listProjects(appDb));
     return;
+  }
+  if (method === 'POST' && urlPath === '/api/projects') {
+    let body = {};
+    try {
+      body = await parseJsonBody(req);
+    } catch {
+      sendJsonError(res, 400, 'VALIDATION_ERROR', 'JSONが不正です');
+      return;
+    }
+    const nameErr = validateName(body.name);
+    const urlErr = validateHttpsUrl(body.staging_url);
+    const driveErr = body.drive_folder_id !== undefined ? validateDriveFolderId(body.drive_folder_id) : null;
+    if (nameErr || urlErr || driveErr) {
+      sendJsonError(res, 400, 'VALIDATION_ERROR', '入力が不正です', { nameErr, urlErr, driveErr });
+      return;
+    }
+    const created = createProject(appDb, String(body.name).trim(), String(body.staging_url).trim(), null, {
+      description: body.description,
+      drive_folder_id: body.drive_folder_id
+    });
+    sendJson(res, 201, created);
+    return;
+  }
+  if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 3) {
+    const projectId = segments[2];
+    if (method === 'GET') {
+      const item = getProject(appDb, projectId);
+      if (!item) {
+        sendJsonError(res, 404, 'NOT_FOUND', 'Projectが見つかりません', { failure_code: 'not_found' });
+        return;
+      }
+      sendJson(res, 200, item);
+      return;
+    }
+    if (method === 'PATCH') {
+      let body = {};
+      try {
+        body = await parseJsonBody(req);
+      } catch {
+        sendJsonError(res, 400, 'VALIDATION_ERROR', 'JSONが不正です');
+        return;
+      }
+      if (body.name !== undefined) {
+        const e = validateName(body.name);
+        if (e) {
+          sendJsonError(res, 400, 'VALIDATION_ERROR', '入力が不正です', { nameErr: e });
+          return;
+        }
+      }
+      if (body.staging_url !== undefined) {
+        const e = validateHttpsUrl(body.staging_url);
+        if (e) {
+          sendJsonError(res, 400, 'VALIDATION_ERROR', '入力が不正です', { urlErr: e });
+          return;
+        }
+      }
+      if (body.drive_folder_id !== undefined) {
+        const e = validateDriveFolderId(body.drive_folder_id);
+        if (e) {
+          sendJsonError(res, 400, 'VALIDATION_ERROR', '入力が不正です', { driveErr: e });
+          return;
+        }
+      }
+      const updated = patchProject(appDb, projectId, body, null);
+      if (!updated) {
+        sendJsonError(res, 404, 'NOT_FOUND', 'Projectが見つかりません', { failure_code: 'not_found' });
+        return;
+      }
+      sendJson(res, 200, updated);
+      return;
+    }
   }
   if (segments[0] === 'api' && segments[1] === 'runs') {
     const runId = segments.length >= 3 ? segments[2] : null;
