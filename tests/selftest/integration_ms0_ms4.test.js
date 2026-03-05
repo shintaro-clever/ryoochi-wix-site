@@ -148,8 +148,12 @@ async function run() {
   const aiItem = Array.isArray(putConnections.items)
     ? putConnections.items.find((row) => row.key === "ai")
     : null;
+  const githubItemAfterPut = Array.isArray(putConnections.items)
+    ? putConnections.items.find((row) => row.key === "github")
+    : null;
   assert(aiItem && aiItem.has_secret === true, "items.has_secret should reflect stored secret");
   assert(aiItem && aiItem.secret_len === "sk-test-key".length, "items.secret_len should reflect stored secret");
+  assert(githubItemAfterPut && githubItemAfterPut.enabled === true, "PUT should reflect github.enabled=true");
 
   const getAfterPutRes = await requestLocal(handler, {
     method: "GET",
@@ -161,6 +165,10 @@ async function run() {
   assert(getAfterPut.ai?.provider === "openai", "GET after PUT should reflect ai.provider");
   assert(getAfterPut.github?.repo === "owner/repo", "GET after PUT should reflect github.repo");
   assert(getAfterPut.figma?.fileUrl === "https://www.figma.com/file/abc123/Example", "GET after PUT should reflect figma.fileUrl");
+  const githubItemAfterGet = Array.isArray(getAfterPut.items)
+    ? getAfterPut.items.find((row) => row.key === "github")
+    : null;
+  assert(githubItemAfterGet && githubItemAfterGet.enabled === true, "GET after PUT should keep github.enabled=true");
   assert(
     typeof connections.updated_at === "string" ? getAfterPut.updated_at !== connections.updated_at : !!getAfterPut.updated_at,
     "GET after PUT should have updated updated_at"

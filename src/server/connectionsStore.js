@@ -16,6 +16,7 @@ function createEmptyConnections() {
     ai: { provider: "", name: "", apiKey: "" },
     github: { repo: "", token: "" },
     figma: { fileUrl: "", token: "" },
+    item_enabled: {},
   };
 }
 
@@ -24,6 +25,23 @@ function coerceString(value) {
 }
 
 function normalizeConnectionsPayload(payload = {}) {
+  const itemEnabled = {};
+  if (Array.isArray(payload.items)) {
+    payload.items.forEach((item) => {
+      if (!item || typeof item !== "object" || Array.isArray(item)) return;
+      const key = typeof item.key === "string" ? item.key.trim() : "";
+      if (!key) return;
+      if (typeof item.enabled !== "boolean") return;
+      itemEnabled[key] = item.enabled;
+    });
+  }
+  if (payload.item_enabled && typeof payload.item_enabled === "object" && !Array.isArray(payload.item_enabled)) {
+    Object.entries(payload.item_enabled).forEach(([key, enabled]) => {
+      if (typeof key !== "string" || !key.trim()) return;
+      if (typeof enabled !== "boolean") return;
+      itemEnabled[key.trim()] = enabled;
+    });
+  }
   return {
     ai: {
       provider: coerceString(payload.ai?.provider),
@@ -38,6 +56,7 @@ function normalizeConnectionsPayload(payload = {}) {
       fileUrl: coerceString(payload.figma?.fileUrl),
       token: coerceString(payload.figma?.token),
     },
+    item_enabled: itemEnabled,
   };
 }
 
@@ -55,13 +74,21 @@ function secretMeta(value) {
 }
 
 function buildConnectionItems(connections, updatedAt) {
+  const enabledOverride = connections && connections.item_enabled && typeof connections.item_enabled === "object"
+    ? connections.item_enabled
+    : {};
+  const effectiveEnabled = (key, fallback) =>
+    typeof enabledOverride[key] === "boolean" ? enabledOverride[key] : fallback;
   return [
     {
       schema_version: CONNECTION_SCHEMA_VERSION,
       id: "conn-ai",
       key: "ai",
       name: "AI Provider",
-      enabled: hasValue(connections.ai?.provider) || hasValue(connections.ai?.name) || hasValue(connections.ai?.apiKey),
+      enabled: effectiveEnabled(
+        "ai",
+        hasValue(connections.ai?.provider) || hasValue(connections.ai?.name) || hasValue(connections.ai?.apiKey)
+      ),
       connected: hasValue(connections.ai?.apiKey),
       last_checked_at: updatedAt,
       ...secretMeta(connections.ai?.apiKey),
@@ -72,7 +99,7 @@ function buildConnectionItems(connections, updatedAt) {
       id: "conn-github",
       key: "github",
       name: "GitHub",
-      enabled: hasValue(connections.github?.repo) || hasValue(connections.github?.token),
+      enabled: effectiveEnabled("github", hasValue(connections.github?.repo) || hasValue(connections.github?.token)),
       connected: hasValue(connections.github?.token),
       last_checked_at: updatedAt,
       ...secretMeta(connections.github?.token),
@@ -83,7 +110,7 @@ function buildConnectionItems(connections, updatedAt) {
       id: "conn-figma",
       key: "figma",
       name: "Figma",
-      enabled: hasValue(connections.figma?.fileUrl) || hasValue(connections.figma?.token),
+      enabled: effectiveEnabled("figma", hasValue(connections.figma?.fileUrl) || hasValue(connections.figma?.token)),
       connected: hasValue(connections.figma?.token),
       last_checked_at: updatedAt,
       ...secretMeta(connections.figma?.token),
@@ -197,6 +224,9 @@ function applyConnectionsUpdate(existing, payload) {
       if (!item || typeof item !== "object" || Array.isArray(item)) {
         throw validationError("items entry must be object", { field: `items[${index}]` });
       }
+      if (typeof item.key !== "string" || !item.key.trim()) {
+        throw validationError("items[].key must be string", { field: `items[${index}].key` });
+      }
       if (item.enabled !== undefined && typeof item.enabled !== "boolean") {
         throw validationError("items[].enabled must be boolean", { field: `items[${index}].enabled` });
       }
@@ -216,6 +246,14 @@ function applyConnectionsUpdate(existing, payload) {
   if (payload.figma) {
     setIfPresent(next.figma, payload.figma, "fileUrl", "figma.fileUrl");
     setIfPresent(next.figma, payload.figma, "token", "figma.token");
+  }
+  if (Array.isArray(payload.items)) {
+    payload.items.forEach((item) => {
+      const key = item.key.trim();
+      if (item.enabled !== undefined) {
+        next.item_enabled[key] = item.enabled;
+      }
+    });
   }
 
   return next;
