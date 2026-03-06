@@ -29,6 +29,8 @@
 - `pm2 reload` 直後は一時的に 502 が出る可能性があるため、`curl https://hub.test-plan.help/api/runs` を必ず1回実行して 200 を確認する
 - 上書きにより差分が大きくなることは当面許容する
 - 将来的な改善案として、UI-M2/OPSで source/build 出力分離（生成物とソースの分離）を検討する（現時点では未着手）
+- `/api/connections` は GET/PUT を提供し、許可フィールドのみ更新する。`apiKey`/`token` はレスポンスで非露出（マスク/空）とする。
+- `items[].enabled` は `key` でマージ保存し、PUT/GETレスポンスへ反映する（selftest で担保）。
 
 ## Page Table
 

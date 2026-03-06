@@ -38,6 +38,7 @@ function loadSelftestRunners() {
     'ms3_config_json_encryption.test.js',
     'ms3_audit_events.test.js',
     'man2_projects_drive_rules.test.js',
+    'man2_project_bindings.test.js',
     'ms4_targetPath_cases.test.js',
     'ms4_figma_verify.test.js',
     'integration_ms0_ms4.test.js'

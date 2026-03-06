@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS projects (
   description TEXT,
   staging_url TEXT NOT NULL,
   drive_folder_id TEXT,
+  project_bindings_json TEXT,
+  project_drive_json TEXT,
   created_at  TEXT NOT NULL,
   updated_at  TEXT NOT NULL,
   PRIMARY KEY (tenant_id, id)
@@ -37,6 +39,26 @@ CREATE TABLE IF NOT EXISTS runs (
   github_pr_number INTEGER,
   created_at   TEXT NOT NULL,
   updated_at   TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS project_threads (
+  tenant_id   TEXT NOT NULL DEFAULT 'internal',
+  id          TEXT NOT NULL,
+  project_id  TEXT NOT NULL,
+  title       TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS thread_messages (
+  tenant_id   TEXT NOT NULL DEFAULT 'internal',
+  id          TEXT NOT NULL,
+  thread_id   TEXT NOT NULL,
+  author      TEXT NOT NULL,
+  body        TEXT NOT NULL,
+  created_at  TEXT NOT NULL,
   PRIMARY KEY (tenant_id, id)
 );
 
@@ -76,3 +98,9 @@ CREATE TABLE IF NOT EXISTS job_templates (
 
 CREATE INDEX IF NOT EXISTS runs_project_status
   ON runs(tenant_id, project_id, status);
+
+CREATE INDEX IF NOT EXISTS project_threads_project_updated
+  ON project_threads(tenant_id, project_id, updated_at);
+
+CREATE INDEX IF NOT EXISTS thread_messages_thread_created
+  ON thread_messages(tenant_id, thread_id, created_at);

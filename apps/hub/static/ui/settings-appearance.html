@@ -102,88 +102,51 @@
 
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden relative">
       <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-  <h2 class="text-xl font-bold">設定</h2>
-  <div class="text-xs text-text-muted">Appearance</div>
+  <h2 class="text-xl font-bold"><span data-i18n="ui.settingsAppearance.title">設定 / 外観</span></h2>
+  <a href="/ui/settings.html" class="text-xs text-primary hover:underline" data-i18n="ui.settingsAppearance.back">設定トップへ戻る</a>
 </header>
 
-
-      <div class="bg-background-light dark:bg-background-dark px-8 pt-6 border-b border-primary/10">
-        <nav class="flex flex-wrap gap-6">
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings.html">プロフィール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">連携ツール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">接続管理 (Connections)</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-drive.html">Drive出力先</a>
-          <a class="pb-4 text-sm font-semibold text-primary border-b-2 border-primary" href="/ui/settings-appearance.html">外観</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-language.html">言語</a>
-        </nav>
-      </div>
-
       <div class="flex-1 overflow-y-auto custom-scrollbar bg-background-light dark:bg-background-dark p-8">
-        <div class="max-w-4xl space-y-10 pb-20">
-          <section>
-            <div class="mb-6">
-              <h3 class="text-lg font-bold mb-1">外観設定</h3>
-              <p class="text-sm text-slate-500">UIの表示スタイルをカスタマイズします。</p>
+        <div class="max-w-4xl space-y-6 pb-16">
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h1 class="text-xl font-bold" data-i18n="ui.settingsAppearance.h1">外観設定</h1>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-300" data-i18n="ui.settingsAppearance.desc">テーマとアクセント色を設定するUI骨格です。</p>
+          </section>
+
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settingsAppearance.section.theme">テーマ</h2>
+            <div class="mt-3 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+              <label class="flex items-center gap-2 p-4 rounded-lg border border-primary/10">
+                <input type="radio" name="theme-mode" checked disabled />
+                <span data-i18n="ui.settingsAppearance.theme.light">light</span>
+              </label>
+              <label class="flex items-center gap-2 p-4 rounded-lg border border-primary/10">
+                <input type="radio" name="theme-mode" disabled />
+                <span data-i18n="ui.settingsAppearance.theme.dark">dark</span>
+              </label>
+              <label class="flex items-center gap-2 p-4 rounded-lg border border-primary/10">
+                <input type="radio" name="theme-mode" disabled />
+                <span data-i18n="ui.settingsAppearance.theme.system">system</span>
+              </label>
             </div>
+          </section>
 
-            <div class="bg-white dark:bg-white/5 border border-primary/10 rounded-xl p-6 shadow-sm space-y-10">
-              <div class="flex items-center justify-between">
-                <div>
-                  <p class="font-bold">ダークモード</p>
-                  <p class="text-xs text-slate-500">深夜の作業に適した暗い配色を使用します。</p>
-                </div>
-                <button class="w-12 h-6 bg-primary rounded-full relative transition-colors" aria-label="ダークモード切替（MVP: 見た目のみ）">
-                  <div class="absolute right-1 top-1 w-4 h-4 bg-white rounded-full"></div>
-                </button>
-              </div>
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settingsAppearance.section.accent">アクセント色</h2>
+            <div class="mt-3 flex flex-wrap gap-3">
+              <button type="button" disabled class="w-10 h-10 rounded-full bg-[#a55c50] border-2 border-white dark:border-slate-700" aria-label="primary"></button>
+              <button type="button" disabled class="w-10 h-10 rounded-full bg-slate-600" aria-label="slate"></button>
+              <button type="button" disabled class="w-10 h-10 rounded-full bg-emerald-600" aria-label="emerald"></button>
+              <button type="button" disabled class="w-10 h-10 rounded-full bg-indigo-600" aria-label="indigo"></button>
+            </div>
+          </section>
 
-              <div class="space-y-4">
-                <div>
-                  <p class="font-bold">テーマカラー</p>
-                  <p class="text-xs text-slate-500">主要アクセント色を選択します（MVP: 選択状態の表示のみ）。</p>
-                </div>
-
-                <div class="flex flex-wrap gap-4">
-                  <button class="w-10 h-10 rounded-full bg-[#a55c50] border-4 border-white dark:border-slate-800 ring-2 ring-primary shadow-lg" aria-label="テーマカラー: Primary（選択中）"></button>
-                  <button class="w-10 h-10 rounded-full bg-slate-700 hover:scale-110 transition-transform shadow" aria-label="テーマカラー: Slate"></button>
-                  <button class="w-10 h-10 rounded-full bg-indigo-600 hover:scale-110 transition-transform shadow" aria-label="テーマカラー: Indigo"></button>
-                  <button class="w-10 h-10 rounded-full bg-emerald-600 hover:scale-110 transition-transform shadow" aria-label="テーマカラー: Emerald"></button>
-                  <button class="w-10 h-10 rounded-full bg-amber-500 hover:scale-110 transition-transform shadow" aria-label="テーマカラー: Amber"></button>
-                </div>
-              </div>
-
-              <div class="space-y-3">
-                <div>
-                  <p class="font-bold">表示密度</p>
-                  <p class="text-xs text-slate-500">一覧やカードの余白を調整します（MVP: UIのみ）。</p>
-                </div>
-
-                <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
-                  <label class="flex items-center gap-3 p-4 rounded-xl border border-primary/10 bg-background-light dark:bg-background-dark cursor-pointer hover:border-primary/30 transition-all">
-                    <input type="radio" name="density" class="text-primary" checked />
-                    <div>
-                      <p class="text-sm font-bold">標準</p>
-                      <p class="text-xs text-slate-500">バランス</p>
-                    </div>
-                  </label>
-
-                  <label class="flex items-center gap-3 p-4 rounded-xl border border-primary/10 bg-background-light dark:bg-background-dark cursor-pointer hover:border-primary/30 transition-all">
-                    <input type="radio" name="density" class="text-primary" />
-                    <div>
-                      <p class="text-sm font-bold">コンパクト</p>
-                      <p class="text-xs text-slate-500">情報量重視</p>
-                    </div>
-                  </label>
-
-                  <label class="flex items-center gap-3 p-4 rounded-xl border border-primary/10 bg-background-light dark:bg-background-dark cursor-pointer hover:border-primary/30 transition-all">
-                    <input type="radio" name="density" class="text-primary" />
-                    <div>
-                      <p class="text-sm font-bold">ゆったり</p>
-                      <p class="text-xs text-slate-500">視認性重視</p>
-                    </div>
-                  </label>
-                </div>
-              </div>
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <div class="flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-4 py-2 rounded-lg bg-primary/50 text-white text-sm font-semibold cursor-not-allowed" data-i18n="ui.settingsAppearance.save">
+                保存
+              </button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
             </div>
           </section>
         </div>
@@ -191,5 +154,6 @@
     </main>
 
     <script src="/ui/sidebar.js"></script>
+    <script src="/ui/i18n/i18n.js" defer></script>
   </body>
 </html>

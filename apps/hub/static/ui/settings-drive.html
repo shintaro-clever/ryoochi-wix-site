@@ -102,67 +102,61 @@
 
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
       <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-  <h2 class="text-xl font-bold">設定</h2>
-  <div class="text-xs text-text-muted">Drive Output</div>
+  <h2 class="text-xl font-bold"><span data-i18n="ui.settingsDrive.title">設定 / Drive</span></h2>
+  <a href="/ui/settings.html" class="text-xs text-primary hover:underline" data-i18n="ui.settingsDrive.back">設定トップへ戻る</a>
 </header>
-
-
-      <div class="bg-background-light dark:bg-background-dark px-8 pt-6 border-b border-primary/10">
-        <nav class="flex flex-wrap gap-6">
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings.html">プロフィール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">連携ツール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">接続管理 (Connections)</a>
-          <a class="pb-4 text-sm font-semibold text-primary border-b-2 border-primary" href="/ui/settings-drive.html">Drive出力先</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-appearance.html">外観</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-language.html">言語</a>
-        </nav>
-      </div>
 
       <div class="flex-1 overflow-y-auto custom-scrollbar bg-background-light dark:bg-background-dark p-8">
         <div class="max-w-5xl space-y-6 pb-12">
           <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
-            <h3 class="text-lg font-bold">Drive出力先</h3>
-            <p class="text-sm text-slate-500 mt-1">成果物のエクスポート先フォルダを管理します（MVP: 表示のみ）。</p>
+            <h1 class="text-xl font-bold" data-i18n="ui.settingsDrive.h1">Drive設定</h1>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-300" data-i18n="ui.settingsDrive.desc">Drive連携状態と出力先フォルダを管理するUI骨格です。</p>
+          </section>
 
-            <div class="mt-4 rounded-lg border border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/10 p-4 text-sm space-y-1">
-              <p>・ユーザーが明示したフォルダのみ出力</p>
-              <p>・毎回新規作成</p>
-              <p>・権限不足時は失敗しfailure_codeで判別</p>
-              <p>・共有接続優先</p>
-            </div>
-
-            <div class="mt-6 grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div class="border border-primary/10 rounded-lg p-4 md:col-span-2">
-                <p class="text-xs text-slate-500">出力先フォルダ ID（MVP: readonly風）</p>
-                <input class="mt-2 w-full rounded-lg border border-primary/20 bg-slate-100/70 dark:bg-slate-900/40 px-3 py-2 text-sm text-slate-700 dark:text-slate-200" type="text" value="1A2B3C4D5E6F7G8H9I0J" readonly />
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settingsDrive.section.status">Drive連携状態</h2>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="border border-primary/10 rounded-lg p-3">
+                <p class="text-xs text-slate-500" data-i18n="ui.settingsDrive.card.state">状態</p>
+                <p class="font-semibold mt-1">connected</p>
               </div>
-              <div class="border border-primary/10 rounded-lg p-4 md:col-span-2">
-                <p class="text-xs text-slate-500">出力先フォルダ URL（MVP: readonly風）</p>
-                <input class="mt-2 w-full rounded-lg border border-primary/20 bg-slate-100/70 dark:bg-slate-900/40 px-3 py-2 text-sm text-slate-700 dark:text-slate-200" type="text" value="https://drive.google.com/drive/folders/1A2B3C4D5E6F7G8H9I0J" readonly />
+              <div class="border border-primary/10 rounded-lg p-3">
+                <p class="text-xs text-slate-500" data-i18n="ui.settingsDrive.card.account">アカウント</p>
+                <p class="font-semibold mt-1">service-account@example.com</p>
               </div>
-              <div class="border border-primary/10 rounded-lg p-4">
-                <p class="text-xs text-slate-500">接続元</p>
-                <p class="font-semibold mt-1">Google Drive (共有接続)</p>
-              </div>
-              <div class="border border-primary/10 rounded-lg p-4">
-                <p class="text-xs text-slate-500">ルートフォルダ</p>
-                <p class="font-semibold mt-1">/OrchestratorAI/Exports</p>
-              </div>
-              <div class="border border-primary/10 rounded-lg p-4 md:col-span-2">
-                <p class="text-xs text-slate-500">明示許可フォルダ</p>
-                <ul class="mt-2 text-sm space-y-1">
-                  <li>・/OrchestratorAI/Exports/figma</li>
-                  <li>・/OrchestratorAI/Exports/reports</li>
-                  <li>・/OrchestratorAI/Exports/archive</li>
-                </ul>
+              <div class="border border-primary/10 rounded-lg p-3">
+                <p class="text-xs text-slate-500" data-i18n="ui.settingsDrive.card.updatedAt">最終更新</p>
+                <p class="font-semibold mt-1">2026-03-05T00:00:00Z</p>
               </div>
             </div>
 
-            <p class="mt-4 text-xs text-slate-500">監査観点: 出力先フォルダが SoT（Source of Truth）です。設定変更時は監査ログとの整合を確認してください。</p>
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-4 py-2 rounded-lg bg-primary/50 text-white text-sm font-semibold cursor-not-allowed" data-i18n="ui.settingsDrive.action.connect">接続</button>
+              <button type="button" disabled class="px-4 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.settingsDrive.action.reauth">再認証</button>
+              <button type="button" disabled class="px-4 py-2 rounded-lg border border-rose-500/40 text-rose-600 text-sm cursor-not-allowed" data-i18n="ui.settingsDrive.action.disconnect">解除</button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
+            </div>
+          </section>
 
-            <div class="mt-6 flex flex-wrap gap-2">
-              <button class="px-4 py-2 text-sm rounded-lg bg-primary text-white">フォルダを選択（MVP: ダミー）</button>
-              <button class="px-4 py-2 text-sm rounded-lg border border-primary/30">許可フォルダを編集（MVP: ダミー）</button>
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settingsDrive.section.folder">対象フォルダ</h2>
+            <div class="mt-4 grid grid-cols-1 gap-4">
+              <label class="block">
+                <span class="text-xs text-slate-500" data-i18n="ui.settingsDrive.field.folderId">フォルダID</span>
+                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="1A2B3C..." />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-500" data-i18n="ui.settingsDrive.field.folderUrl">フォルダURL</span>
+                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="https://drive.google.com/drive/folders/..." />
+              </label>
+              <label class="block">
+                <span class="text-xs text-slate-500" data-i18n="ui.settingsDrive.field.allowedPaths">許可パス</span>
+                <textarea rows="3" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm font-mono" placeholder="/OrchestratorAI/Exports"></textarea>
+              </label>
+            </div>
+            <div class="mt-4 flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-4 py-2 rounded-lg bg-primary/50 text-white text-sm font-semibold cursor-not-allowed" data-i18n="ui.settingsDrive.save">保存</button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
             </div>
           </section>
         </div>
@@ -170,5 +164,6 @@
     </main>
 
     <script src="/ui/sidebar.js"></script>
+    <script src="/ui/i18n/i18n.js" defer></script>
   </body>
 </html>

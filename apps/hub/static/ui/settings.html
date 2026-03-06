@@ -102,70 +102,71 @@
 
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
       <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-  <h2 class="text-xl font-bold">設定</h2>
-  <div class="text-xs text-text-muted">Profile</div>
+  <h2 class="text-xl font-bold"><span data-i18n="ui.settings.title">設定</span></h2>
+  <div class="text-xs text-text-muted" data-i18n="ui.settings.subtitle">Settings Home</div>
 </header>
 
-
-      <div class="bg-background-light dark:bg-background-dark px-8 pt-6 border-b border-primary/10">
-        <nav class="flex flex-wrap gap-6">
-          <a class="pb-4 text-sm font-semibold text-primary border-b-2 border-primary" href="/ui/settings.html">プロフィール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">連携ツール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">接続管理 (Connections)</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-drive.html">Drive出力先</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-appearance.html">外観</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-language.html">言語</a>
-        </nav>
-      </div>
-
       <div class="flex-1 overflow-y-auto custom-scrollbar bg-background-light dark:bg-background-dark p-8">
-        <div class="max-w-5xl space-y-8 pb-12">
+        <div class="max-w-5xl space-y-6 pb-12">
           <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
-            <h3 class="text-lg font-bold mb-1">プロフィール</h3>
-            <p class="text-sm text-slate-500 mb-5">ユーザー表示情報（MVP: 表示のみ）</p>
+            <h1 class="text-xl font-bold" data-i18n="ui.settings.h1">設定</h1>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-300" data-i18n="ui.settings.desc">設定カテゴリを選択して各画面へ移動します。</p>
+          </section>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settings.section.categories">設定カテゴリ</h2>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-appearance.html">
+                <p class="font-semibold" data-i18n="ui.settings.card.appearance.title">Appearance</p>
+                <p class="text-xs text-slate-500 mt-1" data-i18n="ui.settings.card.appearance.desc">テーマとアクセント色を設定します。</p>
+              </a>
+              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-connections.html">
+                <p class="font-semibold" data-i18n="ui.settings.card.connections.title">Connections</p>
+                <p class="text-xs text-slate-500 mt-1" data-i18n="ui.settings.card.connections.desc">接続情報と有効化設定を管理します。</p>
+              </a>
+              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-drive.html">
+                <p class="font-semibold" data-i18n="ui.settings.card.drive.title">Drive</p>
+                <p class="text-xs text-slate-500 mt-1" data-i18n="ui.settings.card.drive.desc">Drive出力先と連携状態を確認します。</p>
+              </a>
+              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-language.html">
+                <p class="font-semibold" data-i18n="ui.settings.card.language.title">Language</p>
+                <p class="text-xs text-slate-500 mt-1" data-i18n="ui.settings.card.language.desc">表示言語を切り替えます。</p>
+              </a>
+            </div>
+          </section>
+
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settings.section.summary">現在値サマリ</h2>
+            <p class="mt-1 text-xs text-slate-500 dark:text-slate-300" data-i18n="ui.settings.section.summary.desc">設定の現在値を表示するプレースホルダーです。</p>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
               <div class="p-4 rounded-lg border border-primary/10">
-                <p class="text-xs text-slate-500">表示名</p>
-                <p class="font-semibold mt-1">田中 健一</p>
+                <p class="text-xs text-slate-500" data-i18n="ui.settings.summary.language">language</p>
+                <p class="font-semibold mt-1">ja-JP</p>
               </div>
               <div class="p-4 rounded-lg border border-primary/10">
-                <p class="text-xs text-slate-500">メールアドレス</p>
-                <p class="font-semibold mt-1">kenichi.tanaka@example.com</p>
+                <p class="text-xs text-slate-500" data-i18n="ui.settings.summary.connections">connections数</p>
+                <p class="font-semibold mt-1">3</p>
               </div>
               <div class="p-4 rounded-lg border border-primary/10">
-                <p class="text-xs text-slate-500">プラン</p>
-                <p class="font-semibold mt-1">Pro Plan</p>
-              </div>
-              <div class="p-4 rounded-lg border border-primary/10">
-                <p class="text-xs text-slate-500">タイムゾーン</p>
-                <p class="font-semibold mt-1">Asia/Tokyo</p>
+                <p class="text-xs text-slate-500" data-i18n="ui.settings.summary.drive">drive status</p>
+                <p class="font-semibold mt-1">connected</p>
               </div>
             </div>
           </section>
 
           <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
-            <h3 class="text-lg font-bold mb-2">設定タブ一覧</h3>
-            <p class="text-sm text-slate-500 mb-4">マニュアル準拠の必要項目へ移動できます。</p>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-connections.html">連携ツール / 接続管理 (Connections)</a>
-              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-drive.html">Drive出力先</a>
-              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-appearance.html">外観</a>
-              <a class="p-4 rounded-lg border border-primary/10 hover:border-primary/40 transition" href="/ui/settings-language.html">言語</a>
+            <h2 class="text-lg font-bold" data-i18n="ui.settings.section.actions">設定アクション</h2>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-4 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.settings.action.export">設定をエクスポート</button>
+              <button type="button" disabled class="px-4 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.settings.action.import">設定をインポート</button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
             </div>
-          </section>
-
-          <section class="bg-white dark:bg-card-dark border border-amber-500/40 rounded-xl p-6">
-            <h3 class="text-lg font-bold">運用上の注意</h3>
-            <ul class="mt-3 text-sm text-slate-600 dark:text-slate-300 space-y-2">
-              <li>・明示フォルダのみ出力</li>
-              <li>・共有接続優先</li>
-            </ul>
           </section>
         </div>
       </div>
     </main>
 
     <script src="/ui/sidebar.js"></script>
+    <script src="/ui/i18n/i18n.js" defer></script>
   </body>
 </html>

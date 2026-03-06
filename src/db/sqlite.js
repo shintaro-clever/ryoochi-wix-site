@@ -55,6 +55,24 @@ function openDb() {
         updated_at  TEXT NOT NULL,
         PRIMARY KEY (tenant_id, id)
       );
+      CREATE TABLE IF NOT EXISTS project_threads (
+        tenant_id   TEXT NOT NULL,
+        id          TEXT NOT NULL,
+        project_id  TEXT NOT NULL,
+        title       TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        updated_at  TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, id)
+      );
+      CREATE TABLE IF NOT EXISTS thread_messages (
+        tenant_id   TEXT NOT NULL,
+        id          TEXT NOT NULL,
+        thread_id   TEXT NOT NULL,
+        author      TEXT NOT NULL,
+        body        TEXT NOT NULL,
+        created_at  TEXT NOT NULL,
+        PRIMARY KEY (tenant_id, id)
+      );
       CREATE TABLE IF NOT EXISTS artifacts (
         tenant_id  TEXT NOT NULL,
         name       TEXT NOT NULL,
@@ -87,6 +105,10 @@ function openDb() {
       );
       CREATE INDEX IF NOT EXISTS runs_project_status
         ON runs(tenant_id, project_id, status);
+      CREATE INDEX IF NOT EXISTS project_threads_project_updated
+        ON project_threads(tenant_id, project_id, updated_at);
+      CREATE INDEX IF NOT EXISTS thread_messages_thread_created
+        ON thread_messages(tenant_id, thread_id, created_at);
     `);
   }
   ensureConnectionColumns(db);
@@ -104,6 +126,12 @@ function ensureProjectColumns(db) {
   }
   if (!columns.includes("drive_folder_id")) {
     db.exec("ALTER TABLE projects ADD COLUMN drive_folder_id TEXT");
+  }
+  if (!columns.includes("project_bindings_json")) {
+    db.exec("ALTER TABLE projects ADD COLUMN project_bindings_json TEXT");
+  }
+  if (!columns.includes("project_drive_json")) {
+    db.exec("ALTER TABLE projects ADD COLUMN project_drive_json TEXT");
   }
 }
 

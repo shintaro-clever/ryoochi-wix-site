@@ -1,40 +1,26 @@
 <!DOCTYPE html>
 <html class="dark" lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>AI Orchestrator - project-members</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              primary: "#a55c50",
-              "background-light": "#f7f6f6",
-              "background-dark": "#1d1615",
-              "card-dark": "#251f1e",
-              "border-dark": "#3d3432",
-              "text-muted": "#b1a7a5"
-            },
-            fontFamily: { display: ["Inter", "Noto Sans JP", "sans-serif"] }
-          }
-        }
-      };
-    </script>
-    <style>
-      body { font-family: "Inter", "Noto Sans JP", sans-serif; }
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: #3d3432; border-radius: 10px; }
-    </style>
-  </head>
-  <body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
-    <!-- PAGE_TITLE_KEY: ui.project_members.title -->
-
-    <aside class="w-64 flex-shrink-0 border-r border-primary/10 bg-background-dark flex flex-col h-screen">
+<head>
+  <meta charset="utf-8"/>
+  <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+  <title>Orchestrator AI - Project Members</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{
+      primary:"#a55c50","background-light":"#f7f6f6","background-dark":"#1d1615",
+      "card-dark":"#251f1e","border-dark":"#3d3432","text-muted":"#b1a7a5"
+    }, fontFamily:{display:["Inter","Noto Sans JP","sans-serif"]}, borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"} } } };
+  </script>
+  <style>
+    body{font-family:"Inter","Noto Sans JP",sans-serif;}
+    .custom-scrollbar::-webkit-scrollbar{width:6px;}
+    .custom-scrollbar::-webkit-scrollbar-thumb{background:#3d3432;border-radius:10px;}
+  </style>
+</head>
+<body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
+  <aside class="w-64 flex-shrink-0 border-r border-primary/10 bg-background-dark flex flex-col h-screen">
   <div class="p-6 flex items-center gap-3">
     <div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-white">
       <span class="material-symbols-outlined text-xl">auto_fix</span>
@@ -66,101 +52,84 @@
         <span class="text-sm font-medium" data-i18n="nav.settings">設定</span>
       </a>
     </div>
-
-    <div class="pt-4 border-t border-primary/10">
-      <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2" data-i18n="common.integrated_tools">連携済みツール</p>
-
-      <a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-primary/10 rounded-lg transition-colors" href="#">
-        <span class="material-symbols-outlined">polyline</span>
-        <span class="text-sm font-medium" data-i18n="common.figma">Figma</span>
-      </a>
-
-      <a class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-primary/10 rounded-lg transition-colors" href="#">
-        <span class="material-symbols-outlined">terminal</span>
-        <span class="text-sm font-medium" data-i18n="common.github">GitHub</span>
-      </a>
-    </div>
   </nav>
-
-  <div class="p-4 mt-auto border-t border-primary/10">
-    <div class="flex items-center gap-3 p-2">
-      <img
-        alt="User Profile Picture"
-        class="w-8 h-8 rounded-full border border-primary/20"
-        src="https://lh3.googleusercontent.com/aida-public/AB6AXuB7g1BuuuJtIrUQvaUNmkGWbnrwaEFpf56L6eXfbs4zB6ZlLJ-duWDEsyNceOVVWnYnNmjlaN58YNLD80rulC9yvLlOV-zMhW2kyp3JfpqBhYlkKwmbxv-m9gFYFHDY32juGN6JKyuz09WQHsEtVP3hVWh4agUBqgJ8cMK7-p1E8VThLxTx-Z6CTJiHWHpN_MudwBuyN4jQYIQmoLgk1jr91D3jndnsRzFTZGWJ42GEODQfZiQFfsZOsWyhaL56JlrESnsxteMohPw"
-      />
-      <div class="flex-1 min-w-0">
-        <p class="text-sm font-semibold text-white truncate">田中 健一</p>
-        <p class="text-xs text-slate-500 truncate">Pro Plan</p>
-      </div>
-    </div>
-  </div>
 </aside>
 
-    <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-      <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-  <h2 class="text-xl font-bold"><span data-i18n="ui.project_members.title">ui.project_members.title</span></h2>
-  
-</header>
+  <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+    <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
+      <h2 class="text-xl font-bold"><span data-i18n="ui.projectMembers.title">ui.projectMembers.title</span></h2>
+      <a href="/ui/project.html" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+        <span class="material-symbols-outlined text-base">arrow_back</span>
+        <span data-i18n="ui.projectMembers.back">Project概要へ戻る</span>
+      </a>
+    </header>
 
-      <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
-        <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-6">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 class="text-xl font-bold" data-i18n="ui.project_members.h1">プロジェクトメンバー</h1>
-              <p class="mt-2 text-sm text-text-muted" data-i18n="ui.project_members.desc">参加メンバーと権限状況を確認します。</p>
-            </div>
-            <a class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors" href="/ui/project-invites.html" data-i18n="ui.project_members.inviteCta">
-              招待へ進む
-            </a>
-          </div>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+      <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-6">
+        <h1 class="text-xl font-bold" data-i18n="ui.projectMembers.h1">プロジェクトメンバー</h1>
+        <p class="mt-2 text-sm text-text-muted" data-i18n="ui.projectMembers.desc">メンバー権限を確認し、ロール変更や削除を管理します。</p>
 
-          <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
-            <table class="min-w-full text-sm">
-              <thead class="bg-slate-100 dark:bg-background-dark/70">
-                <tr class="text-left text-slate-600 dark:text-slate-300">
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.project_members.col.name">Name</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.project_members.col.email">Email</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.project_members.col.role">Role</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.project_members.col.status">Status</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.project_members.col.lastActive">LastActive</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.project_members.col.actions">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr class="border-t border-border-dark">
-                  <td class="px-4 py-3">Ken Tanaka</td>
-                  <td class="px-4 py-3">ken@example.com</td>
-                  <td class="px-4 py-3">Owner</td>
-                  <td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-full text-xs bg-emerald-500/15 text-emerald-500" data-i18n="ui.project_members.status.active">active</span></td>
-                  <td class="px-4 py-3">2026-03-04 09:42</td>
-                  <td class="px-4 py-3">
-                    <button class="text-xs px-2 py-1 rounded border border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80" type="button" data-i18n="ui.project_members.action.manage">管理</button>
-                  </td>
-                </tr>
-                <tr class="border-t border-border-dark">
-                  <td class="px-4 py-3">Aoi Sato</td>
-                  <td class="px-4 py-3">aoi@example.com</td>
-                  <td class="px-4 py-3">Editor</td>
-                  <td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-full text-xs bg-amber-500/15 text-amber-500" data-i18n="ui.project_members.status.pending">pending</span></td>
-                  <td class="px-4 py-3">-</td>
-                  <td class="px-4 py-3">
-                    <button class="text-xs px-2 py-1 rounded border border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80" type="button" data-i18n="ui.project_members.action.remind">再通知</button>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+        <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-background-dark/70">
+              <tr class="text-left text-slate-600 dark:text-slate-300">
+                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectMembers.col.name">Name</th>
+                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectMembers.col.email">Email</th>
+                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectMembers.col.role">Role</th>
+                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectMembers.col.status">Status</th>
+                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectMembers.col.lastActive">LastActive</th>
+                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectMembers.col.actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr class="border-t border-border-dark">
+                <td class="px-4 py-3">Ken Tanaka</td>
+                <td class="px-4 py-3">ken@example.com</td>
+                <td class="px-4 py-3">
+                  <select disabled class="w-full rounded border border-border-dark bg-background-light dark:bg-background-dark text-xs px-2 py-1 opacity-60 cursor-not-allowed">
+                    <option>Owner</option>
+                    <option>Editor</option>
+                    <option>Viewer</option>
+                  </select>
+                </td>
+                <td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-full text-xs bg-emerald-500/15 text-emerald-500" data-i18n="ui.project_members.status.active">active</span></td>
+                <td class="px-4 py-3">2026-03-05 16:30</td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" disabled class="text-xs px-2 py-1 rounded border border-border-dark opacity-60 cursor-not-allowed" data-i18n="ui.projectMembers.action.update">更新</button>
+                    <button type="button" disabled class="text-xs px-2 py-1 rounded border border-rose-500/40 text-rose-600 opacity-60 cursor-not-allowed" data-i18n="ui.projectMembers.action.remove">削除</button>
+                  </div>
+                </td>
+              </tr>
+              <tr class="border-t border-border-dark">
+                <td class="px-4 py-3">Aoi Sato</td>
+                <td class="px-4 py-3">aoi@example.com</td>
+                <td class="px-4 py-3">
+                  <select disabled class="w-full rounded border border-border-dark bg-background-light dark:bg-background-dark text-xs px-2 py-1 opacity-60 cursor-not-allowed">
+                    <option>Editor</option>
+                    <option>Viewer</option>
+                  </select>
+                </td>
+                <td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-full text-xs bg-amber-500/15 text-amber-500" data-i18n="ui.project_members.status.pending">pending</span></td>
+                <td class="px-4 py-3">-</td>
+                <td class="px-4 py-3">
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" disabled class="text-xs px-2 py-1 rounded border border-border-dark opacity-60 cursor-not-allowed" data-i18n="ui.projectMembers.action.update">更新</button>
+                    <button type="button" disabled class="text-xs px-2 py-1 rounded border border-rose-500/40 text-rose-600 opacity-60 cursor-not-allowed" data-i18n="ui.projectMembers.action.remove">削除</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
 
-          <div class="mt-6 rounded-lg border border-dashed border-border-dark p-6 text-center">
-            <p class="text-sm font-semibold" data-i18n="ui.project_members.empty.title">メンバーがまだいません</p>
-            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.project_members.empty.desc">招待を送るとここに表示されます。</p>
-          </div>
-        </section>
-      </div>
-    </main>
+        <p class="mt-3 text-xs text-amber-600" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</p>
+        <p class="mt-1 text-xs text-text-muted" data-i18n="ui.projectMembers.note.remove">削除操作は監査記録の対象です。</p>
+      </section>
+    </div>
+  </main>
 
-    <script src="/ui/sidebar.js"></script>
-    <script src="/ui/i18n/i18n.js" defer></script>
-  </body>
+  <script src="/ui/sidebar.js"></script>
+  <script src="/ui/i18n/i18n.js" defer></script>
+</body>
 </html>

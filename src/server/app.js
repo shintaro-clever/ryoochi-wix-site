@@ -20,11 +20,12 @@ const {
   validateName,
   validateHttpsUrl,
   validateDriveFolderId,
-  listProjects,
-  getProject,
   createProject,
   patchProject
 } = require('../api/projects');
+const { listProjects, getProjectById } = require('./projectsStore');
+const { listThreadsByProject, getThread, postMessage } = require('./threadsStore');
+const { getProjectConnections, putProjectConnections, getProjectDrive, putProjectDrive } = require('./projectBindingsStore');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 const distDir = path.join(ROOT_DIR, 'apps', 'hub', 'dist');
@@ -1066,10 +1067,44 @@ async function handleRequest(req, res) {
     sendJson(res, 201, created);
     return;
   }
+  if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 4 && segments[3] === 'connections') {
+    const projectId = segments[2];
+    if (method === 'GET') {
+      const data = getProjectConnections(appDb, projectId);
+      if (!data) { sendJsonError(res, 404, 'NOT_FOUND', 'Project not found'); return; }
+      sendJson(res, 200, data); return;
+    }
+    if (method === 'PUT' || method === 'POST') {
+      let body = {};
+      try { body = await parseJsonBody(req); } catch { sendJsonError(res, 400, 'VALIDATION_ERROR', 'JSON不正'); return; }
+      try { sendJson(res, 200, putProjectConnections(appDb, projectId, body)); }
+      catch (e) { sendJsonError(res, e.status || 400, e.code || 'VALIDATION_ERROR', e.message); }
+      return;
+    }
+    sendJsonError(res, 405, 'VALIDATION_ERROR', 'Method not allowed'); return;
+  }
+
+  if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 4 && segments[3] === 'drive') {
+    const projectId = segments[2];
+    if (method === 'GET') {
+      const data = getProjectDrive(appDb, projectId);
+      if (!data) { sendJsonError(res, 404, 'NOT_FOUND', 'Project not found'); return; }
+      sendJson(res, 200, data); return;
+    }
+    if (method === 'PUT' || method === 'POST') {
+      let body = {};
+      try { body = await parseJsonBody(req); } catch { sendJsonError(res, 400, 'VALIDATION_ERROR', 'JSON不正'); return; }
+      try { sendJson(res, 200, putProjectDrive(appDb, projectId, body)); }
+      catch (e) { sendJsonError(res, e.status || 400, e.code || 'VALIDATION_ERROR', e.message); }
+      return;
+    }
+    sendJsonError(res, 405, 'VALIDATION_ERROR', 'Method not allowed'); return;
+  }
+
   if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 3) {
     const projectId = segments[2];
     if (method === 'GET') {
-      const item = getProject(appDb, projectId);
+      const item = getProjectById(appDb, projectId);
       if (!item) {
         sendJsonError(res, 404, 'NOT_FOUND', 'Projectが見つかりません', { failure_code: 'not_found' });
         return;
@@ -1114,6 +1149,78 @@ async function handleRequest(req, res) {
       sendJson(res, 200, updated);
       return;
     }
+  }
+  if (segments[0] === 'api' && segments[1] === 'projects' && segments.length === 4 && segments[3] === 'threads') {
+    const projectId = segments[2];
+    if (method === 'GET') {
+      try {
+        sendJson(res, 200, listThreadsByProject(appDb, projectId));
+      } catch (error) {
+        sendJsonError(
+          res,
+          error.status || 400,
+          error.code || 'VALIDATION_ERROR',
+          error.message || '入力が不正です',
+          error.details || { failure_code: error.failure_code || 'validation_error' }
+        );
+      }
+      return;
+    }
+    sendJsonError(res, 405, 'VALIDATION_ERROR', 'Method not allowed', { failure_code: 'validation_error' });
+    return;
+  }
+  if (segments[0] === 'api' && segments[1] === 'threads' && segments.length === 3) {
+    const threadId = segments[2];
+    if (method === 'GET') {
+      let payload = null;
+      try {
+        payload = getThread(appDb, threadId);
+      } catch (error) {
+        sendJsonError(
+          res,
+          error.status || 400,
+          error.code || 'VALIDATION_ERROR',
+          error.message || '入力が不正です',
+          error.details || { failure_code: error.failure_code || 'validation_error' }
+        );
+        return;
+      }
+      if (!payload) {
+        sendJsonError(res, 404, 'NOT_FOUND', 'thread not found', { failure_code: 'not_found' });
+        return;
+      }
+      sendJson(res, 200, payload);
+      return;
+    }
+    sendJsonError(res, 405, 'VALIDATION_ERROR', 'Method not allowed', { failure_code: 'validation_error' });
+    return;
+  }
+  if (segments[0] === 'api' && segments[1] === 'threads' && segments.length === 4 && segments[3] === 'messages') {
+    const threadId = segments[2];
+    if (method === 'POST') {
+      let body = {};
+      try {
+        body = await parseJsonBody(req);
+      } catch {
+        sendJsonError(res, 400, 'VALIDATION_ERROR', 'JSONが不正です', { failure_code: 'validation_error' });
+        return;
+      }
+      try {
+        const updated = postMessage(appDb, threadId, body, 'user');
+        sendJson(res, 201, updated);
+      } catch (error) {
+        sendJsonError(
+          res,
+          error.status || 400,
+          error.code || 'VALIDATION_ERROR',
+          error.message || '入力が不正です',
+          error.details || { failure_code: error.failure_code || 'validation_error' }
+        );
+      }
+      return;
+    }
+    sendJsonError(res, 405, 'VALIDATION_ERROR', 'Method not allowed', { failure_code: 'validation_error' });
+    return;
   }
   if (segments[0] === 'api' && segments[1] === 'runs') {
     const runId = segments.length >= 3 ? segments[2] : null;

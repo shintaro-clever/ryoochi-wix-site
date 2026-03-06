@@ -103,118 +103,87 @@
 
     <main class="flex-1 flex flex-col min-w-0 overflow-hidden">
       <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-  <h2 class="text-xl font-bold">設定</h2>
-  <div class="text-xs text-text-muted">Connections</div>
+  <h2 class="text-xl font-bold"><span data-i18n="ui.settingsConnections.title">設定 / Connections</span></h2>
+  <a href="/ui/settings.html" class="text-xs text-primary hover:underline" data-i18n="ui.settingsConnections.back">設定トップへ戻る</a>
 </header>
-
-
-      <div class="bg-background-light dark:bg-background-dark px-8 pt-6 border-b border-primary/10">
-        <nav class="flex flex-wrap gap-6">
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings.html">プロフィール</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-connections.html">連携ツール</a>
-          <a class="pb-4 text-sm font-semibold text-primary border-b-2 border-primary" href="/ui/settings-connections.html">接続管理 (Connections)</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-drive.html">Drive出力先</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-appearance.html">外観</a>
-          <a class="pb-4 text-sm font-semibold text-slate-500 hover:text-primary border-b-2 border-transparent" href="/ui/settings-language.html">言語</a>
-        </nav>
-      </div>
 
       <div class="flex-1 overflow-y-auto custom-scrollbar bg-background-light dark:bg-background-dark p-8">
         <div class="max-w-5xl space-y-6 pb-12">
           <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
-            <h3 class="text-lg font-bold">接続管理</h3>
-            <p class="text-sm text-slate-500 mt-1">Google / Figma / GitHub の共有接続・個人接続を表示します（MVP: 表示のみ）。</p>
-            <div class="mt-4 text-sm rounded-lg border border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/10 p-4 space-y-1">
-              <p>・共有接続優先</p>
-              <p>・Google: 共有接続を常に優先</p>
-              <p>・Figma: 共有接続があれば共有、なければ個人</p>
-              <p>・GitHub: 共有接続があれば共有、なければ個人</p>
+            <h1 class="text-xl font-bold" data-i18n="ui.settingsConnections.h1">接続設定</h1>
+            <p class="mt-2 text-sm text-slate-500 dark:text-slate-300" data-i18n="ui.settingsConnections.desc">provider別の接続設定UI骨格です。</p>
+          </section>
+
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settingsConnections.section.summary">接続状態サマリ</h2>
+            <div class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+              <div class="border border-primary/10 rounded-lg p-3">
+                <p class="text-xs text-slate-500">ai</p>
+                <p class="font-semibold mt-1">connected</p>
+              </div>
+              <div class="border border-primary/10 rounded-lg p-3">
+                <p class="text-xs text-slate-500">github</p>
+                <p class="font-semibold mt-1">connected</p>
+              </div>
+              <div class="border border-primary/10 rounded-lg p-3">
+                <p class="text-xs text-slate-500">figma</p>
+                <p class="font-semibold mt-1">disconnected</p>
+              </div>
             </div>
           </section>
 
-          <section class="grid grid-cols-1 gap-4">
-            <article class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-5">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <h4 class="font-bold text-base">Google</h4>
-                  <p class="text-xs text-slate-500 mt-1">用途: read / write / export</p>
-                </div>
-                <div class="status-pill bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">connected</div>
-              </div>
+          <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
+            <h2 class="text-lg font-bold" data-i18n="ui.settingsConnections.section.form">接続設定フォーム</h2>
+            <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <article class="rounded-lg border border-primary/10 p-4">
+                <h3 class="font-semibold">GitHub</h3>
+                <label class="mt-3 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.githubRepo">github.repo</label>
+                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="owner/repo" />
+                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.githubToken">github.token</label>
+                <input type="password" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" value="" placeholder="********" />
+                <label class="mt-3 inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" disabled />
+                  <span data-i18n="ui.settingsConnections.field.enabled">enabled</span>
+                </label>
+              </article>
 
-              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div class="border border-primary/10 rounded-lg p-3">
-                  <p class="text-xs text-slate-500">共有接続</p>
-                  <p class="font-semibold mt-1">connected</p>
-                </div>
-                <div class="border border-primary/10 rounded-lg p-3">
-                  <p class="text-xs text-slate-500">個人接続</p>
-                  <p class="font-semibold mt-1">disconnected</p>
-                </div>
-              </div>
+              <article class="rounded-lg border border-primary/10 p-4">
+                <h3 class="font-semibold">Figma</h3>
+                <label class="mt-3 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.figmaFileUrl">figma.fileUrl</label>
+                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="https://www.figma.com/file/..." />
+                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.figmaToken">figma.token</label>
+                <input type="password" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" value="" placeholder="********" />
+                <label class="mt-3 inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" disabled />
+                  <span data-i18n="ui.settingsConnections.field.enabled">enabled</span>
+                </label>
+              </article>
 
-              <div class="mt-4 flex gap-2">
-                <button class="px-4 py-2 text-sm rounded-lg bg-primary text-white">接続する（MVP: ダミー）</button>
-                <button class="px-4 py-2 text-sm rounded-lg border border-primary/30">詳細</button>
-              </div>
-            </article>
+              <article class="rounded-lg border border-primary/10 p-4">
+                <h3 class="font-semibold">AI</h3>
+                <label class="mt-3 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.aiProvider">ai.provider</label>
+                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="openai" />
+                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.aiName">ai.name</label>
+                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="gpt-4.1" />
+                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.aiApiKey">ai.apiKey</label>
+                <input type="password" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" value="" placeholder="********" />
+                <label class="mt-3 inline-flex items-center gap-2 text-sm">
+                  <input type="checkbox" disabled />
+                  <span data-i18n="ui.settingsConnections.field.enabled">enabled</span>
+                </label>
+              </article>
+            </div>
 
-            <article class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-5">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <h4 class="font-bold text-base">Figma</h4>
-                  <p class="text-xs text-slate-500 mt-1">用途: read / export</p>
-                </div>
-                <div class="status-pill bg-emerald-500/15 text-emerald-700 dark:text-emerald-300 border border-emerald-500/30">connected</div>
-              </div>
-
-              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div class="border border-primary/10 rounded-lg p-3">
-                  <p class="text-xs text-slate-500">共有接続</p>
-                  <p class="font-semibold mt-1">connected</p>
-                </div>
-                <div class="border border-primary/10 rounded-lg p-3">
-                  <p class="text-xs text-slate-500">個人接続</p>
-                  <p class="font-semibold mt-1">connected</p>
-                </div>
-              </div>
-
-              <div class="mt-4 flex gap-2">
-                <button class="px-4 py-2 text-sm rounded-lg bg-primary text-white">接続する（MVP: ダミー）</button>
-                <button class="px-4 py-2 text-sm rounded-lg border border-primary/30">詳細</button>
-              </div>
-            </article>
-
-            <article class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-5">
-              <div class="flex items-start justify-between gap-3">
-                <div>
-                  <h4 class="font-bold text-base">GitHub</h4>
-                  <p class="text-xs text-slate-500 mt-1">用途: read / write</p>
-                </div>
-                <div class="status-pill bg-slate-500/15 text-slate-700 dark:text-slate-300 border border-slate-500/30">disconnected</div>
-              </div>
-
-              <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div class="border border-primary/10 rounded-lg p-3">
-                  <p class="text-xs text-slate-500">共有接続</p>
-                  <p class="font-semibold mt-1">disconnected</p>
-                </div>
-                <div class="border border-primary/10 rounded-lg p-3">
-                  <p class="text-xs text-slate-500">個人接続</p>
-                  <p class="font-semibold mt-1">connected</p>
-                </div>
-              </div>
-
-              <div class="mt-4 flex gap-2">
-                <button class="px-4 py-2 text-sm rounded-lg bg-primary text-white">接続する（MVP: ダミー）</button>
-                <button class="px-4 py-2 text-sm rounded-lg border border-primary/30">詳細</button>
-              </div>
-            </article>
+            <div class="mt-5 flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-4 py-2 rounded-lg bg-primary/50 text-white text-sm font-semibold cursor-not-allowed" data-i18n="ui.settingsConnections.save">保存</button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
+            </div>
           </section>
         </div>
       </div>
     </main>
 
     <script src="/ui/sidebar.js"></script>
+    <script src="/ui/i18n/i18n.js" defer></script>
   </body>
 </html>

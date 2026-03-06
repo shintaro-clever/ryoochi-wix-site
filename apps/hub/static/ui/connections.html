@@ -110,10 +110,63 @@
               <h1 class="text-xl font-bold" data-i18n="ui.connections.h1">接続一覧</h1>
               <p class="mt-2 text-sm text-text-muted" data-i18n="ui.connections.desc">Providerごとの接続状態を確認します。</p>
             </div>
-            <button type="button" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors" data-i18n="ui.connections.add">
+            <a href="/ui/settings-connections.html" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors" data-i18n="ui.connections.add">
               接続を追加
-            </button>
+            </a>
           </div>
+
+          <section class="mt-6 rounded-lg border border-border-dark p-4">
+            <h2 class="text-sm font-semibold" data-i18n="ui.connections.role.title">画面の役割</h2>
+            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.connections.role.desc">接続状態の確認と、設定画面への導線を提供します。</p>
+          </section>
+
+          <section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
+            <article class="rounded-lg border border-border-dark p-4">
+              <p class="text-xs text-text-muted" data-i18n="ui.connections.card.updatedAt">最終更新</p>
+              <p id="connections-updated-at-card" class="mt-1 font-mono text-xs">-</p>
+            </article>
+            <article class="rounded-lg border border-border-dark p-4">
+              <p class="text-xs text-text-muted" data-i18n="ui.connections.card.total">接続数</p>
+              <p id="connections-total-card" class="mt-1 text-sm font-semibold">0</p>
+            </article>
+          </section>
+
+          <section class="mt-4 rounded-lg border border-border-dark p-4">
+            <h2 class="text-sm font-semibold" data-i18n="ui.connections.filter.title">検索とフィルタ</h2>
+            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.connections.filter.desc">provider / status / keyword で絞り込みます。</p>
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
+              <label class="text-sm">
+                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.connections.filter.provider">provider</span>
+                <select class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm">
+                  <option value="" data-i18n="ui.connections.filter.all">すべて</option>
+                  <option value="ai">ai</option>
+                  <option value="github">github</option>
+                  <option value="figma">figma</option>
+                </select>
+              </label>
+              <label class="text-sm">
+                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.connections.filter.status">status</span>
+                <select class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm">
+                  <option value="" data-i18n="ui.connections.filter.all">すべて</option>
+                  <option value="connected">connected</option>
+                  <option value="disconnected">disconnected</option>
+                </select>
+              </label>
+              <label class="text-sm">
+                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.connections.filter.keyword">keyword</span>
+                <input type="text" class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="key / notes" />
+              </label>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.connections.filter.apply">
+                適用
+              </button>
+              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.connections.filter.reset">
+                リセット
+              </button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
+            </div>
+          </section>
 
           <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
             <table class="min-w-full text-sm">
@@ -152,6 +205,8 @@
       const feedback = document.getElementById("connections-feedback");
       const retry = document.getElementById("connections-retry");
       const empty = document.getElementById("connections-empty-state");
+      const updatedCard = document.getElementById("connections-updated-at-card");
+      const totalCard = document.getElementById("connections-total-card");
 
       function clearRows() {
         if (tbody) tbody.innerHTML = "";
@@ -223,6 +278,8 @@
           const payload = await apiGet("/connections");
           const items = Array.isArray(payload && payload.items) ? payload.items : [];
           const updatedAt = payload && payload.updated_at ? String(payload.updated_at) : "-";
+          if (updatedCard) updatedCard.textContent = updatedAt;
+          if (totalCard) totalCard.textContent = String(items.length);
           if (items.length === 0) {
             feedback.textContent = "";
             toggleEmpty(true);

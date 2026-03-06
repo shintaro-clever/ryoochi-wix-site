@@ -108,6 +108,35 @@
           <h1 class="text-xl font-bold" data-i18n="ui.jobs.h1">ジョブ一覧</h1>
           <p class="mt-2 text-sm text-text-muted" data-i18n="ui.jobs.desc">定義済みジョブのスキーマと更新状態を確認します。</p>
 
+          <section class="mt-6 rounded-lg border border-border-dark p-4">
+            <h2 class="text-sm font-semibold" data-i18n="ui.jobs.filter.title">検索とカテゴリ</h2>
+            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.jobs.filter.desc">job_type検索とphaseカテゴリで絞り込みます。</p>
+            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+              <label class="text-sm">
+                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.jobs.filter.keyword">keyword</span>
+                <input type="text" class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="integration_hub.phase1..." />
+              </label>
+              <label class="text-sm">
+                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.jobs.filter.category">category</span>
+                <select class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm">
+                  <option value="" data-i18n="ui.jobs.filter.all">すべて</option>
+                  <option value="phase0">phase0</option>
+                  <option value="phase1">phase1</option>
+                  <option value="phase2">phase2</option>
+                </select>
+              </label>
+            </div>
+            <div class="mt-3 flex flex-wrap items-center gap-2">
+              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.jobs.filter.apply">
+                適用
+              </button>
+              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.jobs.filter.reset">
+                リセット
+              </button>
+              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
+            </div>
+          </section>
+
           <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
             <table class="min-w-full text-sm">
               <thead class="bg-slate-100 dark:bg-background-dark/70">
@@ -120,13 +149,21 @@
               </thead>
               <tbody>
                 <tr class="border-t border-border-dark">
-                  <td class="px-4 py-3">integration_hub.phase1.code_to_figma_from_url</td>
+                  <td class="px-4 py-3">
+                    <a class="text-primary hover:underline break-all" href="/ui/job.html?job_type=integration_hub.phase1.code_to_figma_from_url">
+                      integration_hub.phase1.code_to_figma_from_url
+                    </a>
+                  </td>
                   <td class="px-4 py-3" data-i18n="ui.jobs.sample.summary1">URLからFigmaへ変換</td>
                   <td class="px-4 py-3"><code class="text-xs">jobSpec.v1</code></td>
                   <td class="px-4 py-3">2026-03-04</td>
                 </tr>
                 <tr class="border-t border-border-dark">
-                  <td class="px-4 py-3">integration_hub.phase1.sync_project_assets</td>
+                  <td class="px-4 py-3">
+                    <a class="text-primary hover:underline break-all" href="/ui/job.html?job_type=integration_hub.phase1.sync_project_assets">
+                      integration_hub.phase1.sync_project_assets
+                    </a>
+                  </td>
                   <td class="px-4 py-3" data-i18n="ui.jobs.sample.summary2">アセット同期</td>
                   <td class="px-4 py-3"><code class="text-xs">jobSpec.v1</code></td>
                   <td class="px-4 py-3">2026-03-03</td>
@@ -138,6 +175,9 @@
           <div class="mt-6 rounded-lg border border-dashed border-border-dark p-6 text-center">
             <p class="text-sm font-semibold" data-i18n="ui.jobs.empty.title">ジョブがまだありません</p>
             <p class="mt-1 text-xs text-text-muted" data-i18n="ui.jobs.empty.desc">ジョブ定義を追加するとここに表示されます。</p>
+          </div>
+          <div class="mt-4 rounded-lg border border-rose-500/30 bg-rose-500/5 p-4 text-sm text-rose-300 hidden">
+            <p class="font-semibold" data-i18n="ui.jobs.error.title">取得エラー</p>
           </div>
         </section>
       </div>

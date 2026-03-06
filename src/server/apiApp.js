@@ -11,12 +11,11 @@ const {
   validateName,
   validateHttpsUrl,
   validateDriveFolderId,
-  listProjects,
-  getProject,
   createProject,
   patchProject,
   deleteProject,
 } = require("../api/projects");
+const { listProjects, getProjectById } = require("./projectsStore");
 const { listRuns, createRun, claimNextQueuedRun, markRunFinished, getRun } = require("../api/runs");
 const { handleProjectRunsPost } = require("../routes/runs");
 const { handleRunsCollection } = require("./routes/runs");
@@ -42,6 +41,8 @@ const {
   updateConnections,
   sanitizeConnectionsPayloadForLog,
 } = require("./connectionsStore");
+const { listThreadsByProject, getThread, postMessage } = require("./threadsStore");
+const { getProjectConnections, putProjectConnections, getProjectDrive, putProjectDrive } = require("./projectBindingsStore");
 
 const ROOT_DIR = path.join(__dirname, "..", "..");
 const RUNS_DIR = path.join(ROOT_DIR, ".ai-runs");
@@ -619,6 +620,82 @@ function createApiServer(dbConn) {
         return res.end("Method not allowed");
       }
 
+      const projectThreadsMatch = urlPath.match(/^\/api\/projects\/([^/]+)\/threads$/);
+      if (projectThreadsMatch) {
+        const id = projectThreadsMatch[1];
+        if (method === "GET") {
+          try {
+            return sendJson(res, 200, listThreadsByProject(db, id));
+          } catch (error) {
+            return jsonError(
+              res,
+              error.status || 400,
+              error.code || "VALIDATION_ERROR",
+              error.message || "入力が不正です",
+              error.details || { failure_code: error.failure_code || "validation_error" }
+            );
+          }
+        }
+        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+        return res.end("Method not allowed");
+      }
+
+      const threadMessagesMatch = urlPath.match(/^\/api\/threads\/([^/]+)\/messages$/);
+      if (threadMessagesMatch) {
+        const threadId = threadMessagesMatch[1];
+        if (method === "POST") {
+          let body;
+          try {
+            body = await readJsonBody(req);
+          } catch {
+            return jsonError(res, 400, "VALIDATION_ERROR", "JSONが不正です", {
+              failure_code: "validation_error",
+            });
+          }
+          try {
+            const updated = postMessage(db, threadId, body, req.user?.id || "user");
+            return sendJson(res, 201, updated);
+          } catch (error) {
+            return jsonError(
+              res,
+              error.status || 400,
+              error.code || "VALIDATION_ERROR",
+              error.message || "入力が不正です",
+              error.details || { failure_code: error.failure_code || "validation_error" }
+            );
+          }
+        }
+        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+        return res.end("Method not allowed");
+      }
+
+      const threadMatch = urlPath.match(/^\/api\/threads\/([^/]+)$/);
+      if (threadMatch) {
+        const threadId = threadMatch[1];
+        if (method === "GET") {
+          let payload;
+          try {
+            payload = getThread(db, threadId);
+          } catch (error) {
+            return jsonError(
+              res,
+              error.status || 400,
+              error.code || "VALIDATION_ERROR",
+              error.message || "入力が不正です",
+              error.details || { failure_code: error.failure_code || "validation_error" }
+            );
+          }
+          if (!payload) {
+            return jsonError(res, 404, "NOT_FOUND", "thread not found", {
+              failure_code: "not_found",
+            });
+          }
+          return sendJson(res, 200, payload);
+        }
+        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+        return res.end("Method not allowed");
+      }
+
       if (urlPath === "/api/artifacts") {
         if (method === "POST") {
           return await handleArtifactsPost(req, res);
@@ -641,13 +718,53 @@ function createApiServer(dbConn) {
         return res.end("Method not allowed");
       }
 
+      const projectConnectionsMatch = urlPath.match(/^\/api\/projects\/([^/]+)\/connections$/);
+      if (projectConnectionsMatch) {
+        const projectId = projectConnectionsMatch[1];
+        if (method === "GET") {
+          const data = getProjectConnections(db, projectId);
+          if (!data) return jsonError(res, 404, "NOT_FOUND", "Project not found", { failure_code: "not_found" });
+          return sendJson(res, 200, data);
+        }
+        if (method === "PUT" || method === "POST") {
+          let body;
+          try { body = await readJsonBody(req); } catch { return jsonError(res, 400, "VALIDATION_ERROR", "JSON不正", { failure_code: "validation_error" }); }
+          try { return sendJson(res, 200, putProjectConnections(db, projectId, body)); }
+          catch (e) { return jsonError(res, e.status || 400, e.code || "VALIDATION_ERROR", e.message, { failure_code: e.failure_code || "validation_error" }); }
+        }
+        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+        return res.end("Method not allowed");
+      }
+
+      const projectDriveMatch = urlPath.match(/^\/api\/projects\/([^/]+)\/drive$/);
+      if (projectDriveMatch) {
+        const projectId = projectDriveMatch[1];
+        if (method === "GET") {
+          const data = getProjectDrive(db, projectId);
+          if (!data) return jsonError(res, 404, "NOT_FOUND", "Project not found", { failure_code: "not_found" });
+          return sendJson(res, 200, data);
+        }
+        if (method === "PUT" || method === "POST") {
+          let body;
+          try { body = await readJsonBody(req); } catch { return jsonError(res, 400, "VALIDATION_ERROR", "JSON不正", { failure_code: "validation_error" }); }
+          try { return sendJson(res, 200, putProjectDrive(db, projectId, body)); }
+          catch (e) { return jsonError(res, e.status || 400, e.code || "VALIDATION_ERROR", e.message, { failure_code: e.failure_code || "validation_error" }); }
+        }
+        res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+        return res.end("Method not allowed");
+      }
+
       const m = urlPath.match(/^\/api\/projects\/([^/]+)$/);
       if (m) {
         const id = m[1];
 
         if (method === "GET") {
-          const item = getProject(db, id);
-          if (!item) return jsonError(res, 404, "NOT_FOUND", "Projectが見つかりません");
+          const item = getProjectById(db, id);
+          if (!item) {
+            return jsonError(res, 404, "NOT_FOUND", "Projectが見つかりません", {
+              failure_code: "not_found",
+            });
+          }
           return sendJson(res, 200, item);
         }
 
