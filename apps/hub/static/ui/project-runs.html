@@ -99,6 +99,8 @@
                   <th class="px-4 py-3 font-semibold" data-i18n="ui.projectRuns.col.runId">run_id</th>
                   <th class="px-4 py-3 font-semibold" data-i18n="ui.projectRuns.col.jobType">job_type</th>
                   <th class="px-4 py-3 font-semibold" data-i18n="ui.projectRuns.col.status">status</th>
+                  <th class="px-4 py-3 font-semibold">figma operation</th>
+                  <th class="px-4 py-3 font-semibold">figma compare</th>
                   <th class="px-4 py-3 font-semibold" data-i18n="ui.projectRuns.col.updated">更新日時</th>
                 </tr>
               </thead>
@@ -203,7 +205,36 @@
         tdUpdated.className = "px-4 py-3 text-xs";
         tdUpdated.textContent = String(run.updated_at || run.created_at || "-");
 
-        tr.append(tdId, tdJob, tdStatus, tdUpdated);
+        const figmaOps = Array.isArray(run && run.external_operations) ? run.external_operations : [];
+        const latestFigmaOp = [...figmaOps].reverse().find((entry) => entry && entry.provider === "figma");
+        const tdFigmaOp = document.createElement("td");
+        tdFigmaOp.className = "px-4 py-3 text-xs";
+        tdFigmaOp.textContent = latestFigmaOp
+          ? (() => {
+              const page = latestFigmaOp.target?.page_id || latestFigmaOp.artifacts?.figma_page_id || "-";
+              const frame = latestFigmaOp.target?.frame_id || latestFigmaOp.artifacts?.figma_frame_id || "-";
+              const nodes = Array.isArray(latestFigmaOp.artifacts?.figma_node_ids) ? latestFigmaOp.artifacts.figma_node_ids.length : 0;
+              const reason = latestFigmaOp.result?.reason || latestFigmaOp.result?.failure_code || "-";
+              return `${latestFigmaOp.result?.status || "unknown"} / page=${page} / frame=${frame} / nodes=${nodes} / reason=${reason}`;
+            })()
+          : "-";
+
+        const compare = run && run.figma_before_after && typeof run.figma_before_after === "object"
+          ? run.figma_before_after
+          : null;
+        const structure = compare && compare.structure_diff_summary && typeof compare.structure_diff_summary === "object"
+          ? compare.structure_diff_summary
+          : null;
+        const visual = compare && compare.visual_diff_summary && typeof compare.visual_diff_summary === "object"
+          ? compare.visual_diff_summary
+          : null;
+        const tdCompare = document.createElement("td");
+        tdCompare.className = "px-4 py-3 text-xs";
+        tdCompare.textContent = compare
+          ? `${structure ? (structure.major_diff_detected ? "major-diff" : "ok") : "available"}${visual ? ` / v=${Number(visual.score || 0).toFixed(1)}` : ""}`
+          : "-";
+
+        tr.append(tdId, tdJob, tdStatus, tdFigmaOp, tdCompare, tdUpdated);
         tbodyEl.appendChild(tr);
       }
     }

@@ -17,7 +17,17 @@ const {
 } = require("../api/projects");
 const { listProjects, getProjectById, toProjectView, parseProjectIdInput } = require("./projectsStore");
 const { KINDS, buildPublicId, isUuid } = require("../id/publicIds");
-const { listRuns, listRunsByProject, createRun, toPublicRunId, claimNextQueuedRun, markRunFinished, getRun, parseRunIdInput } = require("../api/runs");
+const {
+  listRuns,
+  listRunsByProject,
+  createRun,
+  toPublicRunId,
+  claimNextQueuedRun,
+  markRunFinished,
+  getRun,
+  parseRunIdInput,
+  appendRunExternalOperation,
+} = require("../api/runs");
 const { handleProjectRunsPost } = require("../routes/runs");
 const { handleRunsCollection } = require("./routes/runs");
 const { handleAuthLogin } = require("../routes/auth");
@@ -26,7 +36,14 @@ const { handleConnectorConnections } = require("./routes/connectors");
 const { handleFigmaIngest } = require("./routes/ingest");
 const { handleJobsFromFigma } = require("./routes/jobs");
 const { handleGithubPrCreate } = require("./routes/github");
+const { handleGithubWritePlan } = require("./routes/githubWritePlan");
+const { handleGithubRead } = require("./routes/githubRead");
+const { handleFigmaRead } = require("./routes/figmaRead");
+const { handleFigmaWritePlan } = require("./routes/figmaWritePlan");
+const { handleFigmaWrite } = require("./routes/figmaWrite");
 const { processChatTurnWithLocalStub } = require("./chatStub");
+const { buildExternalReadPlan, buildChatAssistantGuardMessage } = require("./chatReadPlan");
+const { planChatWrite, confirmChatWrite } = require("./chatWriteOrchestration");
 const { requireAuth } = require("../middleware/auth");
 const { validateEnv } = require("../auth/config");
 const { logRequest } = require("../middleware/requestLog");
@@ -60,6 +77,7 @@ const {
   getDefaultPersonalAiSetting,
 } = require("../api/personalAiSettings");
 const { loadProjectSharedContext } = require("./projectSharedContext");
+const { buildConnectionContext, normalizeFilePaths } = require("./connectionContext");
 
 const ROOT_DIR = path.join(__dirname, "..", "..");
 const RUNS_DIR = path.join(ROOT_DIR, ".ai-runs");
@@ -119,6 +137,15 @@ function summarizeChecks(checks = []) {
     passed: checks.length - failing.length,
     failing,
   };
+}
+
+function extractRunnerArtifactPaths(runnerResult = {}) {
+  if (!runnerResult || typeof runnerResult !== "object") return [];
+  const artifacts = Array.isArray(runnerResult.artifacts) ? runnerResult.artifacts : [];
+  return artifacts
+    .map((entry) => (entry && typeof entry.path === "string" ? entry.path.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 50);
 }
 
 function truncateReason(reason, max = 200) {
@@ -398,10 +425,40 @@ function createInlineRunner(db) {
         });
         if (localResult.status === "succeeded") {
           markRunFinished(db, row.id, { status: "succeeded", failureCode: null });
+          appendRunExternalOperation(db, row.id, {
+            provider: "workspace",
+            operation_type: "run.execute_job",
+            target: {
+              path: row.target_path || "",
+            },
+            result: {
+              status: "ok",
+              failure_code: null,
+              reason: null,
+            },
+            artifacts: {
+              paths: [row.target_path || ""].filter(Boolean),
+            },
+          });
           emitRunnerLog("RUNNER_DONE", row.id, { status: "succeeded", reason: "-" });
         } else {
           const failure = localResult.failure_code || "run_failed";
           markRunFinished(db, row.id, { status: "failed", failureCode: failure });
+          appendRunExternalOperation(db, row.id, {
+            provider: "workspace",
+            operation_type: "run.execute_job",
+            target: {
+              path: row.target_path || "",
+            },
+            result: {
+              status: "error",
+              failure_code: failure,
+              reason: localResult.error || failure,
+            },
+            artifacts: {
+              paths: [row.target_path || ""].filter(Boolean),
+            },
+          });
           emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason: failure });
         }
       } else {
@@ -421,9 +478,39 @@ function createInlineRunner(db) {
             reason,
           });
           markRunFinished(db, row.id, { status: "failed", failureCode: "service_unavailable" });
+          appendRunExternalOperation(db, row.id, {
+            provider: "workspace",
+            operation_type: "run.execute_job",
+            target: {
+              path: row.target_path || "",
+            },
+            result: {
+              status: "error",
+              failure_code: "service_unavailable",
+              reason,
+            },
+            artifacts: {
+              paths: extractRunnerArtifactPaths(runnerResult),
+            },
+          });
           emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason: "timeout" });
         } else if (execResult.code === 0 && runnerResult.status === "ok") {
           markRunFinished(db, row.id, { status: "succeeded", failureCode: null });
+          appendRunExternalOperation(db, row.id, {
+            provider: "workspace",
+            operation_type: "run.execute_job",
+            target: {
+              path: row.target_path || "",
+            },
+            result: {
+              status: "ok",
+              failure_code: null,
+              reason: null,
+            },
+            artifacts: {
+              paths: extractRunnerArtifactPaths(runnerResult),
+            },
+          });
           emitRunnerLog("RUNNER_DONE", row.id, { status: "succeeded", reason: "-" });
         } else {
           const reason = (runnerResult.errors && runnerResult.errors[0]) || "inline_runner_failed";
@@ -435,6 +522,21 @@ function createInlineRunner(db) {
             reason,
           });
           markRunFinished(db, row.id, { status: "failed", failureCode: "service_unavailable" });
+          appendRunExternalOperation(db, row.id, {
+            provider: "workspace",
+            operation_type: "run.execute_job",
+            target: {
+              path: row.target_path || "",
+            },
+            result: {
+              status: "error",
+              failure_code: "service_unavailable",
+              reason,
+            },
+            artifacts: {
+              paths: extractRunnerArtifactPaths(runnerResult),
+            },
+          });
           emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason });
         }
       }
@@ -457,6 +559,21 @@ function createInlineRunner(db) {
         reason: `inline_runner_exception:${String((error && error.message) || "unknown_error")}`,
       });
       markRunFinished(db, row.id, { status: "failed", failureCode: "service_unavailable" });
+      appendRunExternalOperation(db, row.id, {
+        provider: "workspace",
+        operation_type: "run.execute_job",
+        target: {
+          path: row.target_path || "",
+        },
+        result: {
+          status: "error",
+          failure_code: "service_unavailable",
+          reason: String((error && error.message) || "inline_runner_exception"),
+        },
+        artifacts: {
+          paths: [`.ai-runs/${row.id}/inline_runner_error.json`],
+        },
+      });
       emitRunnerLog("RUNNER_DONE", row.id, { status: "failed", reason: "inline_runner_exception" });
     } finally {
       busy = false;
@@ -526,10 +643,25 @@ function createApiServer(dbConn) {
       }
 
       if (urlPath === "/api/jobs/from-figma") {
-        return handleJobsFromFigma(req, res);
+        return handleJobsFromFigma(req, res, db);
       }
       if (urlPath === "/api/github/pr") {
-        return handleGithubPrCreate(req, res);
+        return handleGithubPrCreate(req, res, db);
+      }
+      if (urlPath === "/api/github/write-plan") {
+        return handleGithubWritePlan(req, res, db);
+      }
+      if (urlPath === "/api/github/read") {
+        return handleGithubRead(req, res, db);
+      }
+      if (urlPath === "/api/figma/read") {
+        return handleFigmaRead(req, res, db);
+      }
+      if (urlPath === "/api/figma/write-plan") {
+        return handleFigmaWritePlan(req, res, db);
+      }
+      if (urlPath === "/api/figma/write") {
+        return handleFigmaWrite(req, res, db);
       }
 
       if (urlPath === "/api/connectors") {
@@ -888,6 +1020,62 @@ function createApiServer(dbConn) {
           const selectedAiSettingId = defaultAiSetting && defaultAiSetting.ai_setting_id ? defaultAiSetting.ai_setting_id : null;
           const selectedProvider = defaultAiSetting && typeof defaultAiSetting.provider === "string" ? defaultAiSetting.provider : "local_stub";
           const selectedModel = defaultAiSetting && typeof defaultAiSetting.model === "string" ? defaultAiSetting.model : "local_stub";
+          const writePayload = body.write && typeof body.write === "object" ? body.write : null;
+          const writeConfirm = Boolean(writePayload && writePayload.confirm);
+          if (writeConfirm) {
+            const runIdPublic = typeof body.run_id === "string" ? body.run_id.trim() : "";
+            if (!runIdPublic) {
+              return jsonError(res, 400, "VALIDATION_ERROR", "run_id is required for confirm", {
+                failure_code: "validation_error",
+              });
+            }
+            const confirmed = await confirmChatWrite({
+              db,
+              runIdPublic,
+              write: writePayload,
+              handleGithubPrCreate,
+              handleFigmaWrite,
+            });
+            const assistantText = confirmed.ok
+              ? `confirmed ${String(writePayload.provider || "external")} write: success`
+              : `confirmed ${String(writePayload.provider || "external")} write: failed (${confirmed.error?.failure_code || "validation_error"})`;
+            const assistantPosted = postMessage(
+              db,
+              parsedThread.publicId,
+              { role: "assistant", content: assistantText, run_id: runIdPublic },
+              "assistant"
+            );
+            return sendJson(res, 201, {
+              project_id: resolved.publicId,
+              thread_id: parsedThread.publicId,
+              message_id: posted.message_id,
+              run_id: runIdPublic,
+              ai_setting_id: selectedAiSettingId || null,
+              status: confirmed.ok ? "succeeded" : "failed",
+              failure_code: confirmed.ok ? null : confirmed.error?.failure_code || "validation_error",
+              assistant_message_id: assistantPosted.message_id,
+              orchestration: {
+                write_execution: confirmed.ok ? confirmed.result : null,
+                confirm_required: false,
+                confirm_required_reason: null,
+              },
+            });
+          }
+          const connectionContext = await buildConnectionContext({
+            sharedEnvironment: sharedContext.shared_environment,
+            githubFilePaths: normalizeFilePaths(Array.isArray(body.github_file_paths) ? body.github_file_paths : []),
+            githubRef: typeof body.github_ref === "string" ? body.github_ref.trim() : "",
+            figmaPageScope: typeof body.figma_page_scope === "string" ? body.figma_page_scope.trim() : "",
+            figmaFrameScope: typeof body.figma_frame_scope === "string" ? body.figma_frame_scope.trim() : "",
+            figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
+            figmaWritableScope: typeof body.figma_writable_scope === "string" ? body.figma_writable_scope.trim() : "",
+          });
+          const externalReadPlan = buildExternalReadPlan({
+            content,
+            body,
+            sharedEnvironment: sharedContext.shared_environment,
+            connectionContext,
+          });
           const runId = createRun(db, {
             project_id: projectId,
             thread_id: parsedThread.publicId,
@@ -900,17 +1088,37 @@ function createApiServer(dbConn) {
               ai_setting_id: selectedAiSettingId || undefined,
               ai_provider: selectedProvider,
               ai_model: selectedModel,
+              requested_by: typeof req.user?.id === "string" && req.user.id.trim() ? req.user.id.trim() : "user",
               content,
               shared_environment: sharedContext.shared_environment,
+              connection_context: connectionContext,
+              external_read_plan: externalReadPlan,
             },
             target_path: ".ai-runs/{{run_id}}/workspace_chat.json",
           });
+          let writePlan = null;
+          if (writePayload && !writeConfirm) {
+            const planned = await planChatWrite({
+              db,
+              runIdPublic: toPublicRunId(runId),
+              write: writePayload,
+              handleGithubWritePlan,
+              handleFigmaWritePlan,
+            });
+            if (planned.ok) {
+              writePlan = planned.plan;
+            }
+          }
+          const guardMessage = writePlan
+            ? `write plan ready: provider=${writePlan.planned_action?.provider || writePayload?.provider || "-"} action_id=${writePlan.planned_action?.action_id || "-"} confirm_required=true`
+            : buildChatAssistantGuardMessage(externalReadPlan);
           const chatResult = processChatTurnWithLocalStub(db, {
             runId,
             threadId: parsedThread.publicId,
             content,
             actorId: "assistant",
             aiSetting: { provider: selectedProvider, model: selectedModel },
+            assistantContentOverride: guardMessage,
           });
           return sendJson(res, 201, {
             project_id: resolved.publicId,
@@ -921,6 +1129,13 @@ function createApiServer(dbConn) {
             status: chatResult.status,
             failure_code: chatResult.failure_code,
             assistant_message_id: chatResult.assistant_message_id,
+            orchestration: {
+              external_read_plan: externalReadPlan,
+              actionability: externalReadPlan.actionability,
+              confirm_required: writePlan ? true : externalReadPlan.confirm_required,
+              confirm_required_reason: writePlan ? "planned_action_confirmation_required" : externalReadPlan.confirm_required_reason,
+              write_plan: writePlan,
+            },
           });
         } catch (error) {
           return jsonError(
@@ -988,7 +1203,53 @@ function createApiServer(dbConn) {
               sharedContext.details || { failure_code: "validation_error" }
             );
           }
+          const writePayload = body.write && typeof body.write === "object" ? body.write : null;
+          const writeConfirm = Boolean(writePayload && writePayload.confirm);
+          if (writeConfirm) {
+            const runIdPublic = typeof body.run_id === "string" ? body.run_id.trim() : "";
+            if (!runIdPublic) {
+              return jsonError(res, 400, "VALIDATION_ERROR", "run_id is required for confirm", {
+                failure_code: "validation_error",
+              });
+            }
+            const confirmed = await confirmChatWrite({
+              db,
+              runIdPublic,
+              write: writePayload,
+              handleGithubPrCreate,
+              handleFigmaWrite,
+            });
+            return sendJson(res, 201, {
+              project_id: resolved.publicId,
+              thread_id: threadId,
+              created_thread: createdThread,
+              message_id: posted.message_id,
+              run_id: runIdPublic,
+              status: confirmed.ok ? "succeeded" : "failed",
+              failure_code: confirmed.ok ? null : confirmed.error?.failure_code || "validation_error",
+              orchestration: {
+                write_execution: confirmed.ok ? confirmed.result : null,
+                confirm_required: false,
+                confirm_required_reason: null,
+              },
+            });
+          }
 
+          const connectionContext = await buildConnectionContext({
+            sharedEnvironment: sharedContext.shared_environment,
+            githubFilePaths: normalizeFilePaths(Array.isArray(body.github_file_paths) ? body.github_file_paths : []),
+            githubRef: typeof body.github_ref === "string" ? body.github_ref.trim() : "",
+            figmaPageScope: typeof body.figma_page_scope === "string" ? body.figma_page_scope.trim() : "",
+            figmaFrameScope: typeof body.figma_frame_scope === "string" ? body.figma_frame_scope.trim() : "",
+            figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
+            figmaWritableScope: typeof body.figma_writable_scope === "string" ? body.figma_writable_scope.trim() : "",
+          });
+          const externalReadPlan = buildExternalReadPlan({
+            content,
+            body,
+            sharedEnvironment: sharedContext.shared_environment,
+            connectionContext,
+          });
           const runId = createRun(db, {
             project_id: projectId,
             thread_id: threadId,
@@ -999,17 +1260,40 @@ function createApiServer(dbConn) {
               project_id: resolved.publicId,
               thread_id: threadId,
               ai_setting_id: typeof body.ai_setting_id === "string" ? body.ai_setting_id.trim() : undefined,
+              requested_by: typeof req.user?.id === "string" && req.user.id.trim() ? req.user.id.trim() : "user",
               content,
               shared_environment: sharedContext.shared_environment,
+              connection_context: connectionContext,
+              external_read_plan: externalReadPlan,
             },
             target_path: ".ai-runs/{{run_id}}/workspace_chat.json",
           });
+          let writePlan = null;
+          if (writePayload && !writeConfirm) {
+            const planned = await planChatWrite({
+              db,
+              runIdPublic: toPublicRunId(runId),
+              write: writePayload,
+              handleGithubWritePlan,
+              handleFigmaWritePlan,
+            });
+            if (planned.ok) {
+              writePlan = planned.plan;
+            }
+          }
           return sendJson(res, 201, {
             project_id: resolved.publicId,
             thread_id: threadId,
             created_thread: createdThread,
             message_id: posted.message_id,
             run_id: toPublicRunId(runId),
+            orchestration: {
+              external_read_plan: externalReadPlan,
+              actionability: externalReadPlan.actionability,
+              confirm_required: writePlan ? true : externalReadPlan.confirm_required,
+              confirm_required_reason: writePlan ? "planned_action_confirmation_required" : externalReadPlan.confirm_required_reason,
+              write_plan: writePlan,
+            },
           });
         } catch (error) {
           return jsonError(

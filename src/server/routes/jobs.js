@@ -7,7 +7,7 @@ const { createPlanWriter } = require("../../plans/writer");
 const { readIngestArtifact, buildPlan, buildJobFromPlan } = require("../../plans/figmaToJob");
 const { generatePatchFromJob } = require("../../ai/generatePatch");
 const { writePatchArtifact } = require("../../patch/format");
-const { parseRunIdInput, toPublicRunId } = require("../../api/runs");
+const { parseRunIdInput, toPublicRunId, appendRunExternalOperation } = require("../../api/runs");
 let updateRunTrace = null;
 try {
   ({ updateRunTrace } = require("../../db/runTrace"));
@@ -23,7 +23,7 @@ function writeJobArtifact(runId, job) {
   return relativePath;
 }
 
-async function handleJobsFromFigma(req, res) {
+async function handleJobsFromFigma(req, res, db) {
   if ((req.method || "GET").toUpperCase() !== "POST") {
     res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
     res.end("Method not allowed");
@@ -98,6 +98,23 @@ async function handleJobsFromFigma(req, res) {
     const generated = generatePatchFromJob({ runId, job, plan });
     const patchArtifact = writePatchArtifact(runId, generated.patch);
     writer.appendLog("patch artifact generated");
+    appendRunExternalOperation(db, runId, {
+      provider: "figma",
+      operation_type: "figma.plan_from_ingest",
+      target: {
+        file_key: figmaFileKey || "",
+        path: ingest.relativePath,
+      },
+      result: {
+        status: "ok",
+        failure_code: null,
+        reason: null,
+      },
+      artifacts: {
+        figma_file_key: figmaFileKey || null,
+        paths: [`.ai-runs/${runId}/plan.json`, `.ai-runs/${runId}/plan.log`, jobPath, patchArtifact.relative_path],
+      },
+    });
 
     return sendJson(res, 201, {
       run_id: toPublicRunId(runId),
@@ -108,6 +125,21 @@ async function handleJobsFromFigma(req, res) {
       patch_target_path: generated.target_path,
     });
   } catch (error) {
+    appendRunExternalOperation(db, runId, {
+      provider: "figma",
+      operation_type: "figma.plan_from_ingest",
+      target: {
+        path: ingestPath || "",
+      },
+      result: {
+        status: "error",
+        failure_code: error.failure_code || "service_unavailable",
+        reason: error.message || "job generation failed",
+      },
+      artifacts: {
+        paths: [`.ai-runs/${runId}/plan.json`, `.ai-runs/${runId}/plan.log`],
+      },
+    });
     const failedPlan = {
       ...basePlan,
       status: "error",

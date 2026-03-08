@@ -65,6 +65,13 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 - 正規ルートと運用ルール: `docs/ai/core/workflow.md`
 - Decisionの残し方: `docs/ai/core/decision-policy.md`
 - Connectors/Connections APIスキーマSoT: `docs/connectors-connections-schema.md`
+- Secret参照方針（GitHub/Figma）: `docs/connection-secret-reference-policy.md`
+- GitHub対象選択ルール（branch/path優先順位）: `docs/github-target-selection-rule.md`
+- Figma読取コンテキスト契約（FG-R-01/02）: `docs/figma-read-context-contract.md`
+- Figma対象選択ルール（page/frame/node, writable scope）: `docs/figma-target-selection-rule.md`
+- Figma再現度評価軸（FG-VAL-01）: `docs/figma-validation-scoring.md`
+- 外部操作の監査/可観測性最小要件（OPSX-02）: `docs/external-audit-observability-minimum.md`
+- VPS反映チェックリスト（外部操作フェーズ, OPSX-01）: `docs/runbooks/vps-external-operations-checklist.md`
 
 ---
 
@@ -82,14 +89,31 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 - プロジェクト設定で GitHub / Figma / Drive を共有する
 - Thread は「個人AI設定 + プロジェクト共有環境 + 会話履歴」を合成して Run を起動する
 
-次フェーズへ分離する対象:
-- 複数AI接続
-- 役割設定（role/profile/persona など）
+次フェーズ2（外部操作フェーズ）の対象:
+- GitHub / Figma の読取
+- GitHub / Figma への制御付き書込（条件・承認付き）
+- Run への参照 / 操作記録
+- Workspace からの承認付き実行
+- Figma再現度検証（validation段階で実施）
 
-次フェーズSoT（設計のみ、現フェーズ実装対象外）:
-- 個人AI設定を複数接続対応へ拡張（enabled/既定/接続ごとの管理）
-- role/profile/persona 単位で利用AIを割り当て
-- Runで role -> ai_setting 選択結果を追跡可能にする
+次フェーズ2の固定順序（SoT）:
+1. `read`
+2. `validation`（Figma再現度検証を含む）
+3. `controlled write`
+4. `run/workspace integration`
+
+次フェーズ2の対象外:
+- 完全自動同期
+- 複数AI役割設定（role/profile/persona など）
+
+次フェーズ3（NEXT3-00: 実運用強化）の入口:
+- 対象は Workspace の検索・履歴・可観測性・運用性改善
+- フェーズ2完了条件には含めず、着手順のみを固定
+- 着手順: `search` → `history` → `observability` → `operability`
+
+次フェーズ1（NEXT1-00: 複数AI/役割設定）は後順位:
+- 複数AI接続・role/profile/persona routing 高度化は後続トラックで扱う
+- フェーズ2/3では責務分離を維持し、既定AI 1件前提を崩さない
 
 ## API Notes（P2-01 最小）
 

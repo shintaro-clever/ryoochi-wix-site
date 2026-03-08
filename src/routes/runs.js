@@ -12,8 +12,14 @@ const { withRetry } = require("../db/retry");
 const { recordAudit, AUDIT_ACTIONS } = require("../middleware/audit");
 const { emitAuditEvent } = require("../audit/events");
 const { sendJson, jsonError, readJsonBody } = require("../api/projects");
-const { toPublicRunId } = require("../api/runs");
+const {
+  toPublicRunId,
+  ensureRunExternalReferencesSnapshot,
+  ensureRunExternalOperations,
+  ensureRunPlannedActions,
+} = require("../api/runs");
 const { loadProjectSharedContext } = require("../server/projectSharedContext");
+const { buildConnectionContext, normalizeFilePaths } = require("../server/connectionContext");
 
 const runJobScript = path.join(__dirname, "..", "..", "scripts", "run-job.js");
 const PROJECT_RUN_JOB_TYPE = "integration_hub.phase2.project_run";
@@ -46,6 +52,15 @@ function createRun(db, projectId, inputsJson) {
   const ts = nowIso();
   const inputsToStore = {
     ...(inputsJson || {}),
+  };
+  inputsToStore.external_references_snapshot = ensureRunExternalReferencesSnapshot(inputsToStore);
+  inputsToStore.external_operations = ensureRunExternalOperations(inputsToStore);
+  inputsToStore.planned_actions = ensureRunPlannedActions(inputsToStore);
+  inputsToStore.context_used = {
+    ...(inputsToStore.context_used && typeof inputsToStore.context_used === "object" ? inputsToStore.context_used : {}),
+    external_references_snapshot: inputsToStore.external_references_snapshot,
+    external_operations: inputsToStore.external_operations,
+    planned_actions: inputsToStore.planned_actions,
   };
   if (projectId && !inputsToStore.project_id) {
     inputsToStore.project_id = projectId;
@@ -403,10 +418,57 @@ async function handleProjectRunsPost(req, res, db, projectId) {
     );
   }
 
+  let connectionContext;
+  try {
+    connectionContext = await buildConnectionContext({
+      sharedEnvironment: sharedContext.shared_environment,
+      githubFilePaths: normalizeFilePaths(
+        Array.isArray(body?.github_file_paths) ? body.github_file_paths : baseValidation.normalized.github_file_paths
+      ),
+      githubRef:
+        typeof body?.github_ref === "string" && body.github_ref.trim()
+          ? body.github_ref.trim()
+          : typeof baseValidation.normalized.github_ref === "string" && baseValidation.normalized.github_ref.trim()
+            ? baseValidation.normalized.github_ref.trim()
+            : "",
+      figmaPageScope:
+        typeof body?.figma_page_scope === "string" && body.figma_page_scope.trim()
+          ? body.figma_page_scope.trim()
+          : typeof baseValidation.normalized.figma_page_scope === "string" && baseValidation.normalized.figma_page_scope.trim()
+            ? baseValidation.normalized.figma_page_scope.trim()
+            : "",
+      figmaFrameScope:
+        typeof body?.figma_frame_scope === "string" && body.figma_frame_scope.trim()
+          ? body.figma_frame_scope.trim()
+          : typeof baseValidation.normalized.figma_frame_scope === "string" &&
+              baseValidation.normalized.figma_frame_scope.trim()
+            ? baseValidation.normalized.figma_frame_scope.trim()
+            : "",
+      figmaNodeIds: Array.isArray(body?.figma_node_ids)
+        ? body.figma_node_ids
+        : Array.isArray(baseValidation.normalized.figma_node_ids)
+          ? baseValidation.normalized.figma_node_ids
+          : [],
+      figmaWritableScope:
+        typeof body?.figma_writable_scope === "string" && body.figma_writable_scope.trim()
+          ? body.figma_writable_scope.trim()
+          : typeof baseValidation.normalized.figma_writable_scope === "string" &&
+              baseValidation.normalized.figma_writable_scope.trim()
+            ? baseValidation.normalized.figma_writable_scope.trim()
+            : "",
+    });
+  } catch (error) {
+    return jsonError(res, error.status || 400, error.code || "VALIDATION_ERROR", error.message || "入力が不正です", {
+      failure_code: error.failure_code || "validation_error",
+      reason: error.reason || null,
+    });
+  }
+
   const inputsJson = {
     ...baseValidation.normalized,
     ...(sharedContext.publicProjectId ? { project_id: sharedContext.publicProjectId } : {}),
     shared_environment: sharedContext.shared_environment,
+    connection_context: connectionContext,
   };
   const runId = createRun(db, projectId, inputsJson);
   const jobPayload = buildProjectJob(projectId, inputsJson);

@@ -57,6 +57,7 @@ function validatePayload(payload = {}) {
       : `hub/${Date.now()}`;
   const title = typeof payload.title === "string" ? payload.title.trim() : "";
   const prBody = typeof payload.body === "string" ? payload.body : "";
+  const createPr = payload.create_pr === undefined ? true : Boolean(payload.create_pr);
   const dryRun = Boolean(payload.dry_run);
   if (!owner || !repo || !title) {
     const error = new Error("owner, repo, title are required");
@@ -78,6 +79,7 @@ function validatePayload(payload = {}) {
     headBranch,
     title,
     prBody,
+    createPr,
     dryRun,
     commitMessage:
       typeof payload.commit_message === "string" && payload.commit_message.trim()
@@ -91,6 +93,28 @@ function validatePayload(payload = {}) {
       typeof payload.file_content === "string" && payload.file_content.length > 0
         ? payload.file_content
         : `generated at ${new Date().toISOString()}`,
+    changes: Array.isArray(payload.changes)
+      ? payload.changes
+          .map((entry) => {
+            if (!entry || typeof entry !== "object") return null;
+            const path = typeof entry.path === "string" ? entry.path.trim() : "";
+            if (!path) return null;
+            return {
+              path,
+              content:
+                typeof entry.file_content === "string"
+                  ? entry.file_content
+                  : typeof entry.content_after === "string"
+                    ? entry.content_after
+                    : "",
+              message:
+                typeof entry.commit_message === "string" && entry.commit_message.trim()
+                  ? entry.commit_message.trim()
+                  : "",
+            };
+          })
+          .filter(Boolean)
+      : [],
   };
 }
 
@@ -105,7 +129,14 @@ async function createPullRequestMinimal(payload = {}) {
       head_branch: input.headBranch,
       title: input.title,
       status: "planned",
+      create_pr: input.createPr,
     };
+  }
+  if (input.headBranch === input.baseBranch) {
+    const error = new Error("head_branch must differ from base_branch");
+    error.status = 400;
+    error.failure_code = "validation_error";
+    throw error;
   }
 
   try {
@@ -147,50 +178,68 @@ async function createPullRequestMinimal(payload = {}) {
       throw error;
     }
 
-    const contentCreate = await githubRequest({
-      token: input.token,
-      method: "PUT",
-      path: `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${encodePath(input.filePath)}`,
-      body: {
-        message: input.commitMessage,
-        content: Buffer.from(input.fileContent, "utf8").toString("base64"),
-        branch: input.headBranch,
-      },
-    });
-    if (contentCreate.statusCode < 200 || contentCreate.statusCode >= 300) {
-      const error = new Error(contentCreate.payload.message || "failed to push commit");
-      error.status = contentCreate.statusCode === 401 || contentCreate.statusCode === 403 ? 401 : 503;
-      error.failure_code = error.status === 401 ? "permission" : "service_unavailable";
-      throw error;
+    const changes = input.changes.length > 0
+      ? input.changes
+      : [{ path: input.filePath, content: input.fileContent, message: input.commitMessage }];
+    let latestCommitSha = null;
+    for (const change of changes) {
+      const contentCreate = await githubRequest({
+        token: input.token,
+        method: "PUT",
+        path: `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/contents/${encodePath(change.path)}`,
+        body: {
+          message: change.message || input.commitMessage,
+          content: Buffer.from(change.content, "utf8").toString("base64"),
+          branch: input.headBranch,
+        },
+      });
+      if (contentCreate.statusCode < 200 || contentCreate.statusCode >= 300) {
+        const error = new Error(contentCreate.payload.message || "failed to push commit");
+        error.status = contentCreate.statusCode === 401 || contentCreate.statusCode === 403 ? 401 : 503;
+        error.failure_code = error.status === 401 ? "permission" : "service_unavailable";
+        throw error;
+      }
+      latestCommitSha =
+        contentCreate.payload &&
+        contentCreate.payload.commit &&
+        typeof contentCreate.payload.commit.sha === "string"
+          ? contentCreate.payload.commit.sha
+          : latestCommitSha;
     }
 
-    const prCreate = await githubRequest({
-      token: input.token,
-      method: "POST",
-      path: `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls`,
-      body: {
-        title: input.title,
-        body: input.prBody,
-        head: input.headBranch,
-        base: input.baseBranch,
-      },
-    });
-    if (prCreate.statusCode < 200 || prCreate.statusCode >= 300) {
-      const error = new Error(prCreate.payload.message || "failed to create pull request");
-      error.status = prCreate.statusCode === 401 || prCreate.statusCode === 403 ? 401 : 503;
-      error.failure_code = error.status === 401 ? "permission" : "service_unavailable";
-      throw error;
+    let prPayload = null;
+    if (input.createPr) {
+      const prCreate = await githubRequest({
+        token: input.token,
+        method: "POST",
+        path: `/repos/${encodeURIComponent(input.owner)}/${encodeURIComponent(input.repo)}/pulls`,
+        body: {
+          title: input.title,
+          body: input.prBody,
+          head: input.headBranch,
+          base: input.baseBranch,
+        },
+      });
+      if (prCreate.statusCode < 200 || prCreate.statusCode >= 300) {
+        const error = new Error(prCreate.payload.message || "failed to create pull request");
+        error.status = prCreate.statusCode === 401 || prCreate.statusCode === 403 ? 401 : 503;
+        error.failure_code = error.status === 401 ? "permission" : "service_unavailable";
+        throw error;
+      }
+      prPayload = prCreate.payload;
     }
 
     return {
       dry_run: false,
-      status: "created",
+      status: input.createPr ? "created" : "committed",
       owner: input.owner,
       repo: input.repo,
       base_branch: input.baseBranch,
       head_branch: input.headBranch,
-      pr_url: prCreate.payload.html_url || null,
-      pr_number: typeof prCreate.payload.number === "number" ? prCreate.payload.number : null,
+      commit_sha: latestCommitSha || null,
+      pr_url: prPayload && typeof prPayload.html_url === "string" ? prPayload.html_url : null,
+      pr_number: prPayload && typeof prPayload.number === "number" ? prPayload.number : null,
+      committed_paths: changes.map((entry) => entry.path),
     };
   } catch (error) {
     if (error && /ENOTFOUND|EAI_AGAIN|ECONNREFUSED|ETIMEDOUT|timeout/i.test(String(error.code || error.message || ""))) {

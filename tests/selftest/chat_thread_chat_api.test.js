@@ -59,7 +59,9 @@ async function run() {
       headers: authz,
       body: JSON.stringify({
         github_repository: "octocat/hello-world",
+        github_secret_id: "vault://github/tokens/chat-thread",
         figma_file: "https://www.figma.com/file/abc123/Design",
+        figma_secret_id: "vault://figma/tokens/chat-thread",
         drive_url: "https://drive.google.com/drive/folders/folder123",
       }),
     });

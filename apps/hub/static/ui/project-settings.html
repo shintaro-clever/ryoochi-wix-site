@@ -73,8 +73,38 @@
             </label>
 
             <label class="text-sm">
+              <span class="block text-xs text-text-muted">GitHub operation mode</span>
+              <select id="github_operation_mode" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2">
+                <option value="">(default)</option>
+                <option value="disabled">disabled</option>
+                <option value="read_only">read-only</option>
+                <option value="controlled_write">controlled-write</option>
+              </select>
+            </label>
+
+            <label class="text-sm">
+              <span class="block text-xs text-text-muted">GitHub allowed write branches (comma separated)</span>
+              <input id="github_allowed_branches" type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2" placeholder="main,release/*" />
+            </label>
+
+            <label class="text-sm">
               <span class="block text-xs text-text-muted" data-i18n="ui.projectSettings.field.figma">Figma file</span>
               <input id="figma_file" type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2" placeholder="https://www.figma.com/file/..." />
+            </label>
+
+            <label class="text-sm">
+              <span class="block text-xs text-text-muted">Figma operation mode</span>
+              <select id="figma_operation_mode" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2">
+                <option value="">(default)</option>
+                <option value="disabled">disabled</option>
+                <option value="read_only">read-only</option>
+                <option value="controlled_write">controlled-write</option>
+              </select>
+            </label>
+
+            <label class="text-sm">
+              <span class="block text-xs text-text-muted">Figma allowed frame scope</span>
+              <input id="figma_allowed_frame_scope" type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2" placeholder="frame:Hero" />
             </label>
 
             <label class="text-sm">
@@ -107,7 +137,11 @@
       const saveStatus = document.getElementById("save-status");
       const backLink = document.getElementById("back-link");
       const githubEl = document.getElementById("github_repository");
+      const githubModeEl = document.getElementById("github_operation_mode");
+      const githubAllowedBranchesEl = document.getElementById("github_allowed_branches");
       const figmaEl = document.getElementById("figma_file");
+      const figmaModeEl = document.getElementById("figma_operation_mode");
+      const figmaAllowedFrameScopeEl = document.getElementById("figma_allowed_frame_scope");
       const driveEl = document.getElementById("drive_url");
 
       if (projectId && backLink) {
@@ -117,7 +151,7 @@
       }
 
       function setDisabled(disabled) {
-        [githubEl, figmaEl, driveEl, saveBtn].forEach((el) => {
+        [githubEl, githubModeEl, githubAllowedBranchesEl, figmaEl, figmaModeEl, figmaAllowedFrameScopeEl, driveEl, saveBtn].forEach((el) => {
           if (el) el.disabled = disabled;
         });
       }
@@ -139,7 +173,11 @@
         try {
           const item = await apiGet(`/projects/${encodeURIComponent(projectId)}/settings`);
           githubEl.value = String(item.github_repository || "");
+          githubModeEl.value = String(item.github_operation_mode || "");
+          githubAllowedBranchesEl.value = String(item.github_allowed_branches || "");
           figmaEl.value = String(item.figma_file || "");
+          figmaModeEl.value = String(item.figma_operation_mode || "");
+          figmaAllowedFrameScopeEl.value = String(item.figma_allowed_frame_scope || "");
           driveEl.value = String(item.drive_url || "");
           feedback.textContent = "";
           setDisabled(false);
@@ -159,7 +197,11 @@
         try {
           await apiPut(`/projects/${encodeURIComponent(projectId)}/settings`, {
             github_repository: githubEl.value.trim(),
+            github_operation_mode: githubModeEl.value.trim(),
+            github_allowed_branches: githubAllowedBranchesEl.value.trim(),
             figma_file: figmaEl.value.trim(),
+            figma_operation_mode: figmaModeEl.value.trim(),
+            figma_allowed_frame_scope: figmaAllowedFrameScopeEl.value.trim(),
             drive_url: driveEl.value.trim(),
           });
           saveStatus.textContent = await t("ui.projectSettings.saved");

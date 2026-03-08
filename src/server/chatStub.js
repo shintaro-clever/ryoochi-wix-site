@@ -23,7 +23,10 @@ function buildLocalStubAssistantReply({ content, provider, model }) {
   return `[local_stub ${safeProvider}/${safeModel}] ${summary || "ok"}`;
 }
 
-function processChatTurnWithLocalStub(db, { runId, threadId, content, actorId = "assistant", aiSetting = null }) {
+function processChatTurnWithLocalStub(
+  db,
+  { runId, threadId, content, actorId = "assistant", aiSetting = null, assistantContentOverride = "" }
+) {
   const started = markRunRunning(db, runId);
   if (!started) {
     return { status: "failed", failure_code: "run_not_queued", assistant_message_id: null };
@@ -31,7 +34,8 @@ function processChatTurnWithLocalStub(db, { runId, threadId, content, actorId = 
   try {
     const provider = normalizeText(aiSetting && aiSetting.provider) || "local_stub";
     const model = normalizeText(aiSetting && aiSetting.model) || "local_stub";
-    const assistantContent = buildLocalStubAssistantReply({ content, provider, model });
+    const assistantContent =
+      normalizeText(assistantContentOverride) || buildLocalStubAssistantReply({ content, provider, model });
     const posted = postMessage(
       db,
       threadId,

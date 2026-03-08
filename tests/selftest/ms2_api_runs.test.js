@@ -79,6 +79,18 @@ async function run() {
   }
   assert(found, "created run should be listed");
   assert(found.status === "succeeded", "inline runner should succeed queued run");
+  assert(Array.isArray(found.external_operations), "run should include external_operations");
+  assert(
+    found.external_operations.some(
+      (entry) =>
+        entry &&
+        entry.provider === "workspace" &&
+        entry.operation_type === "run.execute_job" &&
+        entry.result &&
+        entry.result.status === "ok"
+    ),
+    "inline execution operation should be recorded"
+  );
 
   const summaryPath = path.join(process.cwd(), ".ai-runs", internalRunId, "summary.md");
   const auditPath = path.join(process.cwd(), ".ai-runs", internalRunId, "audit.jsonl");

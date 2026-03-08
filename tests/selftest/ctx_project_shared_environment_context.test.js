@@ -45,7 +45,16 @@ async function run() {
       headers: authz,
       body: JSON.stringify({
         github_repository: "octocat/hello-world",
+        github_default_branch: "main",
+        github_installation_ref: "vault://github/installations/ctx-1",
+        github_secret_id: "vault://github/tokens/ctx-1",
+        github_writable_scope: "pull_request",
         figma_file: "https://www.figma.com/file/abc123/Design",
+        figma_file_key: "abc123",
+        figma_secret_id: "vault://figma/tokens/ctx-1",
+        figma_page_scope: "page:Landing",
+        figma_frame_scope: "frame:Hero",
+        figma_writable_scope: "frame",
         drive_url: "https://drive.google.com/drive/folders/folder123",
       }),
     });
@@ -78,7 +87,23 @@ async function run() {
     assert(runDetail.inputs && runDetail.inputs.shared_environment, "run inputs should include shared_environment");
     assert(runDetail.context_used && runDetail.context_used.shared_environment, "run detail should include context_used.shared_environment");
     assert(runDetail.inputs.shared_environment.github_repository === "octocat/hello-world", "run should include github_repository");
+    assert(runDetail.inputs.shared_environment.github_default_branch === "main", "run should include github_default_branch");
+    assert(
+      runDetail.inputs.shared_environment.github_installation_ref === "vault://github/installations/ctx-1",
+      "run should include github_installation_ref"
+    );
+    assert(
+      runDetail.inputs.shared_environment.github_secret_id === "vault://github/tokens/ctx-1",
+      "run should include github_secret_id"
+    );
     assert(runDetail.inputs.shared_environment.figma_file.includes("figma.com"), "run should include figma_file");
+    assert(runDetail.inputs.shared_environment.figma_file_key === "abc123", "run should include figma_file_key");
+    assert(
+      runDetail.inputs.shared_environment.figma_secret_id === "vault://figma/tokens/ctx-1",
+      "run should include figma_secret_id"
+    );
+    assert(runDetail.inputs.shared_environment.figma_page_scope === "page:Landing", "run should include figma_page_scope");
+    assert(runDetail.inputs.shared_environment.figma_frame_scope === "frame:Hero", "run should include figma_frame_scope");
     assert(runDetail.inputs.shared_environment.drive_url.includes("drive.google.com"), "run should include drive_url");
     assert(runDetail.context_used.shared_environment.github_repository === "octocat/hello-world", "context_used should include github_repository");
 
@@ -88,7 +113,16 @@ async function run() {
       headers: authz,
       body: JSON.stringify({
         github_repository: "acme/new-repo",
+        github_default_branch: "develop",
+        github_installation_ref: "vault://github/installations/ctx-2",
+        github_secret_id: "vault://github/tokens/ctx-2",
+        github_writable_scope: "pull_request",
         figma_file: "https://www.figma.com/file/new123/NextDesign",
+        figma_file_key: "new123",
+        figma_secret_id: "vault://figma/tokens/ctx-2",
+        figma_page_scope: "page:Settings",
+        figma_frame_scope: "frame:Config",
+        figma_writable_scope: "page",
         drive_url: "https://drive.google.com/drive/folders/new-folder",
       }),
     });
@@ -141,8 +175,16 @@ async function run() {
       "workspace run should include latest github_repository"
     );
     assert(
+      workspaceRunDetail.inputs.shared_environment.github_default_branch === "develop",
+      "workspace run should include latest github_default_branch"
+    );
+    assert(
       workspaceRunDetail.inputs.shared_environment.figma_file.includes("new123"),
       "workspace run should include latest figma_file"
+    );
+    assert(
+      workspaceRunDetail.inputs.shared_environment.figma_file_key === "new123",
+      "workspace run should include latest figma_file_key"
     );
     assert(
       workspaceRunDetail.inputs.shared_environment.drive_url.includes("new-folder"),
@@ -152,6 +194,71 @@ async function run() {
       workspaceRunDetail.context_used.shared_environment.github_repository === "acme/new-repo",
       "workspace run context_used should include latest github_repository"
     );
+
+    const runDetailRaw = JSON.stringify(runDetail);
+    assert(!runDetailRaw.includes("ghp_"), "run snapshot must not include raw github token values");
+    assert(!runDetailRaw.includes("figd_"), "run snapshot must not include raw figma token values");
+
+    const createLegacyProjectRes = await requestLocal(handler, {
+      method: "POST",
+      url: "/api/projects",
+      headers: authz,
+      body: JSON.stringify({ name: "ctx-shared-env-missing-secret", staging_url: "https://example.com" }),
+    });
+    assert(createLegacyProjectRes.statusCode === 201, "legacy project create should return 201");
+    const legacyProject = JSON.parse(createLegacyProjectRes.body.toString("utf8"));
+    const parsedLegacyProject = parsePublicIdFor(KINDS.project, legacyProject.id);
+    assert(parsedLegacyProject.ok, "legacy project id should be public project id");
+    createdProjectIds.push(parsedLegacyProject.internalId);
+
+    db.prepare("UPDATE projects SET project_shared_env_json=? WHERE tenant_id=? AND id=?").run(
+      JSON.stringify({
+        schema_version: "project_shared_env/v1",
+        github: { repository: "octocat/legacy", default_branch: "main", installation_ref: "", writable_scope: "" },
+        figma: { file: "", file_key: "", page_scope: "", frame_scope: "", writable_scope: "" },
+        drive: { url: "" },
+      }),
+      DEFAULT_TENANT,
+      parsedLegacyProject.internalId
+    );
+
+    const prevGithubToken = process.env.GITHUB_TOKEN;
+    delete process.env.GITHUB_TOKEN;
+    const runMissingSecretRes = await requestLocal(handler, {
+      method: "POST",
+      url: "/api/runs",
+      headers: authz,
+      body: JSON.stringify({
+        job_type: "integration_hub.phase1.code_to_figma_from_url",
+        target_path: ".ai-runs/{{run_id}}/ctx-missing-secret.json",
+        project_id: legacyProject.id,
+        inputs: { page_url: "https://example.com" },
+      }),
+    });
+    assert(runMissingSecretRes.statusCode === 400, "missing connector secret should return validation error");
+
+    process.env.GITHUB_TOKEN = "ghp_envFallbackToken";
+    try {
+      const runWithEnvSecretRes = await requestLocal(handler, {
+        method: "POST",
+        url: "/api/runs",
+        headers: authz,
+        body: JSON.stringify({
+          job_type: "integration_hub.phase1.code_to_figma_from_url",
+          target_path: ".ai-runs/{{run_id}}/ctx-env-secret.json",
+          project_id: legacyProject.id,
+          inputs: { page_url: "https://example.com" },
+        }),
+      });
+      assert(runWithEnvSecretRes.statusCode === 201, "env-backed secret should allow run creation");
+      const envRunBody = JSON.parse(runWithEnvSecretRes.body.toString("utf8"));
+      const parsedEnvRun = parsePublicIdFor(KINDS.run, envRunBody.run_id);
+      assert(parsedEnvRun.ok, "env run id should be public run id");
+      createdRunIds.push(parsedEnvRun.internalId);
+    } finally {
+      if (prevGithubToken === undefined) delete process.env.GITHUB_TOKEN;
+      else process.env.GITHUB_TOKEN = prevGithubToken;
+    }
   } finally {
     createdThreadIds.forEach((id) => {
       db.prepare("DELETE FROM thread_messages WHERE tenant_id=? AND thread_id=?").run(DEFAULT_TENANT, id);

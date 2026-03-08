@@ -3,6 +3,8 @@ const {
   validateGithubRepository,
   validateFigmaFile,
   validateDriveUrl,
+  validateSecretReference,
+  validateConnectorSecretPresence,
   getProjectSharedEnvironment,
   putProjectSharedEnvironment,
 } = require("../api/projects");
@@ -19,6 +21,29 @@ function validationError(message) {
 
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function validateOptionalTextField(value, fieldName, maxLength = 255) {
+  const text = typeof value === "string" ? value.trim() : "";
+  if (!text) return null;
+  if (text.length > maxLength) return `${fieldName} too long`;
+  return null;
+}
+
+function normalizeOperationMode(value) {
+  const text = normalizeText(value).toLowerCase();
+  if (!text) return "";
+  if (text === "read-only" || text === "read_only") return "read_only";
+  if (text === "controlled-write" || text === "controlled_write") return "controlled_write";
+  if (text === "disabled") return "disabled";
+  return text;
+}
+
+function validateOperationMode(value, fieldName) {
+  const mode = normalizeOperationMode(value);
+  if (!mode) return null;
+  if (mode === "disabled" || mode === "read_only" || mode === "controlled_write") return null;
+  return `${fieldName} is invalid`;
 }
 
 function projectExists(db, projectId) {
@@ -124,12 +149,41 @@ function getProjectSettings(db, projectId) {
   const drive = getProjectDrive(db, projectId) || defaultDrive(projectId);
   const settings = bindings.settings && typeof bindings.settings === "object" ? bindings.settings : {};
   const githubRepository = shared?.github?.repository || normalizeText(settings.github_repository);
+  const githubDefaultBranch = shared?.github?.default_branch || normalizeText(settings.github_default_branch);
+  const githubDefaultPath = shared?.github?.default_path || normalizeText(settings.github_default_path);
+  const githubInstallationRef = shared?.github?.installation_ref || normalizeText(settings.github_installation_ref);
+  const githubSecretId =
+    shared?.github?.secret_id || normalizeText(settings.github_secret_id || settings.github_token_ref);
+  const githubWritableScope = shared?.github?.writable_scope || normalizeText(settings.github_writable_scope);
+  const githubOperationMode = shared?.github?.operation_mode || normalizeText(settings.github_operation_mode);
+  const githubAllowedBranches = shared?.github?.allowed_branches || normalizeText(settings.github_allowed_branches);
   const figmaFile = shared?.figma?.file || normalizeText(settings.figma_file);
+  const figmaFileKey = shared?.figma?.file_key || normalizeText(settings.figma_file_key);
+  const figmaSecretId = shared?.figma?.secret_id || normalizeText(settings.figma_secret_id || settings.figma_token_ref);
+  const figmaPageScope = shared?.figma?.page_scope || normalizeText(settings.figma_page_scope);
+  const figmaFrameScope = shared?.figma?.frame_scope || normalizeText(settings.figma_frame_scope);
+  const figmaWritableScope = shared?.figma?.writable_scope || normalizeText(settings.figma_writable_scope);
+  const figmaOperationMode = shared?.figma?.operation_mode || normalizeText(settings.figma_operation_mode);
+  const figmaAllowedFrameScope = shared?.figma?.allowed_frame_scope || normalizeText(settings.figma_allowed_frame_scope);
   const driveUrl = shared?.drive?.url || normalizeText(drive.folder_url);
   return {
     project_id: projectId,
     github_repository: githubRepository,
+    github_default_branch: githubDefaultBranch,
+    github_default_path: githubDefaultPath,
+    github_installation_ref: githubInstallationRef,
+    github_secret_id: githubSecretId,
+    github_writable_scope: githubWritableScope,
+    github_operation_mode: normalizeOperationMode(githubOperationMode),
+    github_allowed_branches: githubAllowedBranches,
     figma_file: figmaFile,
+    figma_file_key: figmaFileKey,
+    figma_secret_id: figmaSecretId,
+    figma_page_scope: figmaPageScope,
+    figma_frame_scope: figmaFrameScope,
+    figma_writable_scope: figmaWritableScope,
+    figma_operation_mode: normalizeOperationMode(figmaOperationMode),
+    figma_allowed_frame_scope: figmaAllowedFrameScope,
     drive_url: driveUrl,
   };
 }
@@ -176,32 +230,237 @@ function putProjectSettings(db, projectId, body = {}) {
   if (body.figma_file !== undefined && typeof body.figma_file !== "string") {
     throw validationError("figma_file must be string");
   }
+  if (body.github_default_branch !== undefined && typeof body.github_default_branch !== "string") {
+    throw validationError("github_default_branch must be string");
+  }
+  if (body.github_default_path !== undefined && typeof body.github_default_path !== "string") {
+    throw validationError("github_default_path must be string");
+  }
+  if (body.github_target_path !== undefined && typeof body.github_target_path !== "string") {
+    throw validationError("github_target_path must be string");
+  }
+  if (body.github_installation_ref !== undefined && typeof body.github_installation_ref !== "string") {
+    throw validationError("github_installation_ref must be string");
+  }
+  if (body.github_secret_id !== undefined && typeof body.github_secret_id !== "string") {
+    throw validationError("github_secret_id must be string");
+  }
+  if (body.github_token_ref !== undefined && typeof body.github_token_ref !== "string") {
+    throw validationError("github_token_ref must be string");
+  }
+  if (body.github_writable_scope !== undefined && typeof body.github_writable_scope !== "string") {
+    throw validationError("github_writable_scope must be string");
+  }
+  if (body.github_operation_mode !== undefined && typeof body.github_operation_mode !== "string") {
+    throw validationError("github_operation_mode must be string");
+  }
+  if (body.github_allowed_branches !== undefined && typeof body.github_allowed_branches !== "string") {
+    throw validationError("github_allowed_branches must be string");
+  }
+  if (body.figma_file_key !== undefined && typeof body.figma_file_key !== "string") {
+    throw validationError("figma_file_key must be string");
+  }
+  if (body.figma_secret_id !== undefined && typeof body.figma_secret_id !== "string") {
+    throw validationError("figma_secret_id must be string");
+  }
+  if (body.figma_token_ref !== undefined && typeof body.figma_token_ref !== "string") {
+    throw validationError("figma_token_ref must be string");
+  }
+  if (body.figma_page_scope !== undefined && typeof body.figma_page_scope !== "string") {
+    throw validationError("figma_page_scope must be string");
+  }
+  if (body.figma_frame_scope !== undefined && typeof body.figma_frame_scope !== "string") {
+    throw validationError("figma_frame_scope must be string");
+  }
+  if (body.figma_writable_scope !== undefined && typeof body.figma_writable_scope !== "string") {
+    throw validationError("figma_writable_scope must be string");
+  }
+  if (body.figma_operation_mode !== undefined && typeof body.figma_operation_mode !== "string") {
+    throw validationError("figma_operation_mode must be string");
+  }
+  if (body.figma_allowed_frame_scope !== undefined && typeof body.figma_allowed_frame_scope !== "string") {
+    throw validationError("figma_allowed_frame_scope must be string");
+  }
   if (body.drive_url !== undefined && typeof body.drive_url !== "string") {
     throw validationError("drive_url must be string");
   }
   const repoErr = validateGithubRepository(body.github_repository);
   const figmaErr = validateFigmaFile(body.figma_file);
+  const branchErr = validateOptionalTextField(body.github_default_branch, "github_default_branch", 200);
+  const defaultPathErr = validateOptionalTextField(
+    body.github_default_path !== undefined ? body.github_default_path : body.github_target_path,
+    "github_default_path",
+    400
+  );
+  const installationErr = validateSecretReference(body.github_installation_ref, "github_installation_ref");
+  const githubSecretIdInput = body.github_secret_id !== undefined ? body.github_secret_id : body.github_token_ref;
+  const githubSecretIdErr = validateSecretReference(githubSecretIdInput, "github_secret_id");
+  const githubWritableScopeErr = validateOptionalTextField(body.github_writable_scope, "github_writable_scope", 200);
+  const githubOperationModeErr = validateOperationMode(body.github_operation_mode, "github_operation_mode");
+  const githubAllowedBranchesErr = validateOptionalTextField(body.github_allowed_branches, "github_allowed_branches", 800);
+  const figmaFileKeyErr = validateOptionalTextField(body.figma_file_key, "figma_file_key", 200);
+  const figmaSecretIdInput = body.figma_secret_id !== undefined ? body.figma_secret_id : body.figma_token_ref;
+  const figmaSecretIdErr = validateSecretReference(figmaSecretIdInput, "figma_secret_id");
+  const figmaPageScopeErr = validateOptionalTextField(body.figma_page_scope, "figma_page_scope", 300);
+  const figmaFrameScopeErr = validateOptionalTextField(body.figma_frame_scope, "figma_frame_scope", 300);
+  const figmaWritableScopeErr = validateOptionalTextField(body.figma_writable_scope, "figma_writable_scope", 200);
+  const figmaOperationModeErr = validateOperationMode(body.figma_operation_mode, "figma_operation_mode");
+  const figmaAllowedFrameScopeErr = validateOptionalTextField(
+    body.figma_allowed_frame_scope,
+    "figma_allowed_frame_scope",
+    800
+  );
   const driveErr = validateDriveUrl(body.drive_url);
-  if (repoErr || figmaErr || driveErr) {
-    throw validationError(repoErr || figmaErr || driveErr);
+  if (
+    repoErr ||
+    figmaErr ||
+    branchErr ||
+    defaultPathErr ||
+    installationErr ||
+    githubSecretIdErr ||
+    githubWritableScopeErr ||
+    githubOperationModeErr ||
+    githubAllowedBranchesErr ||
+    figmaFileKeyErr ||
+    figmaSecretIdErr ||
+    figmaPageScopeErr ||
+    figmaFrameScopeErr ||
+    figmaWritableScopeErr ||
+    figmaOperationModeErr ||
+    figmaAllowedFrameScopeErr ||
+    driveErr
+  ) {
+    throw validationError(
+      repoErr ||
+        figmaErr ||
+        branchErr ||
+        defaultPathErr ||
+        installationErr ||
+        githubSecretIdErr ||
+        githubWritableScopeErr ||
+        githubOperationModeErr ||
+        githubAllowedBranchesErr ||
+        figmaFileKeyErr ||
+        figmaSecretIdErr ||
+        figmaPageScopeErr ||
+        figmaFrameScopeErr ||
+        figmaWritableScopeErr ||
+        figmaOperationModeErr ||
+        figmaAllowedFrameScopeErr ||
+        driveErr
+    );
   }
 
   const currentSettings = getProjectSettings(db, projectId) || {
     project_id: projectId,
     github_repository: "",
+    github_default_branch: "",
+    github_default_path: "",
+    github_installation_ref: "",
+    github_secret_id: "",
+    github_writable_scope: "",
+    github_operation_mode: "",
+    github_allowed_branches: "",
     figma_file: "",
+    figma_file_key: "",
+    figma_secret_id: "",
+    figma_page_scope: "",
+    figma_frame_scope: "",
+    figma_writable_scope: "",
+    figma_operation_mode: "",
+    figma_allowed_frame_scope: "",
     drive_url: "",
   };
   const nextSettings = {
     github_repository:
       body.github_repository !== undefined ? normalizeText(body.github_repository) : currentSettings.github_repository,
+    github_default_branch:
+      body.github_default_branch !== undefined
+        ? normalizeText(body.github_default_branch)
+        : currentSettings.github_default_branch,
+    github_default_path:
+      body.github_default_path !== undefined
+        ? normalizeText(body.github_default_path)
+        : body.github_target_path !== undefined
+          ? normalizeText(body.github_target_path)
+          : currentSettings.github_default_path,
+    github_installation_ref:
+      body.github_installation_ref !== undefined
+        ? normalizeText(body.github_installation_ref)
+        : currentSettings.github_installation_ref,
+    github_secret_id:
+      body.github_secret_id !== undefined
+        ? normalizeText(body.github_secret_id)
+        : body.github_token_ref !== undefined
+          ? normalizeText(body.github_token_ref)
+          : currentSettings.github_secret_id,
+    github_writable_scope:
+      body.github_writable_scope !== undefined
+        ? normalizeText(body.github_writable_scope)
+        : currentSettings.github_writable_scope,
+    github_operation_mode:
+      body.github_operation_mode !== undefined
+        ? normalizeOperationMode(body.github_operation_mode)
+        : normalizeOperationMode(currentSettings.github_operation_mode),
+    github_allowed_branches:
+      body.github_allowed_branches !== undefined
+        ? normalizeText(body.github_allowed_branches)
+        : currentSettings.github_allowed_branches,
     figma_file: body.figma_file !== undefined ? normalizeText(body.figma_file) : currentSettings.figma_file,
+    figma_file_key: body.figma_file_key !== undefined ? normalizeText(body.figma_file_key) : currentSettings.figma_file_key,
+    figma_secret_id:
+      body.figma_secret_id !== undefined
+        ? normalizeText(body.figma_secret_id)
+        : body.figma_token_ref !== undefined
+          ? normalizeText(body.figma_token_ref)
+          : currentSettings.figma_secret_id,
+    figma_page_scope:
+      body.figma_page_scope !== undefined ? normalizeText(body.figma_page_scope) : currentSettings.figma_page_scope,
+    figma_frame_scope:
+      body.figma_frame_scope !== undefined ? normalizeText(body.figma_frame_scope) : currentSettings.figma_frame_scope,
+    figma_writable_scope:
+      body.figma_writable_scope !== undefined
+        ? normalizeText(body.figma_writable_scope)
+        : currentSettings.figma_writable_scope,
+    figma_operation_mode:
+      body.figma_operation_mode !== undefined
+        ? normalizeOperationMode(body.figma_operation_mode)
+        : normalizeOperationMode(currentSettings.figma_operation_mode),
+    figma_allowed_frame_scope:
+      body.figma_allowed_frame_scope !== undefined
+        ? normalizeText(body.figma_allowed_frame_scope)
+        : currentSettings.figma_allowed_frame_scope,
     drive_url: body.drive_url !== undefined ? normalizeText(body.drive_url) : currentSettings.drive_url,
   };
 
+  const secretPresenceErr = validateConnectorSecretPresence({
+    github_repository: nextSettings.github_repository,
+    github_secret_id: nextSettings.github_secret_id,
+    figma_file: nextSettings.figma_file,
+    figma_file_key: nextSettings.figma_file_key,
+    figma_secret_id: nextSettings.figma_secret_id,
+  });
+  if (secretPresenceErr) {
+    throw validationError(secretPresenceErr);
+  }
+
   putProjectSharedEnvironment(db, projectId, {
     github_repository: nextSettings.github_repository,
+    github_default_branch: nextSettings.github_default_branch,
+    github_default_path: nextSettings.github_default_path,
+    github_installation_ref: nextSettings.github_installation_ref,
+    github_secret_id: nextSettings.github_secret_id,
+    github_operation_mode: nextSettings.github_operation_mode,
+    github_allowed_branches: nextSettings.github_allowed_branches,
+    github_writable_scope: nextSettings.github_writable_scope,
     figma_file: nextSettings.figma_file,
+    figma_file_key: nextSettings.figma_file_key,
+    figma_secret_id: nextSettings.figma_secret_id,
+    figma_page_scope: nextSettings.figma_page_scope,
+    figma_frame_scope: nextSettings.figma_frame_scope,
+    figma_operation_mode: nextSettings.figma_operation_mode,
+    figma_allowed_frame_scope: nextSettings.figma_allowed_frame_scope,
+    figma_writable_scope: nextSettings.figma_writable_scope,
     drive_url: nextSettings.drive_url,
   });
 
@@ -212,7 +471,21 @@ function putProjectSettings(db, projectId, body = {}) {
     settings: {
       ...(bindings.settings && typeof bindings.settings === "object" ? bindings.settings : {}),
       github_repository: nextSettings.github_repository,
+      github_default_branch: nextSettings.github_default_branch,
+      github_default_path: nextSettings.github_default_path,
+      github_installation_ref: nextSettings.github_installation_ref,
+      github_secret_id: nextSettings.github_secret_id,
+      github_operation_mode: nextSettings.github_operation_mode,
+      github_allowed_branches: nextSettings.github_allowed_branches,
+      github_writable_scope: nextSettings.github_writable_scope,
       figma_file: nextSettings.figma_file,
+      figma_file_key: nextSettings.figma_file_key,
+      figma_secret_id: nextSettings.figma_secret_id,
+      figma_page_scope: nextSettings.figma_page_scope,
+      figma_frame_scope: nextSettings.figma_frame_scope,
+      figma_operation_mode: nextSettings.figma_operation_mode,
+      figma_allowed_frame_scope: nextSettings.figma_allowed_frame_scope,
+      figma_writable_scope: nextSettings.figma_writable_scope,
     },
   };
   db.prepare("UPDATE projects SET project_bindings_json=?, updated_at=? WHERE tenant_id=? AND id=?").run(

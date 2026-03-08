@@ -73,6 +73,18 @@ async function run() {
     const detail = JSON.parse(runDetail.body.toString("utf8"));
     assert(detail.figma_file_key === "FIGMA_TRACE_KEY", "run should store figma_file_key trace");
     assert(detail.ingest_artifact_path === ingested.artifact_path, "run should store ingest_artifact_path trace");
+    assert(Array.isArray(detail.external_operations), "external_operations should exist");
+    assert(
+      detail.external_operations.some(
+        (entry) =>
+          entry &&
+          entry.provider === "figma" &&
+          entry.operation_type === "figma.plan_from_ingest" &&
+          entry.result &&
+          entry.result.status === "ok"
+      ),
+      "figma plan operation should be recorded"
+    );
 
     const dryRunPr = await requestLocal(handler, {
       method: "POST",
@@ -90,7 +102,7 @@ async function run() {
     const dryPayload = JSON.parse(dryRunPr.body.toString("utf8"));
     assert(dryPayload.dry_run === true, "dry-run flag should be true");
 
-    const realPr = await requestLocal(handler, {
+    const planPr = await requestLocal(handler, {
       method: "POST",
       url: "/api/github/pr",
       headers: { Authorization: token, "Content-Type": "application/json" },
@@ -101,13 +113,84 @@ async function run() {
         title: "real-pr-attempt",
         github_token: "dummy-token",
         dry_run: false,
+        file_path: "vault/tmp/hub-generated.txt",
+        write_path_allowlist: ["vault/tmp"],
       }),
     });
-    assert([401, 503].includes(realPr.statusCode), "github pr real call should fail clearly");
-    const errPayload = JSON.parse(realPr.body.toString("utf8"));
+    assert(planPr.statusCode === 202, "github write should return confirm_required before execution");
+    const planPayload = JSON.parse(planPr.body.toString("utf8"));
+    assert(planPayload.status === "confirm_required", "planned action status should be confirm_required");
+    assert(planPayload.planned_action && typeof planPayload.planned_action.action_id === "string", "planned action id should exist");
+    assert(typeof planPayload.confirm_token === "string" && planPayload.confirm_token.length > 10, "confirm token should exist");
+
+    const confirmPr = await requestLocal(handler, {
+      method: "POST",
+      url: "/api/github/pr",
+      headers: { Authorization: token, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        run_id: runPayload.run_id,
+        owner: "example",
+        repo: "demo",
+        title: "real-pr-attempt",
+        github_token: "dummy-token",
+        dry_run: false,
+        file_path: "vault/tmp/hub-generated.txt",
+        write_path_allowlist: ["vault/tmp"],
+        confirm: true,
+        planned_action_id: planPayload.planned_action.action_id,
+        confirm_token: planPayload.confirm_token,
+      }),
+    });
+    assert([401, 503].includes(confirmPr.statusCode), "confirmed github pr call should fail clearly in test env");
+    const errPayload = JSON.parse(confirmPr.body.toString("utf8"));
     assert(typeof errPayload.message === "string", "error.message should exist");
     assert(typeof errPayload.message_en === "string", "error.message_en should exist");
     assert(errPayload.details && typeof errPayload.details.failure_code === "string", "failure_code should exist");
+
+    const runDetailAfterOps = await requestLocal(handler, {
+      method: "GET",
+      url: `/api/runs/${runPayload.run_id}`,
+      headers: { Authorization: token },
+    });
+    assert(runDetailAfterOps.statusCode === 200, "run detail after operations should return 200");
+    const detailAfterOps = JSON.parse(runDetailAfterOps.body.toString("utf8"));
+    const githubOps = Array.isArray(detailAfterOps.external_operations)
+      ? detailAfterOps.external_operations.filter((entry) => entry && entry.provider === "github")
+      : [];
+    assert(githubOps.length >= 3, "github operations should include dry-run, planned confirm-required and failure");
+    assert(
+      githubOps.some((entry) => entry.operation_type === "github.create_pr" && entry.result.status === "skipped"),
+      "github dry-run operation should be recorded as skipped"
+    );
+    assert(
+      githubOps.some(
+        (entry) =>
+          entry.operation_type === "github.create_pr" &&
+          entry.result.status === "skipped" &&
+          entry.result.reason === "confirm_required"
+      ),
+      "github planned action should be recorded as confirm_required"
+    );
+    assert(
+      githubOps.some(
+        (entry) =>
+          entry.operation_type === "github.create_pr" &&
+          entry.result.status === "error" &&
+          typeof entry.result.failure_code === "string"
+      ),
+      "github failed operation should record failure_code"
+    );
+    assert(Array.isArray(detailAfterOps.planned_actions), "planned_actions should be exposed on run");
+    assert(
+      detailAfterOps.planned_actions.some(
+        (entry) =>
+          entry &&
+          entry.provider === "github" &&
+          entry.operation_type === "github.create_pr" &&
+          entry.status === "confirmed"
+      ),
+      "planned action should move to confirmed after confirm call"
+    );
 
     db.prepare("DELETE FROM runs WHERE tenant_id=? AND id=?").run(DEFAULT_TENANT, internalRunId);
   } finally {

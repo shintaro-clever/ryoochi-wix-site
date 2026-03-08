@@ -43,6 +43,7 @@ const {
   getDefaultPersonalAiSetting,
 } = require('../api/personalAiSettings');
 const { loadProjectSharedContext } = require('./projectSharedContext');
+const { buildConnectionContext, normalizeFilePaths } = require('./connectionContext');
 const { processChatTurnWithLocalStub } = require('./chatStub');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
@@ -1438,7 +1439,16 @@ async function handleRequest(req, res) {
           ai_provider: selectedProvider,
           ai_model: selectedModel,
           content,
-          shared_environment: sharedContext.shared_environment
+          shared_environment: sharedContext.shared_environment,
+          connection_context: await buildConnectionContext({
+            sharedEnvironment: sharedContext.shared_environment,
+            githubFilePaths: normalizeFilePaths(Array.isArray(body.github_file_paths) ? body.github_file_paths : []),
+            githubRef: typeof body.github_ref === 'string' ? body.github_ref.trim() : '',
+            figmaPageScope: typeof body.figma_page_scope === 'string' ? body.figma_page_scope.trim() : '',
+            figmaFrameScope: typeof body.figma_frame_scope === 'string' ? body.figma_frame_scope.trim() : '',
+            figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
+            figmaWritableScope: typeof body.figma_writable_scope === 'string' ? body.figma_writable_scope.trim() : '',
+          }),
         },
         target_path: '.ai-runs/{{run_id}}/workspace_chat.json',
       });
@@ -1513,6 +1523,17 @@ async function handleRequest(req, res) {
         createdThread = true;
       }
       const posted = postMessage(appDb, threadId, { role: 'user', content, run_id: body.run_id }, 'user');
+      const sharedContext = loadProjectSharedContext(appDb, projectId);
+      if (!sharedContext.ok) {
+        sendJsonError(
+          res,
+          sharedContext.status || 400,
+          sharedContext.code || 'VALIDATION_ERROR',
+          sharedContext.message || '入力が不正です',
+          sharedContext.details || { failure_code: 'validation_error' }
+        );
+        return;
+      }
       const runId = createRun(appDb, {
         project_id: projectId,
         thread_id: threadId,
@@ -1523,7 +1544,17 @@ async function handleRequest(req, res) {
           project_id: resolved.publicId,
           thread_id: threadId,
           ai_setting_id: typeof body.ai_setting_id === 'string' ? body.ai_setting_id.trim() : undefined,
-          content
+          content,
+          shared_environment: sharedContext.shared_environment,
+          connection_context: await buildConnectionContext({
+            sharedEnvironment: sharedContext.shared_environment,
+            githubFilePaths: normalizeFilePaths(Array.isArray(body.github_file_paths) ? body.github_file_paths : []),
+            githubRef: typeof body.github_ref === 'string' ? body.github_ref.trim() : '',
+            figmaPageScope: typeof body.figma_page_scope === 'string' ? body.figma_page_scope.trim() : '',
+            figmaFrameScope: typeof body.figma_frame_scope === 'string' ? body.figma_frame_scope.trim() : '',
+            figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
+            figmaWritableScope: typeof body.figma_writable_scope === 'string' ? body.figma_writable_scope.trim() : '',
+          }),
         },
         target_path: '.ai-runs/{{run_id}}/workspace_chat.json',
       });

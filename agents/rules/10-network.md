@@ -24,5 +24,16 @@ Workspace系修正時の反映後確認（必須）:
 - 反映コマンドの標準形:
   `bin/vps 'echo connected' && bin/vps 'cd /srv/integration-hub && git checkout main && git pull --ff-only origin main && pm2 reload integration-hub-web'`
 
+外部操作フェーズ（GitHub/Figma read/write）を含む反映後確認（必須）:
+- runbook: `docs/runbooks/vps-external-operations-checklist.md` を正本とする。
+- 最低限次を順に確認する（順序固定）:
+  1. read-only 動作確認（GitHub/Figma）
+  2. dry-run / plan 生成確認
+  3. confirm 実行確認（confirm 前に write されないこと）
+  4. GitHub branch/commit（必要なら PR）生成確認
+  5. Figma 更新対象（page/frame/node）確認
+  6. Figma 再現度評価 `>=95` 確認
+  7. 失敗時の rollback または retry 実施記録
+
 参照:
 - `agents/contracts/network-escalation.md`

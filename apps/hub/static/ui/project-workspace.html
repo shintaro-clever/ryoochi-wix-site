@@ -136,11 +136,48 @@
             </div>
           </dl>
           <div class="mt-4 border-t border-border-dark pt-4">
+            <h4 class="text-sm font-semibold">External Reference Context</h4>
+            <p class="mt-1 text-[11px] text-text-muted">project defaults と run overrides / resolved target を表示</p>
+            <div id="workspace-external-context" class="mt-2 space-y-2 text-xs"></div>
+          </div>
+          <div class="mt-4 border-t border-border-dark pt-4">
+            <h4 class="text-sm font-semibold">External Operation Plan / Confirm</h4>
+            <p class="mt-1 text-[11px] text-text-muted">何を読むか / 何を書こうとしているか / confirm要否を確認してから実行</p>
+            <div class="mt-2 space-y-2 text-xs">
+              <label class="block">
+                <span class="text-text-muted">provider</span>
+                <select id="workspace-op-provider" class="mt-1 w-full rounded border border-border-dark bg-transparent px-2 py-1 text-xs">
+                  <option value="figma">figma</option>
+                  <option value="github">github</option>
+                </select>
+              </label>
+              <label class="block">
+                <span class="text-text-muted">write payload (JSON)</span>
+                <textarea id="workspace-op-write-json" class="mt-1 w-full rounded border border-border-dark bg-transparent p-2 text-xs h-28" placeholder='{"change_type":"text_update","page_id":"1:1","frame_id":"11:22","node_id":"11:22:node1","text":"updated"}'></textarea>
+              </label>
+              <p id="workspace-op-figma-note" class="rounded border border-amber-400/40 bg-amber-100/40 dark:bg-amber-900/20 p-2 text-[11px] text-amber-800 dark:text-amber-300">
+                Figma 注意: 対象一致100%・安全性95以上・総合95点以上を満たさない場合は不合格になります。
+              </p>
+              <div class="flex items-center gap-2">
+                <button id="workspace-op-plan-btn" type="button" class="px-2 py-1 rounded border border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80">Plan作成</button>
+                <button id="workspace-op-confirm-btn" type="button" class="px-2 py-1 rounded bg-primary text-white disabled:opacity-60 disabled:cursor-not-allowed" disabled>Confirm実行</button>
+              </div>
+              <p id="workspace-op-confirm-status" class="text-[11px] text-text-muted">-</p>
+              <pre id="workspace-op-read-preview" class="rounded border border-border-dark p-2 bg-background-light dark:bg-background-dark overflow-x-auto">-</pre>
+              <pre id="workspace-op-plan-preview" class="rounded border border-border-dark p-2 bg-background-light dark:bg-background-dark overflow-x-auto">-</pre>
+            </div>
+          </div>
+          <div class="mt-4 border-t border-border-dark pt-4">
             <div class="flex items-center justify-between gap-2">
               <h4 class="text-sm font-semibold" data-i18n="ui.workspace.recentRuns">最近のRuns</h4>
               <a id="workspace-runs-side-link" href="/ui/project-runs.html" class="text-xs text-primary hover:underline" data-i18n="ui.workspace.openRuns">Runsを見る</a>
             </div>
             <div id="workspace-runs-list" class="mt-2 space-y-2"></div>
+          </div>
+          <div class="mt-4 border-t border-border-dark pt-4">
+            <h4 class="text-sm font-semibold">External Operation Timeline</h4>
+            <p class="mt-1 text-[11px] text-text-muted">GitHub/Figma の read/write 実行結果を run 横断で時系列表示</p>
+            <div id="workspace-op-timeline" class="mt-2 space-y-2 text-xs"></div>
           </div>
         </aside>
       </section>
@@ -180,7 +217,19 @@
     const githubEl = document.getElementById("workspace-github");
     const figmaEl = document.getElementById("workspace-figma");
     const driveEl = document.getElementById("workspace-drive");
+    const externalContextEl = document.getElementById("workspace-external-context");
     const runsList = document.getElementById("workspace-runs-list");
+    const opProviderEl = document.getElementById("workspace-op-provider");
+    const opWriteJsonEl = document.getElementById("workspace-op-write-json");
+    const opPlanBtn = document.getElementById("workspace-op-plan-btn");
+    const opConfirmBtn = document.getElementById("workspace-op-confirm-btn");
+    const opConfirmStatusEl = document.getElementById("workspace-op-confirm-status");
+    const opReadPreviewEl = document.getElementById("workspace-op-read-preview");
+    const opPlanPreviewEl = document.getElementById("workspace-op-plan-preview");
+    const opFigmaNoteEl = document.getElementById("workspace-op-figma-note");
+    const opTimelineEl = document.getElementById("workspace-op-timeline");
+    let cachedRuns = [];
+    let pendingWriteConfirm = null;
 
     function updateProjectLinks() {
       const links = [backLink, projectSettingsLink, settingsLink, threadDetailLink, runsLink, runsSideLink];
@@ -231,6 +280,7 @@
         btn.addEventListener("click", async () => {
           setActiveThread(id);
           renderThreads(list);
+          renderExternalContext();
           await loadThreadDetail();
         });
         threadList.appendChild(btn);
@@ -306,6 +356,62 @@
       }
     }
 
+    function pickContextRun() {
+      const rows = Array.isArray(cachedRuns) ? cachedRuns : [];
+      if (!rows.length) return null;
+      if (activeThreadId) {
+        const matched = rows.find((run) => run && String(run.thread_id || "") === activeThreadId);
+        if (matched) return matched;
+      }
+      return rows[0] || null;
+    }
+
+    function renderExternalContext() {
+      if (!externalContextEl) return;
+      const run = pickContextRun();
+      if (!run) {
+        externalContextEl.innerHTML = `<p class="text-text-muted">run context: -</p>`;
+        return;
+      }
+      const shared = run.inputs && run.inputs.shared_environment && typeof run.inputs.shared_environment === "object"
+        ? run.inputs.shared_environment
+        : {};
+      const ctx = run.inputs && run.inputs.connection_context && typeof run.inputs.connection_context === "object"
+        ? run.inputs.connection_context
+        : {};
+      const gh = ctx.github && typeof ctx.github === "object" ? ctx.github : {};
+      const fg = ctx.figma && typeof ctx.figma === "object" ? ctx.figma : {};
+      const ghMeta = gh.repository_metadata && typeof gh.repository_metadata === "object" ? gh.repository_metadata : {};
+      const ghSelection = gh.selection_source && typeof gh.selection_source === "object" ? gh.selection_source : {};
+      const fgTarget = fg.target && typeof fg.target === "object" ? fg.target : {};
+      const fgSelection = fg.target_selection_source && typeof fg.target_selection_source === "object" ? fg.target_selection_source : {};
+      const externalReadPlan = run.inputs && run.inputs.external_read_plan && typeof run.inputs.external_read_plan === "object"
+        ? run.inputs.external_read_plan
+        : null;
+      const plannedWrite = run.inputs && run.inputs.orchestration && run.inputs.orchestration.write_plan && typeof run.inputs.orchestration.write_plan === "object"
+        ? run.inputs.orchestration.write_plan
+        : null;
+      const ghPaths = Array.isArray(gh.file_paths) ? gh.file_paths : [];
+      const fgNodes = Array.isArray(fgTarget.node_ids) ? fgTarget.node_ids : [];
+      externalContextEl.innerHTML = `
+        <article class="rounded border border-border-dark p-2">
+          <p class="font-mono text-[11px] text-text-muted">run: ${String(run.run_id || "-")}</p>
+          <p class="mt-1 break-all"><span class="text-text-muted">GitHub default</span>: repo=${shared.github_repository || "-"} / branch=${shared.github_default_branch || "-"} / path=${shared.github_default_path || "-"}</p>
+          <p class="mt-1 break-all"><span class="text-text-muted">GitHub resolved</span>: repo=${ghMeta.full_name || shared.github_repository || "-"} / branch=${gh.branch || "-"} / paths=${ghPaths.length ? ghPaths.join("|") : "-"}</p>
+          <p class="mt-1 break-all"><span class="text-text-muted">GitHub source</span>: branch=${ghSelection.branch || "-"} / path=${ghSelection.path || "-"}</p>
+        </article>
+        <article class="rounded border border-border-dark p-2">
+          <p class="break-all"><span class="text-text-muted">Figma default</span>: file=${shared.figma_file_key || shared.figma_file || "-"} / page=${shared.figma_page_scope || "-"} / frame=${shared.figma_frame_scope || "-"}</p>
+          <p class="mt-1 break-all"><span class="text-text-muted">Figma resolved</span>: file=${fg.file_key || "-"} / page=${fgTarget.page_id || fgTarget.page_name || "-"} / frame=${fgTarget.frame_id || fgTarget.frame_name || "-"} / nodes=${fgNodes.length}</p>
+          <p class="mt-1 break-all"><span class="text-text-muted">Figma source</span>: page=${fgSelection.page || "-"} / frame=${fgSelection.frame || "-"} / nodes=${fgSelection.nodes || "-"}</p>
+        </article>
+        <article class="rounded border border-border-dark p-2">
+          <p class="break-all"><span class="text-text-muted">Read plan</span>: ${externalReadPlan ? `actionability=${externalReadPlan.actionability || "-"} / confirm=${externalReadPlan.confirm_required ? "yes" : "no"} / reason=${externalReadPlan.confirm_required_reason || "-"}` : "-"}</p>
+          <p class="mt-1 break-all"><span class="text-text-muted">Write plan</span>: ${plannedWrite ? `provider=${plannedWrite.planned_action?.provider || "-"} / op=${plannedWrite.operation_type || "-"} / target=${plannedWrite.target_branch || plannedWrite.target?.frame_id || "-"}` : "-"}</p>
+        </article>
+      `;
+    }
+
     function renderRecentRuns(runs) {
       runsList.innerHTML = "";
       const rows = Array.isArray(runs) ? runs.slice(0, 5) : [];
@@ -322,24 +428,178 @@
         const updatedAt = String(run.updated_at || run.created_at || "-");
         const card = document.createElement("article");
         card.className = "rounded-lg border border-border-dark p-2";
+        const githubOps = Array.isArray(run && run.external_operations) ? run.external_operations : [];
+        const latestGithubOp = [...githubOps].reverse().find((entry) => entry && entry.provider === "github");
+        const latestFigmaOp = [...githubOps].reverse().find((entry) => entry && entry.provider === "figma");
+        const githubNote = latestGithubOp
+          ? (() => {
+              const branch = latestGithubOp.artifacts?.branch || latestGithubOp.target?.branch || "-";
+              const commit = latestGithubOp.artifacts?.commit_sha || "-";
+              const prUrl = latestGithubOp.artifacts?.pr_url || "-";
+              const reason = latestGithubOp.result?.reason || latestGithubOp.result?.failure_code || "-";
+              return `GitHub: ${latestGithubOp.result?.status || "unknown"} / branch=${branch} / commit=${commit} / pr=${prUrl} / reason=${reason}`;
+            })()
+          : "GitHub: -";
+        const figmaOpNote = latestFigmaOp
+          ? (() => {
+              const page = latestFigmaOp.target?.page_id || latestFigmaOp.artifacts?.figma_page_id || "-";
+              const frame = latestFigmaOp.target?.frame_id || latestFigmaOp.artifacts?.figma_frame_id || "-";
+              const nodes = Array.isArray(latestFigmaOp.artifacts?.figma_node_ids) ? latestFigmaOp.artifacts.figma_node_ids.length : 0;
+              const fidelity = typeof latestFigmaOp.artifacts?.fidelity_score === "number" ? Number(latestFigmaOp.artifacts.fidelity_score).toFixed(2) : "-";
+              const reason = latestFigmaOp.result?.reason || latestFigmaOp.result?.failure_code || "-";
+              return `Figma op: ${latestFigmaOp.result?.status || "unknown"} / page=${page} / frame=${frame} / nodes=${nodes} / fidelity=${fidelity} / reason=${reason}`;
+            })()
+          : "Figma op: -";
+        const figmaCompare = run && run.figma_before_after && typeof run.figma_before_after === "object"
+          ? run.figma_before_after
+          : null;
+        const beforeTarget = figmaCompare && figmaCompare.before && figmaCompare.before.target && typeof figmaCompare.before.target === "object"
+          ? figmaCompare.before.target
+          : null;
+        const afterTarget = figmaCompare && figmaCompare.after && figmaCompare.after.target && typeof figmaCompare.after.target === "object"
+          ? figmaCompare.after.target
+          : null;
+        const beforeAfterNote = figmaCompare
+          ? `Figma before/after: page ${beforeTarget?.page_id || "-"} -> ${afterTarget?.page_id || "-"} / frame ${beforeTarget?.frame_id || "-"} -> ${afterTarget?.frame_id || "-"} / nodes ${(Array.isArray(beforeTarget?.node_ids) ? beforeTarget.node_ids.length : 0)} -> ${(Array.isArray(afterTarget?.node_ids) ? afterTarget.node_ids.length : 0)}`
+          : "Figma before/after: -";
+        const structure = figmaCompare && figmaCompare.structure_diff_summary && typeof figmaCompare.structure_diff_summary === "object"
+          ? figmaCompare.structure_diff_summary
+          : null;
+        const visual = figmaCompare && figmaCompare.visual_diff_summary && typeof figmaCompare.visual_diff_summary === "object"
+          ? figmaCompare.visual_diff_summary
+          : null;
+        const compareNote = figmaCompare
+          ? `Figma compare: ${structure ? (structure.major_diff_detected ? "major-diff" : "ok") : "available"}${visual ? ` / visual=${Number(visual.score || 0).toFixed(1)}` : ""}`
+          : "Figma compare: -";
         card.innerHTML = `
           <div class="flex items-center justify-between gap-2">
             <a href="/ui/run.html?run_id=${encodeURIComponent(runId)}" class="text-xs font-mono text-primary hover:underline truncate">${runId}</a>
             <span class="text-[11px] px-2 py-0.5 rounded border ${status === "failed" ? "border-rose-400/40 text-rose-600 dark:text-rose-300" : status === "succeeded" ? "border-emerald-400/40 text-emerald-700 dark:text-emerald-300" : "border-border-dark text-text-muted"}">${status}</span>
           </div>
           <p class="mt-1 text-[11px] font-mono text-text-muted">${updatedAt}</p>
+          <p class="mt-1 text-[11px] text-text-muted break-all">${githubNote}</p>
+          <p class="mt-1 text-[11px] text-text-muted break-all">${figmaOpNote}</p>
+          <p class="mt-1 text-[11px] text-text-muted break-all">${beforeAfterNote}</p>
+          <p class="mt-1 text-[11px] text-text-muted">${compareNote}</p>
         `;
         runsList.appendChild(card);
+      });
+    }
+
+    function renderExternalOperationTimeline(runs) {
+      if (!opTimelineEl) return;
+      opTimelineEl.innerHTML = "";
+      const rows = Array.isArray(runs) ? runs : [];
+      const timeline = [];
+      rows.forEach((run) => {
+        const runId = String(run && run.run_id ? run.run_id : "-");
+        const updatedAt = String(run && (run.updated_at || run.created_at) ? (run.updated_at || run.created_at) : "-");
+        const figmaValidation = run && run.inputs && run.inputs.fg_validation && typeof run.inputs.fg_validation === "object"
+          ? run.inputs.fg_validation
+          : null;
+        const ops = Array.isArray(run && run.external_operations) ? run.external_operations : [];
+        ops.forEach((op) => {
+          if (!op || typeof op !== "object") return;
+          timeline.push({
+            run_id: runId,
+            run_updated_at: updatedAt,
+            provider: String(op.provider || "unknown"),
+            operation_type: String(op.operation_type || "unknown"),
+            status: String(op.result && op.result.status ? op.result.status : "unknown"),
+            reason: String((op.result && (op.result.reason || op.result.failure_code)) || "-"),
+            target: op.target && typeof op.target === "object" ? op.target : {},
+            artifacts: op.artifacts && typeof op.artifacts === "object" ? op.artifacts : {},
+            recorded_at: String(op.recorded_at || updatedAt),
+            figma_validation: op.provider === "figma" ? figmaValidation : null,
+          });
+        });
+      });
+      timeline.sort((a, b) => new Date(b.recorded_at).getTime() - new Date(a.recorded_at).getTime());
+      const top = timeline.slice(0, 30);
+      if (!top.length) {
+        const empty = document.createElement("p");
+        empty.className = "text-text-muted";
+        empty.textContent = "-";
+        opTimelineEl.appendChild(empty);
+        return;
+      }
+      top.forEach((entry) => {
+        const targetPath = entry.target.path || (Array.isArray(entry.target.paths) ? entry.target.paths.join("|") : "-");
+        const targetRef = entry.provider === "github"
+          ? `repo=${entry.target.repository || "-"} / branch=${entry.target.branch || "-"} / path=${targetPath || "-"}`
+          : `file=${entry.target.file_key || "-"} / page=${entry.target.page_id || "-"} / frame=${entry.target.frame_id || "-"} / nodes=${Array.isArray(entry.target.node_ids) ? entry.target.node_ids.length : 0}`;
+        const artifacts = entry.provider === "github"
+          ? `commit=${entry.artifacts.commit_sha || "-"} / branch=${entry.artifacts.branch || "-"} / pr=${entry.artifacts.pr_url || "-"}`
+          : `nodes=${Array.isArray(entry.artifacts.figma_node_ids) ? entry.artifacts.figma_node_ids.length : 0} / fidelity=${typeof entry.artifacts.fidelity_score === "number" ? Number(entry.artifacts.fidelity_score).toFixed(2) : "-"}`;
+        const figmaEval = entry.provider === "figma" && entry.figma_validation
+          ? ` / fg_validation=${entry.figma_validation.status || "-"}:${Number(entry.figma_validation.score_total || entry.figma_validation.score || 0).toFixed(2)}`
+          : "";
+        const card = document.createElement("article");
+        card.className = "rounded border border-border-dark p-2";
+        card.innerHTML = `
+          <p class="font-mono text-[11px] text-text-muted">${entry.recorded_at}</p>
+          <p class="mt-1 break-all">${entry.provider}.${entry.operation_type} / status=${entry.status} / reason=${entry.reason}</p>
+          <p class="mt-1 break-all text-text-muted">run=${entry.run_id}</p>
+          <p class="mt-1 break-all text-text-muted">target: ${targetRef}</p>
+          <p class="mt-1 break-all text-text-muted">artifacts: ${artifacts}${figmaEval}</p>
+        `;
+        opTimelineEl.appendChild(card);
       });
     }
 
     async function loadRecentRuns() {
       try {
         const payload = await apiGet(`/projects/${encodeURIComponent(projectId)}/runs`);
-        renderRecentRuns(payload && Array.isArray(payload.runs) ? payload.runs : []);
+        cachedRuns = payload && Array.isArray(payload.runs) ? payload.runs : [];
+        renderRecentRuns(cachedRuns);
+        renderExternalOperationTimeline(cachedRuns);
+        renderExternalContext();
       } catch {
+        cachedRuns = [];
         renderRecentRuns([]);
+        renderExternalOperationTimeline([]);
+        renderExternalContext();
       }
+    }
+
+    function renderOperationPanel(result, rawWrite) {
+      const orchestration = result && result.orchestration && typeof result.orchestration === "object"
+        ? result.orchestration
+        : {};
+      const readPlan = orchestration.external_read_plan && typeof orchestration.external_read_plan === "object"
+        ? orchestration.external_read_plan
+        : null;
+      const writePlan = orchestration.write_plan && typeof orchestration.write_plan === "object"
+        ? orchestration.write_plan
+        : null;
+      opReadPreviewEl.textContent = readPlan ? JSON.stringify(readPlan.read_targets || {}, null, 2) : "-";
+      opPlanPreviewEl.textContent = writePlan ? JSON.stringify(writePlan, null, 2) : "-";
+      if (writePlan && writePlan.planned_action && writePlan.confirm_token) {
+        pendingWriteConfirm = {
+          thread_id: String(result && result.thread_id ? result.thread_id : activeThreadId || ""),
+          run_id: String(result && result.run_id ? result.run_id : ""),
+          provider: String(writePlan.planned_action.provider || opProviderEl.value || "").toLowerCase(),
+          planned_action_id: String(writePlan.planned_action.action_id || ""),
+          confirm_token: String(writePlan.confirm_token || ""),
+          raw_write: rawWrite && typeof rawWrite === "object" ? rawWrite : {},
+        };
+        opConfirmBtn.disabled = false;
+        opConfirmStatusEl.textContent = `confirm required: ${String(orchestration.confirm_required_reason || "planned_action_confirmation_required")}`;
+      } else {
+        pendingWriteConfirm = null;
+        opConfirmBtn.disabled = true;
+        opConfirmStatusEl.textContent = `confirm required: ${orchestration.confirm_required ? "yes" : "no"} / reason=${String(orchestration.confirm_required_reason || "-")}`;
+      }
+      const provider = String(opProviderEl.value || "").toLowerCase();
+      opFigmaNoteEl.classList.toggle("hidden", provider !== "figma");
+    }
+
+    async function postWorkspaceChat(payload, forceThreadId = "") {
+      const threadId = forceThreadId || activeThreadId;
+      if (threadId) {
+        return apiPost(`/projects/${encodeURIComponent(projectId)}/threads/${encodeURIComponent(threadId)}/chat`, payload);
+      }
+      return apiPost(`/projects/${encodeURIComponent(projectId)}/workspace/messages`, payload);
     }
 
     async function loadAiStatus() {
@@ -368,6 +628,7 @@
       if (!activeThreadId) {
         activeThreadText.textContent = "-";
         renderTimeline([]);
+        renderExternalContext();
         return;
       }
       try {
@@ -375,8 +636,10 @@
         const thread = detail && detail.thread ? detail.thread : null;
         activeThreadText.textContent = thread ? String(thread.title || activeThreadId) : activeThreadId;
         renderTimeline(thread && Array.isArray(thread.messages) ? thread.messages : []);
+        renderExternalContext();
       } catch {
         renderTimeline([]);
+        renderExternalContext();
       }
     }
 
@@ -416,6 +679,7 @@
         }
         await loadThreads();
         await loadThreadDetail();
+        await loadRecentRuns();
         if (usedChatApi) {
           const sentBase = await t("ui.workspace.chatContinued");
           const status = result && typeof result.status === "string" ? result.status : "queued";
@@ -439,6 +703,89 @@
       }
     });
 
+    opProviderEl.addEventListener("change", () => {
+      const provider = String(opProviderEl.value || "").toLowerCase();
+      opFigmaNoteEl.classList.toggle("hidden", provider !== "figma");
+    });
+
+    opPlanBtn.addEventListener("click", async () => {
+      const content = String(input.value || "").trim();
+      if (!content) {
+        opConfirmStatusEl.textContent = "plan作成にはメッセージ入力が必要です";
+        return;
+      }
+      let writePayload = {};
+      const raw = String(opWriteJsonEl.value || "").trim();
+      if (raw) {
+        try {
+          writePayload = JSON.parse(raw);
+        } catch {
+          opConfirmStatusEl.textContent = "write payload JSON が不正です";
+          return;
+        }
+      }
+      writePayload.provider = String(opProviderEl.value || "").toLowerCase();
+      opConfirmBtn.disabled = true;
+      opConfirmStatusEl.textContent = "plan 作成中...";
+      try {
+        const result = await postWorkspaceChat({ content, write: writePayload });
+        if (result && isPrefixedId("thread", result.thread_id || "")) {
+          setActiveThread(result.thread_id);
+        }
+        renderOperationPanel(result, writePayload);
+        await loadThreads();
+        await loadThreadDetail();
+        await loadRecentRuns();
+      } catch (e) {
+        opConfirmStatusEl.textContent = `plan 作成失敗: ${String(e && e.message ? e.message : "failed")}`;
+      }
+    });
+
+    opConfirmBtn.addEventListener("click", async () => {
+      if (!pendingWriteConfirm) return;
+      opConfirmBtn.disabled = true;
+      opConfirmStatusEl.textContent = "confirm 実行中...";
+      try {
+        const writePayload = {
+          ...(pendingWriteConfirm.raw_write || {}),
+          provider: pendingWriteConfirm.provider,
+          confirm: true,
+          planned_action_id: pendingWriteConfirm.planned_action_id,
+          confirm_token: pendingWriteConfirm.confirm_token,
+        };
+        const result = await postWorkspaceChat(
+          {
+            content: "confirm external write",
+            run_id: pendingWriteConfirm.run_id,
+            write: writePayload,
+          },
+          pendingWriteConfirm.thread_id
+        );
+        pendingWriteConfirm = null;
+        opReadPreviewEl.textContent = opReadPreviewEl.textContent || "-";
+        opPlanPreviewEl.textContent = JSON.stringify(
+          result && result.orchestration && result.orchestration.write_execution
+            ? result.orchestration.write_execution
+            : result || {},
+          null,
+          2
+        );
+        opConfirmStatusEl.textContent = `confirm 実行結果: ${String(result && result.status ? result.status : "unknown")}`;
+        if (result && isPrefixedId("thread", result.thread_id || "")) {
+          setActiveThread(result.thread_id);
+        }
+        await loadThreads();
+        await loadThreadDetail();
+        await loadRecentRuns();
+      } catch (e) {
+        opConfirmStatusEl.textContent = `confirm 実行失敗: ${String(e && e.message ? e.message : "failed")}`;
+      } finally {
+        if (!pendingWriteConfirm) {
+          opConfirmBtn.disabled = true;
+        }
+      }
+    });
+
     newConversationButton.addEventListener("click", async () => {
       setActiveThread("");
       activeThreadText.textContent = await t("ui.workspace.newConversationMode");
@@ -447,6 +794,7 @@
       postStatus.textContent = await t("ui.projectThread.startConversationHint");
       input.focus();
       await loadThreads();
+      renderExternalContext();
     });
 
     async function bootstrap() {
@@ -457,6 +805,7 @@
       }
       await Promise.all([loadAiStatus(), loadSharedEnvironment(), loadThreads(), loadRecentRuns()]);
       await loadThreadDetail();
+      opFigmaNoteEl.classList.toggle("hidden", String(opProviderEl.value || "").toLowerCase() !== "figma");
     }
 
     bootstrap();

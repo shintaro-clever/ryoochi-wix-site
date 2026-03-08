@@ -3,6 +3,7 @@ const { listRuns, createRun, toPublicRunId } = require("../../api/runs");
 const { validateRunInputs } = require("../../validation/runInputs");
 const { DEFAULT_TENANT } = require("../../db/sqlite");
 const { loadProjectSharedContext } = require("../projectSharedContext");
+const { buildConnectionContext, normalizeFilePaths } = require("../connectionContext");
 
 async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
   const method = (req.method || "GET").toUpperCase();
@@ -70,14 +71,59 @@ async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
       sharedContext.details || { failure_code: "validation_error" }
     );
   }
+  let connectionContext;
+  try {
+    connectionContext = await buildConnectionContext({
+      sharedEnvironment: sharedContext.shared_environment,
+      githubFilePaths: normalizeFilePaths(
+        Array.isArray(body.github_file_paths) ? body.github_file_paths : inputs.github_file_paths
+      ),
+      githubRef:
+        typeof body.github_ref === "string" && body.github_ref.trim()
+          ? body.github_ref.trim()
+          : typeof inputs.github_ref === "string" && inputs.github_ref.trim()
+            ? inputs.github_ref.trim()
+            : "",
+      figmaPageScope:
+        typeof body.figma_page_scope === "string" && body.figma_page_scope.trim()
+          ? body.figma_page_scope.trim()
+          : typeof inputs.figma_page_scope === "string" && inputs.figma_page_scope.trim()
+            ? inputs.figma_page_scope.trim()
+            : "",
+      figmaFrameScope:
+        typeof body.figma_frame_scope === "string" && body.figma_frame_scope.trim()
+          ? body.figma_frame_scope.trim()
+          : typeof inputs.figma_frame_scope === "string" && inputs.figma_frame_scope.trim()
+            ? inputs.figma_frame_scope.trim()
+            : "",
+      figmaNodeIds: Array.isArray(body.figma_node_ids)
+        ? body.figma_node_ids
+        : Array.isArray(inputs.figma_node_ids)
+          ? inputs.figma_node_ids
+          : [],
+      figmaWritableScope:
+        typeof body.figma_writable_scope === "string" && body.figma_writable_scope.trim()
+          ? body.figma_writable_scope.trim()
+          : typeof inputs.figma_writable_scope === "string" && inputs.figma_writable_scope.trim()
+            ? inputs.figma_writable_scope.trim()
+            : "",
+    });
+  } catch (error) {
+    return jsonError(res, error.status || 400, error.code || "VALIDATION_ERROR", error.message || "入力が不正です", {
+      failure_code: error.failure_code || "validation_error",
+      reason: error.reason || null,
+    });
+  }
   const runId = createRun(db, {
     job_type: jobType,
     run_mode: runMode,
     inputs: {
       ...inputs,
       ...validation.normalized,
+      requested_by: typeof req.user?.id === "string" && req.user.id.trim() ? req.user.id.trim() : "system",
       ...(sharedContext.publicProjectId ? { project_id: sharedContext.publicProjectId } : {}),
       shared_environment: sharedContext.shared_environment,
+      connection_context: connectionContext,
     },
     project_id: sharedContext.internalProjectId || validation.normalized.project_id || null,
     thread_id:

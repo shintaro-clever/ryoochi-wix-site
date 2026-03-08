@@ -46,21 +46,65 @@ The goal is: PR → Issue → Figma → Decision must always be traceable.
   - プロジェクト共有環境（GitHub/Figma/Drive）
   - 会話履歴（Thread messages）
 
-### Next Phase (Out of Scope for now)
-- 複数AI接続（同時選択・切替・優先順制御）
-- 役割設定（role/profile/persona の分岐運用）
+### Phase2 External Operations (In Scope)
+- 対象は以下に限定する。
+  - GitHub / Figma の**読取**（read-only fetch / inspect）
+  - GitHub / Figma への**制御付き書込**（明示的条件と承認を満たした操作のみ）
+  - Run への参照 / 操作記録（何を読んだか・何を書いたかの trace）
+  - Workspace からの承認付き実行（human-in-the-loop）
+  - Figma再現度検証（期待デザインとの差分確認）
 
-### Next Phase SoT (Design Only / No Implementation in Current Phase)
-- Personal AI Settings は「既定1件」から「複数接続」へ拡張する。
-  - 例: provider/model/secret_ref を複数件保持し、接続ごとに enabled 状態を持つ。
-- 役割設定（role/profile/persona）を導入し、役割ごとに優先AI接続を割り当てる。
-  - 例: `planner`, `implementer`, `reviewer` などの role ごとに ai_setting_id を紐付ける。
-- Workspace/Run では、実行時に「どの role がどの ai_setting を選んだか」を追跡可能にする。
-  - 追跡対象例: `role`, `selected_ai_setting_id`, `fallback_chain`, `selection_reason`。
-- ただし現フェーズでは実装しない（設計境界のみ保持）。
-  - 現フェーズの実装は引き続き「既定AI 1件」を正とする。
+### Phase2 Execution Order (Fixed SoT)
+- Phase2 の外部操作は必ず次の順序で進める。
+  1. `read`
+  2. `validation`（ここに Figma再現度検証を含める）
+  3. `controlled write`
+  4. `run/workspace integration`（Run記録とWorkspace承認実行を統合）
+
+### Figma Read Baseline (FG-R-01 / FG-R-02 必須)
+- `FG-R-01` / `FG-R-02` では「取れるだけ取得」は採用しない。
+- Figma再現度（95%以上）を validation で扱うため、read 段階で最低限以下を取得し、Connection Context へ正規化して渡すことを必須とする。
+  - page / frame / node の解決結果（どの page・frame・node を対象にしたか）
+  - 親子関係（node tree の parent-child）
+  - text content（テキストノードの内容）
+  - component / instance の概要（component key, instance 参照関係）
+  - auto layout に必要な主要情報（layout mode, axis, alignment, wrap など）
+  - sizing / spacing 系の主要情報（幅高・min/max・padding・item spacing・constraints/resizing）
+- 上記のいずれかが欠ける場合、`FG-VAL-*` へ進めず `validation_error` として扱う。
+- `FG-VAL-*` の判定前提:
+  - `connection_context.figma.status = ok` の Run のみ評価対象
+  - `skipped` は未評価、`error` は失敗として扱う
+  - 95%以上判定は `ok` のときのみ実施する
+- `FG-VAL-01` の採点基準:
+  - 4軸（対象一致/構造再現/視覚再現/安全性）で合計100点
+  - 合計95点以上で合格
+  - 足切り: 対象一致が100%未満、または安全性が95未満なら失格
+- 詳細 shape は `docs/figma-read-context-contract.md` を正とする。
+- 対象解決・優先順位・writable scope は `docs/figma-target-selection-rule.md` を正とする。
+- 評価軸・配点・足切りは `docs/figma-validation-scoring.md` を正とする。
+
+### Phase2 Out of Scope
+- 完全自動同期（human approval を挟まない end-to-end 自動反映）
+- 複数AI役割設定（role/profile/persona 分岐、role別AI自動選択）
 
 この境界を越える仕様追加は、次フェーズ文書へ分離して管理する。
+
+### NEXT3-00 Next Phase Entry (SoT)
+- Phase2 完了後の次フェーズ3は、Workspace の実運用強化（検索 / 履歴 / 可観測性 / 運用性改善）を対象とする。
+- これはフェーズ3の入口定義であり、フェーズ2の完了条件には含めない。
+- フェーズ3の着手順は次の順序に固定する。
+  1. `search`（Run / external operations / audit を横断検索できる最小要件）
+  2. `history`（時系列の追跡と差分参照を安定化）
+  3. `observability`（失敗分類・遅延・再試行判断に必要な可視化）
+  4. `operability`（運用導線・手順・権限境界の改善）
+- フェーズ3の詳細タスクは backlog で管理し、本節は順序と境界のみを SoT とする。
+
+### NEXT1-00 Deferred Track (SoT)
+- 複数AI接続と役割設定（AI routing 高度化）は、次フェーズ1の後順位トラックとして維持する。
+- 現フェーズ2（外部操作）および次フェーズ3（Workspace 実運用強化）では、責務分離を崩さない。
+  - フェーズ2/3で multi-AI routing 実装へ拡張しない
+  - 既定AI 1件前提の運用境界を維持する
+- 本トラックの詳細は backlog (`backlog/next-phase-multi-ai-roles.md`) で管理する。
 
 ## PR Up（「PRあげてください」運用）
 
