@@ -186,10 +186,16 @@
           (detail.run_json && detail.run_json.runnerResult && detail.run_json.runnerResult.github_pr_url) ||
           '';
         const prEl = document.getElementById('summaryGithubPrUrl');
-        if (prUrl) {
-          prEl.innerHTML = `<a href=\"${prUrl}\" target=\"_blank\">${prUrl}</a>`;
+        if (prUrl && (prUrl.startsWith('https://') || prUrl.startsWith('http://'))) {
+          const a = document.createElement('a');
+          a.href = prUrl;
+          a.target = '_blank';
+          a.rel = 'noopener noreferrer';
+          a.textContent = prUrl;
+          prEl.textContent = '';
+          prEl.appendChild(a);
         } else {
-          prEl.textContent = '-';
+          prEl.textContent = prUrl || '-';
         }
       }
 

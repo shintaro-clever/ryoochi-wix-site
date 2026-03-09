@@ -21,35 +21,7 @@
   </style>
 </head>
 <body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
-  <aside class="w-64 flex-shrink-0 border-r border-primary/10 bg-background-dark flex flex-col h-screen">
-    <div class="p-6 flex items-center gap-3">
-      <div class="w-8 h-8 rounded bg-primary flex items-center justify-center text-white">
-        <span class="material-symbols-outlined text-xl">auto_fix</span>
-      </div>
-      <h1 class="text-lg font-bold tracking-tight text-white">Orchestrator AI</h1>
-    </div>
-    <nav class="flex-1 px-4 py-2 space-y-1 overflow-y-auto custom-scrollbar">
-      <div class="pb-4">
-        <p class="px-3 text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2" data-i18n="nav.menu">メニュー</p>
-        <a data-nav-key="dashboard" class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-primary/10 rounded-lg transition-colors" href="/ui/dashboard.html">
-          <span class="material-symbols-outlined">dashboard</span>
-          <span class="text-sm font-medium" data-i18n="nav.dashboard">ダッシュボード</span>
-        </a>
-        <a data-nav-key="projects" class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-primary/10 rounded-lg transition-colors" href="/ui/projects.html">
-          <span class="material-symbols-outlined">folder</span>
-          <span class="text-sm font-medium" data-i18n="nav.projects">プロジェクト</span>
-        </a>
-        <a data-nav-key="analytics" class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-primary/10 rounded-lg transition-colors" href="/ui/analytics.html">
-          <span class="material-symbols-outlined">bar_chart</span>
-          <span class="text-sm font-medium" data-i18n="nav.analytics">アナリティクス</span>
-        </a>
-        <a data-nav-key="settings" class="flex items-center gap-3 px-3 py-2 text-slate-400 hover:text-white hover:bg-primary/10 rounded-lg transition-colors" href="/ui/settings.html">
-          <span class="material-symbols-outlined">settings</span>
-          <span class="text-sm font-medium" data-i18n="nav.settings">設定</span>
-        </a>
-      </div>
-    </nav>
-  </aside>
+  <div id="sidebar-root"></div>
 
   <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
     <header class="h-16 border-b border-border-dark px-6 md:px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
@@ -95,6 +67,275 @@
             </div>
             <a id="workspace-runs-link" href="/ui/project-runs.html" class="text-xs text-primary hover:underline" data-i18n="ui.workspace.openRuns">Runsを見る</a>
           </div>
+
+          <section class="mt-4 rounded-xl border border-border-dark p-3 bg-background-light/50 dark:bg-background-dark/40">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-semibold">Workspace Search</h3>
+                <p id="workspace-search-context" class="mt-1 text-[11px] text-text-muted">active project 既定</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <select id="workspace-search-export-format" class="rounded border border-border-dark bg-white dark:bg-background-dark px-2 py-1 text-[11px]">
+                  <option value="json">json</option>
+                  <option value="csv">csv</option>
+                </select>
+                <button id="workspace-search-export" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">export search</button>
+                <button id="workspace-search-reset-scopes" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">既定 scope に戻す</button>
+              </div>
+            </div>
+            <form id="workspace-search-form" class="mt-3 space-y-3">
+              <div class="grid grid-cols-1 md:grid-cols-[minmax(0,1fr)_10rem_10rem] gap-2">
+                <input id="workspace-search-query" type="text" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm" placeholder="thread / run / operation / audit を検索" />
+                <select id="workspace-search-status" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="">status: all</option>
+                  <option value="queued">queued</option>
+                  <option value="running">running</option>
+                  <option value="succeeded">succeeded</option>
+                  <option value="failed">failed</option>
+                  <option value="ok">ok</option>
+                  <option value="skipped">skipped</option>
+                  <option value="confirm_required">confirm_required</option>
+                </select>
+                <select id="workspace-search-provider" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="">provider: all</option>
+                  <option value="github">github</option>
+                  <option value="figma">figma</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <label class="text-xs text-text-muted">
+                  time_from
+                  <input id="workspace-search-time-from" type="datetime-local" class="mt-1 w-full rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm text-slate-900 dark:text-slate-100" />
+                </label>
+                <label class="text-xs text-text-muted">
+                  time_to
+                  <input id="workspace-search-time-to" type="datetime-local" class="mt-1 w-full rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm text-slate-900 dark:text-slate-100" />
+                </label>
+              </div>
+              <div id="workspace-search-scopes" class="flex flex-wrap gap-2 text-xs">
+                <label class="inline-flex items-center gap-2 rounded-full border border-border-dark px-3 py-1"><input type="checkbox" value="project">project</label>
+                <label class="inline-flex items-center gap-2 rounded-full border border-border-dark px-3 py-1"><input type="checkbox" value="thread">thread</label>
+                <label class="inline-flex items-center gap-2 rounded-full border border-border-dark px-3 py-1"><input type="checkbox" value="run">run</label>
+                <label class="inline-flex items-center gap-2 rounded-full border border-border-dark px-3 py-1"><input type="checkbox" value="message">message</label>
+                <label class="inline-flex items-center gap-2 rounded-full border border-border-dark px-3 py-1"><input type="checkbox" value="external_operation">external_operation</label>
+                <label class="inline-flex items-center gap-2 rounded-full border border-border-dark px-3 py-1"><input type="checkbox" value="external_audit">external_audit</label>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="workspace-search-submit" type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90">
+                  <span class="material-symbols-outlined text-base">search</span>
+                  <span>検索</span>
+                </button>
+                <p id="workspace-search-status-text" class="text-xs text-text-muted">条件を指定して検索できます。</p>
+              </div>
+            </form>
+            <div id="workspace-search-results" class="mt-3 space-y-2"></div>
+            <div class="mt-3 flex justify-end">
+              <button id="workspace-search-more" type="button" class="hidden px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80">さらに表示</button>
+            </div>
+          </section>
+
+          <section id="workspace-history-section" class="mt-4 rounded-xl border border-border-dark p-3 bg-white/80 dark:bg-background-dark/35">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-semibold">Workspace History</h3>
+                <p id="workspace-history-context" class="mt-1 text-[11px] text-text-muted">project / thread / run 履歴を統合表示</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="workspace-history-export" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">export</button>
+                <button id="workspace-history-reset" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">絞り込み解除</button>
+                <button id="workspace-history-refresh" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">更新</button>
+              </div>
+            </div>
+            <form id="workspace-history-form" class="mt-3 space-y-3">
+              <div class="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <select id="workspace-history-event-type" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="">event_type: all</option>
+                  <option value="run.created">run.created</option>
+                  <option value="run.status_changed">run.status_changed</option>
+                  <option value="read.plan_recorded">read.plan_recorded</option>
+                  <option value="write.plan_recorded">write.plan_recorded</option>
+                  <option value="confirm.executed">confirm.executed</option>
+                  <option value="external_operation.recorded">external_operation.recorded</option>
+                  <option value="audit.projected">audit.projected</option>
+                  <option value="chat.message_recorded">chat.message_recorded</option>
+                </select>
+                <select id="workspace-history-status" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="">status: all</option>
+                  <option value="queued">queued</option>
+                  <option value="running">running</option>
+                  <option value="succeeded">succeeded</option>
+                  <option value="failed">failed</option>
+                  <option value="ok">ok</option>
+                  <option value="skipped">skipped</option>
+                  <option value="confirm_required">confirm_required</option>
+                  <option value="confirmed">confirmed</option>
+                  <option value="user">user</option>
+                  <option value="assistant">assistant</option>
+                </select>
+                <select id="workspace-history-provider" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="">provider: all</option>
+                  <option value="github">github</option>
+                  <option value="figma">figma</option>
+                  <option value="local_stub">local_stub</option>
+                </select>
+                <select id="workspace-history-scope" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="project">scope: project</option>
+                  <option value="thread">scope: active thread</option>
+                  <option value="run">scope: selected run</option>
+                </select>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <label class="text-xs text-text-muted">
+                  start_at
+                  <input id="workspace-history-time-from" type="datetime-local" class="mt-1 w-full rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm text-slate-900 dark:text-slate-100" />
+                </label>
+                <label class="text-xs text-text-muted">
+                  end_at
+                  <input id="workspace-history-time-to" type="datetime-local" class="mt-1 w-full rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm text-slate-900 dark:text-slate-100" />
+                </label>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="workspace-history-submit" type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90">
+                  <span class="material-symbols-outlined text-base">history</span>
+                  <span>履歴を表示</span>
+                </button>
+                <select id="workspace-history-export-format" class="rounded border border-border-dark bg-white dark:bg-background-dark px-2 py-1 text-[11px]">
+                  <option value="json">json</option>
+                  <option value="csv">csv</option>
+                </select>
+                <p id="workspace-history-status-text" class="text-xs text-text-muted">直近イベントを表示します。</p>
+              </div>
+            </form>
+            <div class="mt-3 grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.9fr)] gap-3">
+              <div>
+                <div id="workspace-history-list" class="space-y-2"></div>
+                <div class="mt-3 flex justify-end">
+                  <button id="workspace-history-more" type="button" class="hidden px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80">さらに表示</button>
+                </div>
+              </div>
+              <aside id="workspace-history-detail" class="rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <p class="text-xs text-text-muted">History Detail</p>
+                  <div class="flex flex-wrap gap-2">
+                    <button id="workspace-history-detail-refresh" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">refresh</button>
+                    <button id="workspace-history-detail-retry-read" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80 disabled:opacity-60 disabled:cursor-not-allowed" disabled>retry read-only</button>
+                    <button id="workspace-history-detail-retry-failed" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80 disabled:opacity-60 disabled:cursor-not-allowed" disabled>retry failed run</button>
+                    <select id="workspace-history-detail-export-format" class="rounded border border-border-dark bg-white dark:bg-background-dark px-2 py-1 text-[11px]">
+                      <option value="json">json</option>
+                      <option value="csv">csv</option>
+                    </select>
+                    <button id="workspace-history-detail-export" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">export detail</button>
+                    <button id="workspace-history-detail-export-audit" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">export audit</button>
+                  </div>
+                </div>
+                <p id="workspace-history-detail-op-status" class="mt-2 text-[11px] text-text-muted">retry / refresh / export を実行できます。</p>
+                <div id="workspace-history-detail-body" class="mt-2 text-sm text-text-muted">履歴イベントを選択すると detail を表示します。</div>
+              </aside>
+            </div>
+          </section>
+
+          <section id="workspace-metrics-section" class="mt-4 rounded-xl border border-border-dark p-3 bg-white/80 dark:bg-background-dark/35">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <h3 class="text-sm font-semibold">Workspace Observability</h3>
+                <p id="workspace-metrics-context" class="mt-1 text-[11px] text-text-muted">run / confirm / failure / fidelity の運用指標</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <button id="workspace-metrics-reset" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">絞り込み解除</button>
+                <button id="workspace-metrics-refresh" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">更新</button>
+              </div>
+            </div>
+            <form id="workspace-metrics-form" class="mt-3 space-y-3">
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-2">
+                <select id="workspace-metrics-scope" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="project">scope: project</option>
+                  <option value="thread">scope: active thread</option>
+                </select>
+                <select id="workspace-metrics-provider" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="">provider: all</option>
+                  <option value="github">github</option>
+                  <option value="figma">figma</option>
+                  <option value="fidelity">fidelity</option>
+                </select>
+                <select id="workspace-metrics-series-mode" class="rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm">
+                  <option value="history">timeseries: history events/day</option>
+                  <option value="threads">timeseries: active threads/day</option>
+                </select>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <button id="workspace-metrics-range-24h" type="button" data-range-preset="24h" class="rounded-full border border-border-dark px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-background-dark/80">24h</button>
+                <button id="workspace-metrics-range-7d" type="button" data-range-preset="7d" class="rounded-full border border-border-dark px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-background-dark/80">7d</button>
+                <button id="workspace-metrics-range-30d" type="button" data-range-preset="30d" class="rounded-full border border-border-dark px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-background-dark/80">30d</button>
+                <button id="workspace-metrics-range-custom" type="button" data-range-preset="custom" class="rounded-full border border-border-dark px-3 py-1 text-xs hover:bg-slate-100 dark:hover:bg-background-dark/80">custom</button>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <label class="text-xs text-text-muted">
+                  start_at
+                  <input id="workspace-metrics-time-from" type="datetime-local" class="mt-1 w-full rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm text-slate-900 dark:text-slate-100" />
+                </label>
+                <label class="text-xs text-text-muted">
+                  end_at
+                  <input id="workspace-metrics-time-to" type="datetime-local" class="mt-1 w-full rounded-lg border border-border-dark bg-white dark:bg-background-dark px-3 py-2 text-sm text-slate-900 dark:text-slate-100" />
+                </label>
+              </div>
+              <div class="flex flex-wrap items-center gap-2">
+                <button id="workspace-metrics-submit" type="submit" class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90">
+                  <span class="material-symbols-outlined text-base">monitoring</span>
+                  <span>集計を表示</span>
+                </button>
+                <button id="workspace-metrics-retry-read" type="button" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80 disabled:opacity-60 disabled:cursor-not-allowed" disabled>latest run retry</button>
+                <button id="workspace-metrics-retry-failed" type="button" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80 disabled:opacity-60 disabled:cursor-not-allowed" disabled>latest failed retry</button>
+                <select id="workspace-metrics-export-format" class="rounded border border-border-dark bg-white dark:bg-background-dark px-2 py-1 text-[11px]">
+                  <option value="json">json</option>
+                  <option value="csv">csv</option>
+                </select>
+                <button id="workspace-metrics-export" type="button" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80">export metrics</button>
+                <p id="workspace-metrics-status-text" class="text-xs text-text-muted">主要 KPI、status 分布、provider 別件数、failure_code、Figma fidelity を表示します。</p>
+              </div>
+            </form>
+            <div id="workspace-metrics-alerts" class="mt-3 space-y-2"></div>
+            <div id="workspace-metrics-kpis" class="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2"></div>
+            <div class="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
+              <section class="rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <h4 class="text-sm font-semibold">Run Status</h4>
+                  <span class="text-[11px] text-text-muted">queued / running / ok / failed / skipped</span>
+                </div>
+                <div id="workspace-metrics-status-distribution" class="mt-3 space-y-2"></div>
+              </section>
+              <section class="rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <h4 class="text-sm font-semibold">Provider Operations</h4>
+                  <span class="text-[11px] text-text-muted">provider 別件数と status</span>
+                </div>
+                <div id="workspace-metrics-provider-counts" class="mt-3 space-y-2"></div>
+              </section>
+              <section class="rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <h4 class="text-sm font-semibold">Failure Codes</h4>
+                  <span class="text-[11px] text-text-muted">run / external operation failure</span>
+                </div>
+                <div id="workspace-metrics-failure-codes" class="mt-3 space-y-2"></div>
+              </section>
+              <section class="rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+                <div class="flex items-center justify-between gap-2">
+                  <h4 class="text-sm font-semibold">Figma Fidelity</h4>
+                  <span class="text-[11px] text-text-muted">score bands / status</span>
+                </div>
+                <div id="workspace-metrics-fidelity" class="mt-3 space-y-2"></div>
+              </section>
+            </div>
+            <section class="mt-3 rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-sm font-semibold">Time Series</h4>
+                  <p class="mt-1 text-[11px] text-text-muted">日次変化で volume と activity を確認</p>
+                </div>
+                <span id="workspace-metrics-series-label" class="text-[11px] text-text-muted">history events/day</span>
+              </div>
+              <div id="workspace-metrics-timeseries" class="mt-3 space-y-2"></div>
+            </section>
+          </section>
 
           <div id="workspace-timeline" class="flex-1 overflow-y-auto custom-scrollbar py-4 space-y-3">
             <p class="text-sm text-text-muted" data-i18n="ui.workspace.timelineHint">スレッドを選択すると会話履歴が表示されます。</p>
@@ -170,7 +411,10 @@
           <div class="mt-4 border-t border-border-dark pt-4">
             <div class="flex items-center justify-between gap-2">
               <h4 class="text-sm font-semibold" data-i18n="ui.workspace.recentRuns">最近のRuns</h4>
-              <a id="workspace-runs-side-link" href="/ui/project-runs.html" class="text-xs text-primary hover:underline" data-i18n="ui.workspace.openRuns">Runsを見る</a>
+              <div class="flex items-center gap-3">
+                <a id="workspace-fidelity-link" href="/ui/project-fidelity.html" class="text-xs text-primary hover:underline">Fidelity Dashboard</a>
+                <a id="workspace-runs-side-link" href="/ui/project-runs.html" class="text-xs text-primary hover:underline" data-i18n="ui.workspace.openRuns">Runsを見る</a>
+              </div>
             </div>
             <div id="workspace-runs-list" class="mt-2 space-y-2"></div>
           </div>
@@ -187,7 +431,7 @@
   <script src="/ui/sidebar.js"></script>
   <script src="/ui/i18n/i18n.js" defer></script>
   <script type="module">
-    import { apiGet, apiPost, isPrefixedId, t } from "/ui/api.js";
+    import { apiGet, apiPost, apiPostDownload, isPrefixedId, t } from "/ui/api.js";
 
     const params = new URLSearchParams(window.location.search || "");
     const rawProjectId = (params.get("project_id") || "").trim();
@@ -204,6 +448,7 @@
     const threadDetailLink = document.getElementById("workspace-thread-detail-link");
     const runsLink = document.getElementById("workspace-runs-link");
     const runsSideLink = document.getElementById("workspace-runs-side-link");
+    const fidelityLink = document.getElementById("workspace-fidelity-link");
     const threadFeedback = document.getElementById("workspace-thread-feedback");
     const threadList = document.getElementById("workspace-thread-list");
     const newConversationButton = document.getElementById("workspace-new-conversation");
@@ -228,11 +473,976 @@
     const opPlanPreviewEl = document.getElementById("workspace-op-plan-preview");
     const opFigmaNoteEl = document.getElementById("workspace-op-figma-note");
     const opTimelineEl = document.getElementById("workspace-op-timeline");
+    const searchForm = document.getElementById("workspace-search-form");
+    const searchQueryEl = document.getElementById("workspace-search-query");
+    const searchStatusEl = document.getElementById("workspace-search-status");
+    const searchProviderEl = document.getElementById("workspace-search-provider");
+    const searchTimeFromEl = document.getElementById("workspace-search-time-from");
+    const searchTimeToEl = document.getElementById("workspace-search-time-to");
+    const searchScopesRoot = document.getElementById("workspace-search-scopes");
+    const searchStatusTextEl = document.getElementById("workspace-search-status-text");
+    const searchResultsEl = document.getElementById("workspace-search-results");
+    const searchMoreEl = document.getElementById("workspace-search-more");
+    const searchContextEl = document.getElementById("workspace-search-context");
+    const searchExportFormatEl = document.getElementById("workspace-search-export-format");
+    const searchExportEl = document.getElementById("workspace-search-export");
+    const searchResetScopesEl = document.getElementById("workspace-search-reset-scopes");
+    const historySectionEl = document.getElementById("workspace-history-section");
+    const historyContextEl = document.getElementById("workspace-history-context");
+    const historyForm = document.getElementById("workspace-history-form");
+    const historyEventTypeEl = document.getElementById("workspace-history-event-type");
+    const historyStatusEl = document.getElementById("workspace-history-status");
+    const historyProviderEl = document.getElementById("workspace-history-provider");
+    const historyScopeEl = document.getElementById("workspace-history-scope");
+    const historyTimeFromEl = document.getElementById("workspace-history-time-from");
+    const historyTimeToEl = document.getElementById("workspace-history-time-to");
+    const historyStatusTextEl = document.getElementById("workspace-history-status-text");
+    const historyListEl = document.getElementById("workspace-history-list");
+    const historyMoreEl = document.getElementById("workspace-history-more");
+    const historyRefreshEl = document.getElementById("workspace-history-refresh");
+    const historyExportEl = document.getElementById("workspace-history-export");
+    const historyExportFormatEl = document.getElementById("workspace-history-export-format");
+    const historyResetEl = document.getElementById("workspace-history-reset");
+    const historyDetailRefreshEl = document.getElementById("workspace-history-detail-refresh");
+    const historyDetailRetryReadEl = document.getElementById("workspace-history-detail-retry-read");
+    const historyDetailRetryFailedEl = document.getElementById("workspace-history-detail-retry-failed");
+    const historyDetailExportFormatEl = document.getElementById("workspace-history-detail-export-format");
+    const historyDetailExportEl = document.getElementById("workspace-history-detail-export");
+    const historyDetailExportAuditEl = document.getElementById("workspace-history-detail-export-audit");
+    const historyDetailOpStatusEl = document.getElementById("workspace-history-detail-op-status");
+    const historyDetailBodyEl = document.getElementById("workspace-history-detail-body");
+    const metricsSectionEl = document.getElementById("workspace-metrics-section");
+    const metricsContextEl = document.getElementById("workspace-metrics-context");
+    const metricsForm = document.getElementById("workspace-metrics-form");
+    const metricsScopeEl = document.getElementById("workspace-metrics-scope");
+    const metricsProviderEl = document.getElementById("workspace-metrics-provider");
+    const metricsSeriesModeEl = document.getElementById("workspace-metrics-series-mode");
+    const metricsTimeFromEl = document.getElementById("workspace-metrics-time-from");
+    const metricsTimeToEl = document.getElementById("workspace-metrics-time-to");
+    const metricsStatusTextEl = document.getElementById("workspace-metrics-status-text");
+    const metricsAlertsEl = document.getElementById("workspace-metrics-alerts");
+    const metricsRetryReadEl = document.getElementById("workspace-metrics-retry-read");
+    const metricsRetryFailedEl = document.getElementById("workspace-metrics-retry-failed");
+    const metricsExportFormatEl = document.getElementById("workspace-metrics-export-format");
+    const metricsExportEl = document.getElementById("workspace-metrics-export");
+    const metricsKpisEl = document.getElementById("workspace-metrics-kpis");
+    const metricsStatusDistributionEl = document.getElementById("workspace-metrics-status-distribution");
+    const metricsProviderCountsEl = document.getElementById("workspace-metrics-provider-counts");
+    const metricsFailureCodesEl = document.getElementById("workspace-metrics-failure-codes");
+    const metricsFidelityEl = document.getElementById("workspace-metrics-fidelity");
+    const metricsTimeSeriesEl = document.getElementById("workspace-metrics-timeseries");
+    const metricsSeriesLabelEl = document.getElementById("workspace-metrics-series-label");
+    const metricsRefreshEl = document.getElementById("workspace-metrics-refresh");
+    const metricsResetEl = document.getElementById("workspace-metrics-reset");
+    const metricsRangeButtons = Array.from(document.querySelectorAll("[data-range-preset]"));
     let cachedRuns = [];
     let pendingWriteConfirm = null;
+    let searchNextCursor = null;
+    let searchScopeDirty = false;
+    let historyNextCursor = null;
+    let historyItems = [];
+    let historySelectedEventId = "";
+    let historyDayGroups = [];
+    let historyRunSummaries = [];
+    let historyPinnedRunId = isPrefixedId("run", (params.get("history_run_id") || "").trim()) ? params.get("history_run_id").trim() : "";
+    let historyPinnedThreadId = isPrefixedId("thread", (params.get("history_thread_id") || "").trim()) ? params.get("history_thread_id").trim() : "";
+    let historyPinnedEventType = String(params.get("history_event_type") || "").trim();
+    let historyPinnedProvider = String(params.get("history_provider") || "").trim();
+    let historyPinnedStatus = String(params.get("history_status") || "").trim();
+    let metricsRangePreset = String(params.get("metrics_range") || "7d").trim() || "7d";
+    let workspaceMetrics = null;
+    let historySelectedItem = null;
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function toIsoFromLocalInput(value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      const ms = Date.parse(text);
+      return Number.isNaN(ms) ? text : new Date(ms).toISOString();
+    }
+
+    function toLocalInputValue(value) {
+      const text = String(value || "").trim();
+      if (!text) return "";
+      const ms = Date.parse(text);
+      if (Number.isNaN(ms)) return "";
+      const date = new Date(ms);
+      const pad = (num) => String(num).padStart(2, "0");
+      return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+    }
+
+    function formatPercent(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? `${num.toFixed(num % 1 === 0 ? 0 : 1)}%` : "-";
+    }
+
+    function formatDurationMs(value) {
+      const num = Number(value);
+      if (!Number.isFinite(num) || num < 0) return "-";
+      if (num < 1000) return `${Math.round(num)} ms`;
+      return `${(num / 1000).toFixed(num >= 10000 ? 0 : 1)} s`;
+    }
+
+    function formatCount(value) {
+      const num = Number(value);
+      return Number.isFinite(num) ? String(num) : "0";
+    }
+
+    function downloadBlob(filename, blob) {
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    async function triggerWorkspaceExport(payload, statusEl, successText) {
+      if (statusEl) statusEl.textContent = "export 実行中...";
+      try {
+        const result = await apiPostDownload("/exports/workspace", payload);
+        downloadBlob(result.filename || "workspace-export.dat", result.blob);
+        if (statusEl) statusEl.textContent = successText || `export しました: ${String(result.filename || "workspace-export.dat")}`;
+        return result;
+      } catch (error) {
+        if (statusEl) statusEl.textContent = `export 失敗: ${String(error && error.message ? error.message : "unknown error")}`;
+        return null;
+      }
+    }
+
+    function getExportFormat(selectEl) {
+      const value = String(selectEl && selectEl.value ? selectEl.value : "json").trim().toLowerCase();
+      return value === "csv" ? "csv" : "json";
+    }
+
+    function buildSearchPayload({ append = false } = {}) {
+      const payload = {
+        query: String(searchQueryEl.value || "").trim(),
+        scope: getSelectedScopes(),
+        project_id: projectId,
+        limit: 10,
+      };
+      const statusFilter = String(searchStatusEl.value || "").trim();
+      if (statusFilter) payload.status_filter = [statusFilter];
+      const providerFilter = String(searchProviderEl.value || "").trim();
+      if (providerFilter) payload.provider_filter = [providerFilter];
+      const timeFrom = toIsoFromLocalInput(searchTimeFromEl.value);
+      const timeTo = toIsoFromLocalInput(searchTimeToEl.value);
+      if (timeFrom) payload.time_from = timeFrom;
+      if (timeTo) payload.time_to = timeTo;
+      if (append && searchNextCursor) payload.cursor = searchNextCursor;
+      return payload;
+    }
+
+    function buildSearchExportPayload() {
+      const payload = buildSearchPayload({ append: false });
+      delete payload.cursor;
+      payload.kind = "search";
+      payload.format = getExportFormat(searchExportFormatEl);
+      payload.limit = 500;
+      return payload;
+    }
+
+    function getRunById(runId) {
+      return Array.isArray(cachedRuns) ? cachedRuns.find((run) => String(run && run.run_id ? run.run_id : "") === String(runId || "")) || null : null;
+    }
+
+    function evaluateRetryAvailability(run, retryKind) {
+      if (!run) {
+        return { allowed: false, reason: "run が選択されていません" };
+      }
+      const status = String(run.status || "").toLowerCase();
+      if (status === "queued" || status === "running") {
+        return { allowed: false, reason: `run status=${status} のため再試行できません` };
+      }
+      if (retryKind === "failed_run" && status !== "failed") {
+        return { allowed: false, reason: "failed run retry は failed run のみ実行できます" };
+      }
+      return { allowed: true, reason: retryKind === "read_only" ? "read-only retry が実行できます" : "failed run retry が実行できます" };
+    }
+
+    function updateHistoryOperability(item) {
+      const related = item && item.related_ids && typeof item.related_ids === "object" ? item.related_ids : {};
+      const runId = String(related.run_id || "").trim();
+      const run = getRunById(runId);
+      const readOnly = evaluateRetryAvailability(run, "read_only");
+      const failedOnly = evaluateRetryAvailability(run, "failed_run");
+      historyDetailRetryReadEl.disabled = !readOnly.allowed;
+      historyDetailRetryFailedEl.disabled = !failedOnly.allowed;
+      if (!runId) {
+        historyDetailOpStatusEl.textContent = "retry 不可: selected event に run_id がありません";
+        return;
+      }
+      historyDetailOpStatusEl.textContent = `read-only: ${readOnly.reason} / failed-run: ${failedOnly.reason}`;
+    }
+
+    function findLatestRunForMetrics(predicate) {
+      const rows = Array.isArray(cachedRuns) ? cachedRuns.slice() : [];
+      return rows.find((run) => predicate(run)) || null;
+    }
+
+    function updateMetricsOperability() {
+      const latestRun = findLatestRunForMetrics(() => true);
+      const latestFailedRun = findLatestRunForMetrics((run) => String(run && run.status || "").toLowerCase() === "failed");
+      const readOnly = evaluateRetryAvailability(latestRun, "read_only");
+      const failedOnly = evaluateRetryAvailability(latestFailedRun, "failed_run");
+      metricsRetryReadEl.disabled = !readOnly.allowed;
+      metricsRetryFailedEl.disabled = !failedOnly.allowed;
+      if (!workspaceMetrics) return;
+      const suffix = ` / latest run retry: ${readOnly.reason} / latest failed retry: ${failedOnly.reason}`;
+      if (!metricsStatusTextEl.textContent.includes("latest run retry")) {
+        metricsStatusTextEl.textContent = `${metricsStatusTextEl.textContent}${suffix}`;
+      }
+    }
+
+    async function triggerRunRetry(runId, retryKind, statusEl, onDone) {
+      if (!runId) {
+        if (statusEl) statusEl.textContent = "retry 不可: run_id がありません";
+        return;
+      }
+      const run = getRunById(runId);
+      const gate = evaluateRetryAvailability(run, retryKind);
+      if (!gate.allowed) {
+        if (statusEl) statusEl.textContent = `retry 不可: ${gate.reason}`;
+        return;
+      }
+      if (statusEl) statusEl.textContent = `${retryKind} retry 実行中...`;
+      try {
+        const result = await apiPost(`/runs/${encodeURIComponent(runId)}/retry`, { retry_kind: retryKind });
+        if (statusEl) statusEl.textContent = `${retryKind} retry queued: ${String(result.retry_run_id || "-")}`;
+        await loadRecentRuns();
+        await loadWorkspaceHistory({ append: false });
+        await loadWorkspaceMetrics();
+        if (typeof onDone === "function") onDone(result);
+      } catch (error) {
+        if (statusEl) statusEl.textContent = `retry 失敗: ${String(error && error.message ? error.message : "unknown error")}`;
+      }
+    }
+
+    function getStatusBadgeClass(status) {
+      const value = String(status || "").toLowerCase();
+      if (value === "failed" || value === "error") return "border-rose-400/40 bg-rose-500/10 text-rose-700 dark:text-rose-300";
+      if (value === "skipped" || value === "confirm_required" || value === "expired") return "border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+      if (value === "ok" || value === "succeeded" || value === "confirmed") return "border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+      if (value === "running" || value === "queued") return "border-sky-400/40 bg-sky-500/10 text-sky-700 dark:text-sky-300";
+      return "border-border-dark bg-background-light/60 text-text-muted";
+    }
+
+    function getEventBadgeClass(eventType) {
+      const value = String(eventType || "").toLowerCase();
+      if (value.startsWith("confirm.")) return "border-amber-400/40 bg-amber-500/10 text-amber-700 dark:text-amber-300";
+      if (value.startsWith("external_operation.")) return "border-indigo-400/40 bg-indigo-500/10 text-indigo-700 dark:text-indigo-300";
+      if (value.startsWith("audit.")) return "border-fuchsia-400/40 bg-fuchsia-500/10 text-fuchsia-700 dark:text-fuchsia-300";
+      if (value.startsWith("run.")) return "border-slate-400/40 bg-slate-500/10 text-slate-700 dark:text-slate-300";
+      if (value.startsWith("chat.")) return "border-emerald-400/40 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300";
+      return "border-border-dark bg-background-light/60 text-text-muted";
+    }
+
+    function getDefaultSearchScopes() {
+      if (activeThreadId) {
+        return ["thread", "message", "run", "external_operation", "external_audit"];
+      }
+      return ["thread", "run", "external_operation", "external_audit"];
+    }
+
+    function updateSearchContextText() {
+      if (!searchContextEl) return;
+      searchContextEl.textContent = activeThreadId
+        ? `active thread 既定: ${activeThreadId}`
+        : `active project 既定: ${projectId || "-"}`;
+    }
+
+    function getPinnedRunId() {
+      return historyPinnedRunId || "";
+    }
+
+    function updateHistoryContextText() {
+      if (!historyContextEl) return;
+      const scope = String(historyScopeEl && historyScopeEl.value ? historyScopeEl.value : "project");
+      const scopeText = scope === "run"
+        ? `selected run: ${getPinnedRunId() || "-"}`
+        : scope === "thread"
+          ? `active thread: ${historyPinnedThreadId || activeThreadId || "-"}`
+          : `project: ${projectId || "-"}`;
+      historyContextEl.textContent = `${scopeText} / confirm・write・failed・skipped を統合表示`;
+    }
+
+    function setSearchScopes(scopes) {
+      const selected = new Set(Array.isArray(scopes) ? scopes : []);
+      Array.from(searchScopesRoot.querySelectorAll("input[type='checkbox']")).forEach((inputEl) => {
+        inputEl.checked = selected.has(inputEl.value);
+      });
+    }
+
+    function resetSearchScopesToDefault() {
+      searchScopeDirty = false;
+      setSearchScopes(getDefaultSearchScopes());
+      updateSearchContextText();
+    }
+
+    function getSelectedScopes() {
+      const selected = Array.from(searchScopesRoot.querySelectorAll("input[type='checkbox']:checked"))
+        .map((inputEl) => String(inputEl.value || "").trim())
+        .filter(Boolean);
+      return selected.length ? selected : getDefaultSearchScopes();
+    }
+
+    function buildHistoryDetailLink({ runId = "", threadId = "", eventType = "", provider = "", status = "" } = {}) {
+      const url = new URL("/ui/project-workspace.html", window.location.origin);
+      if (projectId) url.searchParams.set("project_id", projectId);
+      if (threadId || activeThreadId) url.searchParams.set("thread_id", threadId || activeThreadId);
+      if (runId) url.searchParams.set("history_run_id", runId);
+      if (threadId) url.searchParams.set("history_thread_id", threadId);
+      if (eventType) url.searchParams.set("history_event_type", eventType);
+      if (provider) url.searchParams.set("history_provider", provider);
+      if (status) url.searchParams.set("history_status", status);
+      url.hash = "workspace-history-section";
+      return `${url.pathname}${url.search}${url.hash}`;
+    }
+
+    function buildSearchLink(item) {
+      const entity = String(item && item.entity ? item.entity : "");
+      const itemThreadId = String(item && item.thread_id ? item.thread_id : "");
+      const itemRunId = String(item && item.run_id ? item.run_id : item && item.id ? item.id : "");
+      if (entity === "thread" || entity === "message") {
+        return `/ui/project-thread.html?project_id=${encodeURIComponent(projectId)}&thread_id=${encodeURIComponent(itemThreadId || item.id || "")}`;
+      }
+      if (entity === "run") {
+        return `/ui/run.html?run_id=${encodeURIComponent(item.id || "")}`;
+      }
+      if (entity === "external_operation") {
+        const lowerTitle = String(item && item.title ? item.title : "").toLowerCase();
+        const anchor = lowerTitle.includes("figma") ? "#run-figma-operations" : "#run-github-operations";
+        return `/ui/run.html?run_id=${encodeURIComponent(itemRunId)}${anchor}`;
+      }
+      if (entity === "external_audit") {
+        return `/ui/run.html?run_id=${encodeURIComponent(itemRunId)}#run-external-audit`;
+      }
+      return `/ui/project.html?project_id=${encodeURIComponent(projectId)}`;
+    }
+
+    function buildSearchHistoryLink(item) {
+      const entity = String(item && item.entity ? item.entity : "");
+      const itemThreadId = String(item && item.thread_id ? item.thread_id : "");
+      const itemRunId = String(item && item.run_id ? item.run_id : item && item.id ? item.id : "");
+      if (entity === "run") {
+        return buildHistoryDetailLink({ runId: String(item.id || ""), threadId: itemThreadId, eventType: "run.status_changed", status: String(item.status || "") });
+      }
+      if (entity === "thread" || entity === "message") {
+        return buildHistoryDetailLink({ threadId: itemThreadId || String(item.id || ""), eventType: entity === "message" ? "chat.message_recorded" : "" });
+      }
+      if (entity === "external_operation") {
+        return buildHistoryDetailLink({ runId: itemRunId, threadId: itemThreadId, eventType: "external_operation.recorded", provider: String(item.provider || ""), status: String(item.status || "") });
+      }
+      if (entity === "external_audit") {
+        return buildHistoryDetailLink({ runId: itemRunId, threadId: itemThreadId, eventType: "audit.projected", status: String(item.status || "") });
+      }
+      return buildHistoryDetailLink({ threadId: itemThreadId, runId: itemRunId });
+    }
+
+    function renderSearchEmpty(text, tone = "muted") {
+      if (!searchResultsEl) return;
+      const toneClass = tone === "error"
+        ? "border-rose-400/40 bg-rose-50/70 text-rose-700 dark:bg-rose-950/20 dark:text-rose-300"
+        : "border-border-dark bg-background-light/40 text-text-muted";
+      searchResultsEl.innerHTML = `<article class="rounded-lg border p-3 text-sm ${toneClass}">${escapeHtml(text)}</article>`;
+    }
+
+    function renderSearchResults(items, { append = false } = {}) {
+      if (!searchResultsEl) return;
+      if (!append) {
+        searchResultsEl.innerHTML = "";
+      }
+      const rows = Array.isArray(items) ? items : [];
+      if (!rows.length && !append) {
+        renderSearchEmpty("検索結果は 0 件です。scope や filter を見直してください。");
+        return;
+      }
+      rows.forEach((item) => {
+        const card = document.createElement("article");
+        card.className = "rounded-lg border border-border-dark p-3";
+        const href = buildSearchLink(item);
+        const historyHref = buildSearchHistoryLink(item);
+        const entity = String(item.entity || "-");
+        const title = String(item.title || item.id || "-");
+        const snippet = String(item.snippet || "").trim();
+        const status = String(item.status || "-");
+        const updatedAt = String(item.updated_at || item.created_at || "-");
+        const idLine = entity === "run" ? String(item.id || "-") : String(item.run_id || item.thread_id || item.id || "-");
+        card.innerHTML = `
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px] font-mono">${escapeHtml(entity)}</span>
+                <span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(status)}</span>
+              </div>
+              <a href="${escapeHtml(href)}" class="mt-2 block text-sm font-semibold text-primary hover:underline break-all">${escapeHtml(title)}</a>
+              <p class="mt-1 text-[11px] font-mono text-text-muted break-all">${escapeHtml(idLine)}</p>
+            </div>
+            <p class="text-[11px] font-mono text-text-muted">${escapeHtml(updatedAt)}</p>
+          </div>
+          <p class="mt-2 text-xs text-text-muted break-words">${escapeHtml(snippet || "snippet: -")}</p>
+          <div class="mt-2 flex flex-wrap gap-3 text-[11px]">
+            ${item.thread_id ? `<a href="/ui/project-thread.html?project_id=${encodeURIComponent(projectId)}&thread_id=${encodeURIComponent(item.thread_id)}" class="text-primary hover:underline">thread 詳細</a>` : ""}
+            ${item.run_id ? `<a href="/ui/run.html?run_id=${encodeURIComponent(item.run_id)}" class="text-primary hover:underline">run 詳細</a>` : ""}
+            <a href="${escapeHtml(historyHref)}" class="text-primary hover:underline">履歴へ</a>
+            <a href="${escapeHtml(href)}" class="text-primary hover:underline">移動</a>
+          </div>
+        `;
+        searchResultsEl.appendChild(card);
+      });
+    }
+
+    async function runWorkspaceSearch({ append = false } = {}) {
+      if (!projectId) return;
+      const payload = buildSearchPayload({ append });
+      searchStatusTextEl.textContent = append ? "検索結果を追加読み込み中..." : "検索中...";
+      if (!append) renderSearchEmpty("検索中...");
+      try {
+        const result = await apiPost("/workspace/search", payload);
+        searchNextCursor = result && result.next_cursor ? result.next_cursor : null;
+        renderSearchResults(result && result.items ? result.items : [], { append });
+        const count = Array.isArray(result && result.items) ? result.items.length : 0;
+        const total = typeof (result && result.total_estimated) === "number" ? result.total_estimated : count;
+        searchStatusTextEl.textContent = total === 0
+          ? "検索結果は 0 件です。"
+          : `${total} 件中 ${append ? "追加" : "表示"} ${count} 件`;
+        searchMoreEl.classList.toggle("hidden", !searchNextCursor);
+      } catch (error) {
+        const failureCode = String(error && (error.code || (error.details && error.details.failure_code)) || "").trim();
+        const reason = String(error && error.details && error.details.reason ? error.details.reason : "").trim();
+        const detail = failureCode === "VALIDATION_ERROR" || failureCode === "validation_error"
+          ? `validation_error: ${reason || error.message || "invalid search parameters"}`
+          : `検索失敗: ${String(error && error.message ? error.message : "unknown error")}`;
+        searchNextCursor = null;
+        searchMoreEl.classList.add("hidden");
+        searchStatusTextEl.textContent = detail;
+        renderSearchEmpty(detail, "error");
+      }
+    }
+
+    function renderHistoryDetail(item) {
+      if (!historyDetailBodyEl) return;
+      historySelectedItem = item || null;
+      if (!item) {
+        updateHistoryOperability(null);
+        historyDetailBodyEl.innerHTML = `<p class="text-sm text-text-muted">履歴イベントを選択すると detail を表示します。</p>`;
+        return;
+      }
+      const actor = item.actor && typeof item.actor === "object" ? item.actor : {};
+      const related = item.related_ids && typeof item.related_ids === "object" ? item.related_ids : {};
+      const threadHref = related.thread_id
+        ? `/ui/project-thread.html?project_id=${encodeURIComponent(projectId)}&thread_id=${encodeURIComponent(related.thread_id)}`
+        : "";
+      const runHref = related.run_id ? `/ui/run.html?run_id=${encodeURIComponent(related.run_id)}` : "";
+      historyDetailBodyEl.innerHTML = `
+        <div class="space-y-3">
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getEventBadgeClass(item.event_type)}">${escapeHtml(item.event_type || "-")}</span>
+            <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(item.status)}">${escapeHtml(item.status || "-")}</span>
+            ${item.provider ? `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px] font-mono">${escapeHtml(item.provider)}</span>` : ""}
+          </div>
+          <div>
+            <p class="text-sm font-semibold break-words">${escapeHtml(item.summary || "-")}</p>
+            <p class="mt-1 text-[11px] font-mono text-text-muted break-all">${escapeHtml(item.recorded_at || "-")}</p>
+          </div>
+          <dl class="grid grid-cols-[6rem_1fr] gap-y-2 text-xs">
+            <dt class="text-text-muted">actor</dt>
+            <dd class="break-all">${escapeHtml(actor.requested_by || actor.role || "-")}</dd>
+            <dt class="text-text-muted">ai_setting</dt>
+            <dd class="break-all">${escapeHtml(actor.ai_setting_id || "-")}</dd>
+            <dt class="text-text-muted">project</dt>
+            <dd class="break-all">${escapeHtml(related.project_id || "-")}</dd>
+            <dt class="text-text-muted">thread</dt>
+            <dd class="break-all">${escapeHtml(related.thread_id || "-")}</dd>
+            <dt class="text-text-muted">run</dt>
+            <dd class="break-all">${escapeHtml(related.run_id || "-")}</dd>
+            <dt class="text-text-muted">action</dt>
+            <dd class="break-all">${escapeHtml(related.action_id || "-")}</dd>
+          </dl>
+          <div class="flex flex-wrap gap-3 text-[11px]">
+            ${threadHref ? `<a href="${threadHref}" class="text-primary hover:underline">thread 詳細</a>` : ""}
+            ${runHref ? `<a href="${runHref}" class="text-primary hover:underline">run 詳細</a>` : ""}
+            <a href="${escapeHtml(buildHistoryDetailLink({ runId: related.run_id || "", threadId: related.thread_id || "", eventType: item.event_type || "", provider: item.provider || "", status: item.status || "" }))}" class="text-primary hover:underline">この履歴を共有</a>
+          </div>
+          <pre class="rounded-lg border border-border-dark bg-background-dark text-slate-100 p-3 text-xs overflow-x-auto">${escapeHtml(JSON.stringify(item, null, 2))}</pre>
+        </div>
+      `;
+      updateHistoryOperability(item);
+    }
+
+    function renderHistoryEmpty(text, tone = "muted") {
+      if (!historyListEl) return;
+      const toneClass = tone === "error"
+        ? "border-rose-400/40 bg-rose-50/70 text-rose-700 dark:bg-rose-950/20 dark:text-rose-300"
+        : "border-border-dark bg-background-light/40 text-text-muted";
+      historyListEl.innerHTML = `<article class="rounded-lg border p-3 text-sm ${toneClass}">${escapeHtml(text)}</article>`;
+      renderHistoryDetail(null);
+    }
+
+    function renderHistoryList(items, { append = false } = {}) {
+      if (!historyListEl) return;
+      if (!append) historyListEl.innerHTML = "";
+      const rows = Array.isArray(items) ? items : [];
+      if (!rows.length && !append) {
+        renderHistoryEmpty("履歴イベントは 0 件です。");
+        return;
+      }
+      const dayMap = new Map(Array.isArray(historyDayGroups) ? historyDayGroups.map((group) => [String(group.date || ""), group]) : []);
+      const runSummaryMap = new Map(Array.isArray(historyRunSummaries) ? historyRunSummaries.map((summary) => [String(summary.run_id || ""), summary]) : []);
+      const renderedRunSummary = new Set();
+      let lastDate = "";
+      rows.forEach((item) => {
+        const dateKey = String(item && item.recorded_at ? item.recorded_at : "").slice(0, 10);
+        if (dateKey && dateKey !== lastDate) {
+          lastDate = dateKey;
+          const day = dayMap.get(dateKey) || {};
+          const dayHeader = document.createElement("article");
+          dayHeader.className = "rounded-lg border border-border-dark bg-background-light/60 dark:bg-background-dark/55 p-3";
+          dayHeader.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-wide text-text-muted">${escapeHtml(dateKey)}</p>
+                <p class="mt-1 text-sm font-semibold">${escapeHtml(day.summary || `${dateKey} history`)}</p>
+              </div>
+              <div class="flex flex-wrap gap-2 text-[11px] text-text-muted">
+                <span>${escapeHtml(String(day.event_count || 0))} events</span>
+                <span>${escapeHtml(String(day.run_count || 0))} runs</span>
+                ${day.confirmed_count ? `<span>${escapeHtml(String(day.confirmed_count))} confirm</span>` : ""}
+                ${day.failed_count ? `<span>${escapeHtml(String(day.failed_count))} failed</span>` : ""}
+                ${day.skipped_count ? `<span>${escapeHtml(String(day.skipped_count))} skipped</span>` : ""}
+              </div>
+            </div>
+          `;
+          historyListEl.appendChild(dayHeader);
+        }
+        const related = item.related_ids && typeof item.related_ids === "object" ? item.related_ids : {};
+        const runSummary = related.run_id ? runSummaryMap.get(String(related.run_id || "")) : null;
+        if (runSummary && !renderedRunSummary.has(String(runSummary.run_id || ""))) {
+          renderedRunSummary.add(String(runSummary.run_id || ""));
+          const summaryCard = document.createElement("article");
+          summaryCard.className = "rounded-lg border border-dashed border-border-dark bg-white/60 dark:bg-background-dark/45 p-3";
+          summaryCard.innerHTML = `
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <p class="text-[11px] font-mono text-text-muted">${escapeHtml(runSummary.run_id || "-")}</p>
+                <p class="mt-1 text-sm font-semibold">${escapeHtml(runSummary.summary || "-")}</p>
+              </div>
+              <div class="flex flex-wrap gap-2 text-[11px] text-text-muted">
+                <span>${escapeHtml(String(runSummary.event_count || 0))} events</span>
+                ${runSummary.confirmed_count ? `<span>${escapeHtml(String(runSummary.confirmed_count))} confirm</span>` : ""}
+                ${runSummary.failed_count ? `<span>${escapeHtml(String(runSummary.failed_count))} failed</span>` : ""}
+                ${runSummary.skipped_count ? `<span>${escapeHtml(String(runSummary.skipped_count))} skipped</span>` : ""}
+                ${Array.isArray(runSummary.providers) && runSummary.providers.length ? `<span>${escapeHtml(runSummary.providers.join("/"))}</span>` : ""}
+              </div>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-3 text-[11px]">
+              <a href="/ui/run.html?run_id=${encodeURIComponent(runSummary.run_id || "")}" class="text-primary hover:underline">run 詳細</a>
+              ${runSummary.thread_id ? `<a href="/ui/project-thread.html?project_id=${encodeURIComponent(projectId)}&thread_id=${encodeURIComponent(runSummary.thread_id)}" class="text-primary hover:underline">thread 詳細</a>` : ""}
+            </div>
+          `;
+          historyListEl.appendChild(summaryCard);
+        }
+        const selected = String(item.event_id || "") === historySelectedEventId;
+        const card = document.createElement("article");
+        card.className = `rounded-lg border p-3 ${selected ? "border-primary bg-primary/10" : "border-border-dark bg-white/70 dark:bg-background-dark/50"}`;
+        const runHref = related.run_id ? `/ui/run.html?run_id=${encodeURIComponent(related.run_id)}` : "";
+        const threadHref = related.thread_id ? `/ui/project-thread.html?project_id=${encodeURIComponent(projectId)}&thread_id=${encodeURIComponent(related.thread_id)}` : "";
+        card.innerHTML = `
+          <div class="flex flex-wrap items-start justify-between gap-2">
+            <div class="min-w-0 flex-1">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getEventBadgeClass(item.event_type)}">${escapeHtml(item.event_type || "-")}</span>
+                <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(item.status)}">${escapeHtml(item.status || "-")}</span>
+                ${item.provider ? `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px] font-mono">${escapeHtml(item.provider)}</span>` : ""}
+              </div>
+              <button type="button" data-history-event-id="${escapeHtml(item.event_id || "")}" class="mt-2 text-left text-sm font-semibold break-words hover:text-primary">${escapeHtml(item.summary || "-")}</button>
+              <p class="mt-1 text-[11px] text-text-muted break-all">${escapeHtml((item.actor && item.actor.requested_by) || "-")} / ${escapeHtml(related.run_id || related.thread_id || related.project_id || "-")}</p>
+            </div>
+            <p class="text-[11px] font-mono text-text-muted">${escapeHtml(item.recorded_at || "-")}</p>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-3 text-[11px]">
+            ${threadHref ? `<a href="${threadHref}" class="text-primary hover:underline">thread 詳細</a>` : ""}
+            ${runHref ? `<a href="${runHref}" class="text-primary hover:underline">run 詳細</a>` : ""}
+            <a href="${escapeHtml(buildHistoryDetailLink({ runId: related.run_id || "", threadId: related.thread_id || "", eventType: item.event_type || "", provider: item.provider || "", status: item.status || "" }))}" class="text-primary hover:underline">detail 共有</a>
+          </div>
+        `;
+        const trigger = card.querySelector("[data-history-event-id]");
+        if (trigger) {
+          trigger.addEventListener("click", () => {
+            historySelectedEventId = String(item.event_id || "");
+            renderHistoryList(historyItems);
+            renderHistoryDetail(item);
+          });
+        }
+        historyListEl.appendChild(card);
+      });
+      if (!historySelectedEventId && rows[0]) {
+        historySelectedEventId = String(rows[0].event_id || "");
+      }
+      const selectedItem = historyItems.find((entry) => String(entry.event_id || "") === historySelectedEventId) || rows[0] || null;
+      renderHistoryDetail(selectedItem);
+    }
+
+    function updateMetricsContextText() {
+      if (!metricsContextEl) return;
+      const scope = String(metricsScopeEl && metricsScopeEl.value ? metricsScopeEl.value : "project");
+      const provider = String(metricsProviderEl && metricsProviderEl.value ? metricsProviderEl.value : "").trim() || "all providers";
+      if (scope === "thread" && activeThreadId) {
+        metricsContextEl.textContent = `active thread: ${activeThreadId} / ${provider}`;
+        return;
+      }
+      metricsContextEl.textContent = `project: ${projectId || "-"} / ${provider}`;
+    }
+
+    function setMetricsRangeButtons() {
+      metricsRangeButtons.forEach((button) => {
+        const selected = String(button.dataset.rangePreset || "") === metricsRangePreset;
+        button.className = `rounded-full border px-3 py-1 text-xs ${selected ? "border-primary bg-primary/10 text-primary" : "border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80"}`;
+      });
+    }
+
+    function applyMetricsPreset(preset) {
+      metricsRangePreset = preset || "7d";
+      const now = new Date();
+      let start = "";
+      if (metricsRangePreset === "24h") {
+        start = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
+      } else if (metricsRangePreset === "7d") {
+        start = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      } else if (metricsRangePreset === "30d") {
+        start = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+      }
+      if (metricsRangePreset !== "custom") {
+        metricsTimeFromEl.value = start ? toLocalInputValue(start) : "";
+        metricsTimeToEl.value = toLocalInputValue(now.toISOString());
+      }
+      setMetricsRangeButtons();
+    }
+
+    function renderMetricsEmpty(text, tone = "muted") {
+      const toneClass = tone === "error"
+        ? "border-rose-400/40 bg-rose-50/70 text-rose-700 dark:bg-rose-950/20 dark:text-rose-300"
+        : "border-border-dark bg-background-light/40 text-text-muted";
+      const box = `<article class="rounded-lg border p-3 text-sm ${toneClass}">${escapeHtml(text)}</article>`;
+      metricsAlertsEl.innerHTML = "";
+      metricsKpisEl.innerHTML = box;
+      metricsStatusDistributionEl.innerHTML = box;
+      metricsProviderCountsEl.innerHTML = box;
+      metricsFailureCodesEl.innerHTML = box;
+      metricsFidelityEl.innerHTML = box;
+      metricsTimeSeriesEl.innerHTML = box;
+      if (metricsSeriesLabelEl) metricsSeriesLabelEl.textContent = "history events/day";
+    }
+
+    function renderMetricsAlerts(payload) {
+      const rows = Array.isArray(payload && payload.anomalies && payload.anomalies.items ? payload.anomalies.items : []);
+      if (!rows.length) {
+        metricsAlertsEl.innerHTML = `<article class="rounded-lg border border-emerald-400/40 bg-emerald-50/70 dark:bg-emerald-950/20 p-3 text-sm text-emerald-700 dark:text-emerald-300">warning / alert はありません。</article>`;
+        return;
+      }
+      metricsAlertsEl.innerHTML = rows.map((item) => {
+        const severity = String(item.severity || "warning").toLowerCase();
+        const classes = severity === "alert"
+          ? "border-rose-400/40 bg-rose-50/70 text-rose-700 dark:bg-rose-950/20 dark:text-rose-300"
+          : "border-amber-400/40 bg-amber-50/70 text-amber-700 dark:bg-amber-950/20 dark:text-amber-300";
+        return `
+          <article class="rounded-lg border p-3 ${classes}">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div class="flex flex-wrap items-center gap-2">
+                <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold">${escapeHtml(severity)}</span>
+                <span class="text-sm font-semibold">${escapeHtml(item.title || item.code || "-")}</span>
+              </div>
+              <span class="text-[11px] font-mono">${escapeHtml(item.code || "-")}</span>
+            </div>
+            <p class="mt-1 text-sm">${escapeHtml(item.summary || "-")}</p>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderKpiCards(payload) {
+      const confirmRate = payload && payload.confirm_rate && payload.confirm_rate.total ? payload.confirm_rate.total : {};
+      const duration = payload && payload.duration ? payload.duration : {};
+      const cards = [
+        { label: "Runs", value: formatCount(payload && payload.run_counts ? payload.run_counts.total : 0), note: `failed ${formatCount(payload && payload.run_counts && payload.run_counts.by_status ? payload.run_counts.by_status.failed : 0)} / skipped ${formatCount(payload && payload.run_counts && payload.run_counts.by_status ? payload.run_counts.by_status.skipped : 0)}` },
+        { label: "Confirm Rate", value: formatPercent(confirmRate.rate || 0), note: `${formatCount(confirmRate.confirm_executed || 0)} executed / ${formatCount(confirmRate.pending || 0)} pending` },
+        { label: "Operations", value: formatCount(payload && payload.operation_counts ? payload.operation_counts.total : 0), note: `search ${formatCount(payload && payload.search_count ? payload.search_count.total : 0)} / history ${formatCount(payload && payload.history_event_volume ? payload.history_event_volume.total : 0)}` },
+        { label: "Duration", value: formatDurationMs(duration.median_ms || 0), note: `p95 ${formatDurationMs(duration.p95_ms || 0)}` },
+      ];
+      metricsKpisEl.innerHTML = cards.map((card) => `
+        <article class="rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+          <p class="text-[11px] uppercase tracking-wide text-text-muted">${escapeHtml(card.label)}</p>
+          <p class="mt-2 text-2xl font-semibold">${escapeHtml(card.value)}</p>
+          <p class="mt-1 text-[11px] text-text-muted">${escapeHtml(card.note)}</p>
+        </article>
+      `).join("");
+    }
+
+    function renderStatusDistribution(payload) {
+      const status = payload && payload.run_counts && payload.run_counts.by_status ? payload.run_counts.by_status : {};
+      const total = Number(payload && payload.run_counts ? payload.run_counts.total : 0) || 0;
+      const rows = ["queued", "running", "ok", "failed", "skipped"].map((key) => {
+        const count = Number(status[key] || 0);
+        const pct = total > 0 ? (count / total) * 100 : 0;
+        return { key, count, pct };
+      });
+      metricsStatusDistributionEl.innerHTML = rows.map((row) => `
+        <article class="rounded border border-border-dark p-2">
+          <div class="flex items-center justify-between gap-2 text-sm">
+            <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass(row.key)}">${escapeHtml(row.key)}</span>
+            <span class="font-mono">${escapeHtml(String(row.count))}</span>
+          </div>
+          <div class="mt-2 h-2 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+            <div class="h-full bg-primary" style="width:${Math.max(0, Math.min(100, row.pct))}%;"></div>
+          </div>
+          <p class="mt-1 text-[11px] text-text-muted">${escapeHtml(formatPercent(row.pct))}</p>
+        </article>
+      `).join("");
+    }
+
+    function renderProviderCounts(payload) {
+      const totals = Array.isArray(payload && payload.operation_counts && payload.operation_counts.by_provider ? payload.operation_counts.by_provider : []);
+      const byStatus = Array.isArray(payload && payload.operation_counts && payload.operation_counts.by_provider_and_status ? payload.operation_counts.by_provider_and_status : []);
+      if (!totals.length) {
+        metricsProviderCountsEl.innerHTML = `<article class="rounded border border-border-dark p-3 text-sm text-text-muted">provider operation は 0 件です。</article>`;
+        return;
+      }
+      metricsProviderCountsEl.innerHTML = totals.map((entry) => {
+        const rows = byStatus.filter((item) => String(item.provider || "") === String(entry.provider || ""));
+        return `
+          <article class="rounded border border-border-dark p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold font-mono">${escapeHtml(entry.provider || "-")}</p>
+              <p class="text-sm font-semibold">${escapeHtml(String(entry.count || 0))}</p>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${rows.map((item) => `<span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] ${getStatusBadgeClass(item.status)}">${escapeHtml(`${item.status}:${item.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">status breakdown: -</span>`}
+            </div>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderFailureCodes(payload) {
+      const rows = Array.isArray(payload && payload.failure_code_distribution && payload.failure_code_distribution.by_provider ? payload.failure_code_distribution.by_provider : []);
+      if (!rows.length) {
+        metricsFailureCodesEl.innerHTML = `<article class="rounded border border-border-dark p-3 text-sm text-text-muted">failure_code は 0 件です。</article>`;
+        return;
+      }
+      metricsFailureCodesEl.innerHTML = rows.slice(0, 8).map((row) => `
+        <article class="rounded border border-border-dark p-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-sm font-semibold">${escapeHtml(row.failure_code || "-")}</p>
+            <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold ${getStatusBadgeClass("failed")}">${escapeHtml(String(row.count || 0))}</span>
+          </div>
+          <p class="mt-1 text-[11px] text-text-muted break-all">${escapeHtml(`${row.source || "-"} / ${row.provider || "-"}`)}</p>
+        </article>
+      `).join("");
+    }
+
+    function renderFidelity(payload) {
+      const bands = Array.isArray(payload && payload.figma_fidelity_distribution && payload.figma_fidelity_distribution.score_bands ? payload.figma_fidelity_distribution.score_bands : []);
+      const statuses = Array.isArray(payload && payload.figma_fidelity_distribution && payload.figma_fidelity_distribution.by_status ? payload.figma_fidelity_distribution.by_status : []);
+      const runsWithScore = Number(payload && payload.figma_fidelity_distribution ? payload.figma_fidelity_distribution.runs_with_score : 0) || 0;
+      metricsFidelityEl.innerHTML = `
+        <article class="rounded border border-border-dark p-3">
+          <div class="flex items-center justify-between gap-2">
+            <p class="text-sm font-semibold">runs with score</p>
+            <p class="text-sm font-semibold">${escapeHtml(String(runsWithScore))}</p>
+          </div>
+          <div class="mt-2 flex flex-wrap gap-2">
+            ${bands.map((row) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`${row.band}:${row.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">score bands: -</span>`}
+          </div>
+          <div class="mt-3 flex flex-wrap gap-2">
+            ${statuses.map((row) => `<span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] ${getStatusBadgeClass(row.status)}">${escapeHtml(`${row.status}:${row.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">status: -</span>`}
+          </div>
+        </article>
+      `;
+    }
+
+    function renderMetricsTimeSeries(payload) {
+      const mode = String(metricsSeriesModeEl && metricsSeriesModeEl.value ? metricsSeriesModeEl.value : "history");
+      const rows = mode === "threads"
+        ? (Array.isArray(payload && payload.thread_activity && payload.thread_activity.active_threads_per_day ? payload.thread_activity.active_threads_per_day : []))
+        : (Array.isArray(payload && payload.history_event_volume && payload.history_event_volume.by_day ? payload.history_event_volume.by_day : []));
+      const label = mode === "threads" ? "active threads/day" : "history events/day";
+      if (metricsSeriesLabelEl) metricsSeriesLabelEl.textContent = label;
+      if (!rows.length) {
+        metricsTimeSeriesEl.innerHTML = `<article class="rounded border border-border-dark p-3 text-sm text-text-muted">timeseries は 0 件です。</article>`;
+        return;
+      }
+      const maxCount = rows.reduce((acc, row) => Math.max(acc, Number(row.count || 0)), 0) || 1;
+      metricsTimeSeriesEl.innerHTML = rows.slice(0, 14).map((row) => {
+        const width = Math.max(4, Math.round((Number(row.count || 0) / maxCount) * 100));
+        return `
+          <article class="grid grid-cols-[7rem_minmax(0,1fr)_3rem] items-center gap-3 text-sm">
+            <p class="font-mono text-[11px] text-text-muted">${escapeHtml(row.day || "-")}</p>
+            <div class="h-3 rounded-full bg-slate-200 dark:bg-slate-800 overflow-hidden">
+              <div class="h-full bg-primary" style="width:${width}%;"></div>
+            </div>
+            <p class="text-right font-mono text-[11px]">${escapeHtml(String(row.count || 0))}</p>
+          </article>
+        `;
+      }).join("");
+    }
+
+    function renderWorkspaceMetrics(payload) {
+      workspaceMetrics = payload || null;
+      renderMetricsAlerts(payload || {});
+      renderKpiCards(payload || {});
+      renderStatusDistribution(payload || {});
+      renderProviderCounts(payload || {});
+      renderFailureCodes(payload || {});
+      renderFidelity(payload || {});
+      renderMetricsTimeSeries(payload || {});
+      updateMetricsOperability();
+    }
+
+    async function loadWorkspaceMetrics() {
+      if (!projectId) return;
+      updateMetricsContextText();
+      metricsStatusTextEl.textContent = "observability を読み込み中...";
+      renderMetricsEmpty("observability を読み込み中...");
+      try {
+        const result = await apiPost("/metrics/workspace", buildMetricsPayload());
+        renderWorkspaceMetrics(result || {});
+        const failed = result && result.run_counts && result.run_counts.by_status ? Number(result.run_counts.by_status.failed || 0) : 0;
+        const pending = result && result.confirm_rate && result.confirm_rate.total ? Number(result.confirm_rate.total.pending || 0) : 0;
+        metricsStatusTextEl.textContent = `runs ${formatCount(result && result.run_counts ? result.run_counts.total : 0)} / failed ${formatCount(failed)} / pending confirm ${formatCount(pending)}`;
+      } catch (error) {
+        const detail = String(error && error.message ? error.message : "metrics load failed");
+        metricsStatusTextEl.textContent = `observability 取得失敗: ${detail}`;
+        renderMetricsEmpty(`observability 取得失敗: ${detail}`, "error");
+      }
+    }
+
+    async function loadWorkspaceHistory({ append = false } = {}) {
+      if (!projectId) return;
+      const payload = buildHistoryPayload({ append });
+      historyStatusTextEl.textContent = append ? "履歴を追加読み込み中..." : "履歴を読み込み中...";
+      if (!append) renderHistoryEmpty("履歴を読み込み中...");
+      try {
+        const result = await apiPost("/history", payload);
+        const rows = Array.isArray(result && result.items) ? result.items : [];
+        historyNextCursor = result && result.next_cursor ? result.next_cursor : null;
+        historyItems = append ? historyItems.concat(rows) : rows;
+        historyDayGroups = append
+          ? historyDayGroups.concat(Array.isArray(result && result.day_groups) ? result.day_groups : [])
+          : (Array.isArray(result && result.day_groups) ? result.day_groups : []);
+        historyRunSummaries = append
+          ? historyRunSummaries.concat(Array.isArray(result && result.run_summaries) ? result.run_summaries : [])
+          : (Array.isArray(result && result.run_summaries) ? result.run_summaries : []);
+        if (!historyItems.some((entry) => String(entry.event_id || "") === historySelectedEventId)) {
+          historySelectedEventId = "";
+        }
+        renderHistoryList(rows, { append });
+        historyStatusTextEl.textContent = historyItems.length
+          ? `${historyItems.length} 件表示中${historyNextCursor ? " / 続きあり" : ""}`
+          : "履歴イベントは 0 件です。";
+        historyMoreEl.classList.toggle("hidden", !historyNextCursor);
+      } catch (error) {
+        historyNextCursor = null;
+        historyMoreEl.classList.add("hidden");
+        const detail = String(error && error.message ? error.message : "history load failed");
+        historyStatusTextEl.textContent = `履歴取得失敗: ${detail}`;
+        renderHistoryEmpty(`履歴取得失敗: ${detail}`, "error");
+      }
+    }
+
+    function buildHistoryPayload({ append = false } = {}) {
+      const payload = {
+        project_id: projectId,
+        limit: 20,
+      };
+      const scope = String(historyScopeEl && historyScopeEl.value ? historyScopeEl.value : "project");
+      if (scope === "thread") {
+        const threadId = historyPinnedThreadId || activeThreadId;
+        if (threadId) payload.thread_id = threadId;
+      } else if (scope === "run") {
+        const runId = getPinnedRunId();
+        if (runId) payload.run_id = runId;
+      }
+      const eventType = String(historyEventTypeEl && historyEventTypeEl.value ? historyEventTypeEl.value : "").trim();
+      const status = String(historyStatusEl && historyStatusEl.value ? historyStatusEl.value : "").trim();
+      const provider = String(historyProviderEl && historyProviderEl.value ? historyProviderEl.value : "").trim();
+      const startAt = toIsoFromLocalInput(historyTimeFromEl && historyTimeFromEl.value);
+      const endAt = toIsoFromLocalInput(historyTimeToEl && historyTimeToEl.value);
+      if (eventType) payload.event_type = [eventType];
+      if (status) payload.status = [status];
+      if (provider) payload.provider = [provider];
+      if (startAt) payload.start_at = startAt;
+      if (endAt) payload.end_at = endAt;
+      if (append && historyNextCursor) payload.cursor = historyNextCursor;
+      return payload;
+    }
+
+    function buildHistoryExportPayload() {
+      const payload = buildHistoryPayload({ append: false });
+      delete payload.cursor;
+      payload.kind = "history";
+      payload.format = getExportFormat(historyExportFormatEl);
+      payload.limit = 500;
+      return payload;
+    }
+
+    function buildAuditExportPayload() {
+      const related = historySelectedItem && historySelectedItem.related_ids && typeof historySelectedItem.related_ids === "object"
+        ? historySelectedItem.related_ids
+        : {};
+      const runId = String(related.run_id || getPinnedRunId() || "").trim();
+      const threadId = String(related.thread_id || historyPinnedThreadId || activeThreadId || "").trim();
+      const payload = {
+        kind: "audit",
+        format: getExportFormat(historyDetailExportFormatEl),
+        project_id: projectId,
+        limit: 500,
+      };
+      if (runId) payload.run_id = runId;
+      if (threadId) payload.thread_id = threadId;
+      const startAt = toIsoFromLocalInput(historyTimeFromEl && historyTimeFromEl.value);
+      const endAt = toIsoFromLocalInput(historyTimeToEl && historyTimeToEl.value);
+      if (startAt) payload.start_at = startAt;
+      if (endAt) payload.end_at = endAt;
+      return payload;
+    }
+
+    function buildMetricsPayload() {
+      const payload = {
+        project_id: projectId,
+      };
+      const scope = String(metricsScopeEl && metricsScopeEl.value ? metricsScopeEl.value : "project");
+      if (scope === "thread" && activeThreadId) {
+        payload.thread_id = activeThreadId;
+      }
+      const provider = String(metricsProviderEl && metricsProviderEl.value ? metricsProviderEl.value : "").trim();
+      if (provider) payload.provider = [provider];
+      const startAt = toIsoFromLocalInput(metricsTimeFromEl && metricsTimeFromEl.value);
+      const endAt = toIsoFromLocalInput(metricsTimeToEl && metricsTimeToEl.value);
+      if (startAt) payload.start_at = startAt;
+      if (endAt) payload.end_at = endAt;
+      return payload;
+    }
+
+    function buildMetricsExportPayload() {
+      const payload = buildMetricsPayload();
+      payload.kind = "metrics";
+      payload.format = getExportFormat(metricsExportFormatEl);
+      return payload;
+    }
 
     function updateProjectLinks() {
-      const links = [backLink, projectSettingsLink, settingsLink, threadDetailLink, runsLink, runsSideLink];
+      const links = [backLink, projectSettingsLink, settingsLink, threadDetailLink, runsLink, runsSideLink, fidelityLink];
       links.forEach((el) => {
         if (!el) return;
         const url = new URL(el.getAttribute("href") || "", window.location.origin);
@@ -244,6 +1454,19 @@
       });
     }
 
+    function syncHistoryFromParams() {
+      if (historyPinnedEventType) historyEventTypeEl.value = historyPinnedEventType;
+      if (historyPinnedProvider) historyProviderEl.value = historyPinnedProvider;
+      if (historyPinnedStatus) historyStatusEl.value = historyPinnedStatus;
+      historyScopeEl.value = historyPinnedRunId ? "run" : historyPinnedThreadId ? "thread" : "project";
+      const currentUrl = new URL(window.location.href);
+      const startAt = currentUrl.searchParams.get("history_start_at");
+      const endAt = currentUrl.searchParams.get("history_end_at");
+      if (startAt) historyTimeFromEl.value = toLocalInputValue(startAt);
+      if (endAt) historyTimeToEl.value = toLocalInputValue(endAt);
+      updateHistoryContextText();
+    }
+
     function setActiveThread(nextId) {
       activeThreadId = isPrefixedId("thread", nextId || "") ? nextId : "";
       const nextUrl = new URL(window.location.href);
@@ -252,6 +1475,15 @@
       else nextUrl.searchParams.delete("thread_id");
       window.history.replaceState({}, "", `${nextUrl.pathname}${nextUrl.search}`);
       updateProjectLinks();
+      if (!searchScopeDirty) {
+        resetSearchScopesToDefault();
+      } else {
+        updateSearchContextText();
+      }
+      if (!historyPinnedThreadId) {
+        updateHistoryContextText();
+      }
+      updateMetricsContextText();
     }
 
     function renderThreads(rows) {
@@ -282,6 +1514,8 @@
           renderThreads(list);
           renderExternalContext();
           await loadThreadDetail();
+          await loadWorkspaceHistory({ append: false });
+          await loadWorkspaceMetrics();
         });
         threadList.appendChild(btn);
       });
@@ -554,11 +1788,15 @@
         renderRecentRuns(cachedRuns);
         renderExternalOperationTimeline(cachedRuns);
         renderExternalContext();
+        updateHistoryOperability(historySelectedItem);
+        updateMetricsOperability();
       } catch {
         cachedRuns = [];
         renderRecentRuns([]);
         renderExternalOperationTimeline([]);
         renderExternalContext();
+        updateHistoryOperability(historySelectedItem);
+        updateMetricsOperability();
       }
     }
 
@@ -680,6 +1918,8 @@
         await loadThreads();
         await loadThreadDetail();
         await loadRecentRuns();
+        await loadWorkspaceHistory({ append: false });
+        await loadWorkspaceMetrics();
         if (usedChatApi) {
           const sentBase = await t("ui.workspace.chatContinued");
           const status = result && typeof result.status === "string" ? result.status : "queued";
@@ -706,6 +1946,165 @@
     opProviderEl.addEventListener("change", () => {
       const provider = String(opProviderEl.value || "").toLowerCase();
       opFigmaNoteEl.classList.toggle("hidden", provider !== "figma");
+    });
+
+    Array.from(searchScopesRoot.querySelectorAll("input[type='checkbox']")).forEach((inputEl) => {
+      inputEl.addEventListener("change", () => {
+        searchScopeDirty = true;
+      });
+    });
+
+    searchResetScopesEl.addEventListener("click", () => {
+      resetSearchScopesToDefault();
+    });
+
+    searchForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await runWorkspaceSearch({ append: false });
+    });
+
+    searchExportEl.addEventListener("click", async () => {
+      if (!projectId) {
+        searchStatusTextEl.textContent = "export 不可: project_id がありません";
+        return;
+      }
+      await triggerWorkspaceExport(buildSearchExportPayload(), searchStatusTextEl, "search results を export しました");
+    });
+
+    searchMoreEl.addEventListener("click", async () => {
+      if (!searchNextCursor) return;
+      await runWorkspaceSearch({ append: true });
+    });
+
+    historyForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await loadWorkspaceHistory({ append: false });
+    });
+
+    historyMoreEl.addEventListener("click", async () => {
+      if (!historyNextCursor) return;
+      await loadWorkspaceHistory({ append: true });
+    });
+
+    historyRefreshEl.addEventListener("click", async () => {
+      await loadWorkspaceHistory({ append: false });
+    });
+
+    historyExportEl.addEventListener("click", async () => {
+      await triggerWorkspaceExport(buildHistoryExportPayload(), historyStatusTextEl, "history を export しました");
+    });
+
+    historyDetailRefreshEl.addEventListener("click", async () => {
+      historyDetailOpStatusEl.textContent = "history refresh 実行中...";
+      await loadWorkspaceHistory({ append: false });
+      historyDetailOpStatusEl.textContent = "history refresh 完了";
+    });
+
+    historyDetailRetryReadEl.addEventListener("click", async () => {
+      const runId = historySelectedItem && historySelectedItem.related_ids ? historySelectedItem.related_ids.run_id : "";
+      await triggerRunRetry(runId, "read_only", historyDetailOpStatusEl, () => {});
+    });
+
+    historyDetailRetryFailedEl.addEventListener("click", async () => {
+      const runId = historySelectedItem && historySelectedItem.related_ids ? historySelectedItem.related_ids.run_id : "";
+      await triggerRunRetry(runId, "failed_run", historyDetailOpStatusEl, () => {});
+    });
+
+    historyDetailExportEl.addEventListener("click", async () => {
+      if (!historySelectedItem) {
+        historyDetailOpStatusEl.textContent = "export 不可: selected event がありません";
+        return;
+      }
+      const payload = buildHistoryExportPayload();
+      const related = historySelectedItem.related_ids && typeof historySelectedItem.related_ids === "object" ? historySelectedItem.related_ids : {};
+      payload.run_id = String(related.run_id || payload.run_id || "").trim();
+      payload.thread_id = String(related.thread_id || payload.thread_id || "").trim();
+      payload.event_type = [String(historySelectedItem.event_type || "").trim()].filter(Boolean);
+      payload.status = [String(historySelectedItem.status || "").trim()].filter(Boolean);
+      payload.provider = [String(historySelectedItem.provider || "").trim()].filter(Boolean);
+      await triggerWorkspaceExport(payload, historyDetailOpStatusEl, "history detail を export しました");
+    });
+
+    historyDetailExportAuditEl.addEventListener("click", async () => {
+      const related = historySelectedItem && historySelectedItem.related_ids && typeof historySelectedItem.related_ids === "object"
+        ? historySelectedItem.related_ids
+        : {};
+      if (!String(related.run_id || getPinnedRunId() || "").trim()) {
+        historyDetailOpStatusEl.textContent = "export 不可: audit export に必要な run_id がありません";
+        return;
+      }
+      await triggerWorkspaceExport(buildAuditExportPayload(), historyDetailOpStatusEl, "audit を export しました");
+    });
+
+    historyResetEl.addEventListener("click", async () => {
+      historyPinnedRunId = "";
+      historyPinnedThreadId = activeThreadId || "";
+      historyPinnedEventType = "";
+      historyPinnedProvider = "";
+      historyPinnedStatus = "";
+      historyEventTypeEl.value = "";
+      historyStatusEl.value = "";
+      historyProviderEl.value = "";
+      historyScopeEl.value = activeThreadId ? "thread" : "project";
+      historyTimeFromEl.value = "";
+      historyTimeToEl.value = "";
+      historySelectedEventId = "";
+      updateHistoryContextText();
+      await loadWorkspaceHistory({ append: false });
+    });
+
+    metricsForm.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      metricsRangePreset = "custom";
+      setMetricsRangeButtons();
+      await loadWorkspaceMetrics();
+    });
+
+    metricsSeriesModeEl.addEventListener("change", () => {
+      renderMetricsTimeSeries(workspaceMetrics || {});
+    });
+
+    metricsRefreshEl.addEventListener("click", async () => {
+      await loadWorkspaceMetrics();
+    });
+
+    metricsResetEl.addEventListener("click", async () => {
+      metricsScopeEl.value = activeThreadId ? "thread" : "project";
+      metricsProviderEl.value = "";
+      metricsSeriesModeEl.value = "history";
+      applyMetricsPreset("7d");
+      updateMetricsContextText();
+      await loadWorkspaceMetrics();
+    });
+
+    metricsRetryReadEl.addEventListener("click", async () => {
+      const latestRun = findLatestRunForMetrics(() => true);
+      await triggerRunRetry(latestRun && latestRun.run_id, "read_only", metricsStatusTextEl, () => {});
+    });
+
+    metricsRetryFailedEl.addEventListener("click", async () => {
+      const latestFailedRun = findLatestRunForMetrics((run) => String(run && run.status || "").toLowerCase() === "failed");
+      await triggerRunRetry(latestFailedRun && latestFailedRun.run_id, "failed_run", metricsStatusTextEl, () => {});
+    });
+
+    metricsExportEl.addEventListener("click", async () => {
+      if (!workspaceMetrics) {
+        metricsStatusTextEl.textContent = "export 不可: metrics が未読込です";
+        return;
+      }
+      await triggerWorkspaceExport(buildMetricsExportPayload(), metricsStatusTextEl, "metrics を export しました");
+    });
+
+    metricsRangeButtons.forEach((button) => {
+      button.addEventListener("click", async () => {
+        const preset = String(button.dataset.rangePreset || "7d");
+        applyMetricsPreset(preset);
+        if (preset === "custom") {
+          metricsStatusTextEl.textContent = "custom range を指定して集計を表示してください。";
+          return;
+        }
+        await loadWorkspaceMetrics();
+      });
     });
 
     opPlanBtn.addEventListener("click", async () => {
@@ -736,6 +2135,8 @@
         await loadThreads();
         await loadThreadDetail();
         await loadRecentRuns();
+        await loadWorkspaceHistory({ append: false });
+        await loadWorkspaceMetrics();
       } catch (e) {
         opConfirmStatusEl.textContent = `plan 作成失敗: ${String(e && e.message ? e.message : "failed")}`;
       }
@@ -777,6 +2178,8 @@
         await loadThreads();
         await loadThreadDetail();
         await loadRecentRuns();
+        await loadWorkspaceHistory({ append: false });
+        await loadWorkspaceMetrics();
       } catch (e) {
         opConfirmStatusEl.textContent = `confirm 実行失敗: ${String(e && e.message ? e.message : "failed")}`;
       } finally {
@@ -795,6 +2198,8 @@
       input.focus();
       await loadThreads();
       renderExternalContext();
+      await loadWorkspaceHistory({ append: false });
+      await loadWorkspaceMetrics();
     });
 
     async function bootstrap() {
@@ -803,9 +2208,24 @@
         threadFeedback.textContent = await t("ui.project.missingId");
         return;
       }
+      resetSearchScopesToDefault();
+      syncHistoryFromParams();
+      applyMetricsPreset(metricsRangePreset);
+      metricsScopeEl.value = activeThreadId ? "thread" : "project";
       await Promise.all([loadAiStatus(), loadSharedEnvironment(), loadThreads(), loadRecentRuns()]);
       await loadThreadDetail();
+      await loadWorkspaceHistory({ append: false });
+      await loadWorkspaceMetrics();
       opFigmaNoteEl.classList.toggle("hidden", String(opProviderEl.value || "").toLowerCase() !== "figma");
+      updateSearchContextText();
+      updateHistoryContextText();
+      updateMetricsContextText();
+      if (window.location.hash === "#workspace-history-section" && historySectionEl) {
+        historySectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (window.location.hash === "#workspace-metrics-section" && metricsSectionEl) {
+        metricsSectionEl.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
     }
 
     bootstrap();

@@ -40,6 +40,8 @@ CREATE TABLE IF NOT EXISTS runs (
   ingest_artifact_path TEXT,
   github_pr_url TEXT,
   github_pr_number INTEGER,
+  search_requested_by TEXT,
+  search_provider TEXT,
   created_at   TEXT NOT NULL,
   updated_at   TEXT NOT NULL,
   PRIMARY KEY (tenant_id, id)
@@ -107,6 +109,9 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TEXT NOT NULL
 );
 
+CREATE INDEX IF NOT EXISTS audit_logs_action_created
+  ON audit_logs(tenant_id, action, created_at DESC);
+
 CREATE TABLE IF NOT EXISTS job_templates (
   name                  TEXT NOT NULL,
   direction             TEXT NOT NULL,
@@ -120,8 +125,14 @@ CREATE TABLE IF NOT EXISTS job_templates (
 CREATE INDEX IF NOT EXISTS runs_project_status
   ON runs(tenant_id, project_id, status);
 
+CREATE INDEX IF NOT EXISTS runs_status_created
+  ON runs(tenant_id, status, created_at DESC);
+
 CREATE INDEX IF NOT EXISTS project_threads_project_updated
   ON project_threads(tenant_id, project_id, updated_at);
+
+CREATE INDEX IF NOT EXISTS project_threads_project_created
+  ON project_threads(tenant_id, project_id, created_at DESC);
 
 CREATE INDEX IF NOT EXISTS thread_messages_thread_created
   ON thread_messages(tenant_id, thread_id, created_at);

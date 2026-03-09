@@ -21,6 +21,7 @@ Workspace系修正時の反映後確認（必須）:
   3. 「新規会話開始」導線が見え、未選択状態にできる
   4. chat最小送信が通る（送信 -> 応答 -> 履歴更新が見える）
   5. 設定導線が機能する（`project-settings.html` / `settings-ai.html` へ遷移できる）
+  6. Phase3 機能（`search -> history -> observability -> operability`）の確認は `docs/runbooks/vps-workspace-phase3-checklist.md` を正本として順に実施する
 - 反映コマンドの標準形:
   `bin/vps 'echo connected' && bin/vps 'cd /srv/integration-hub && git checkout main && git pull --ff-only origin main && pm2 reload integration-hub-web'`
 
@@ -35,5 +36,12 @@ Workspace系修正時の反映後確認（必須）:
   6. Figma 再現度評価 `>=95` 確認
   7. 失敗時の rollback または retry 実施記録
 
+PM2 プロセス正本（SoT）:
+- 正本プロセス名は `integration-hub-web`（script: `server.js`, port: 3000）。
+- `integration-hub`（サフィックスなし）が pm2 list に存在した場合は残骸と判断して削除する。
+  - `pm2 delete integration-hub && pm2 save`
+- 詳細な手順・異常パターン・SQLite 権限の注記は `docs/runbooks/vps-pm2-health.md` を正本とする。
+
 参照:
 - `agents/contracts/network-escalation.md`
+- `docs/runbooks/vps-pm2-health.md`

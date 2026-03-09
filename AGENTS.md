@@ -50,6 +50,8 @@ alias codex='codex --sandbox=workspace-write'
 
 現フェーズ/次フェーズの境界は `docs/ai/core/workflow.md` の `ARCH-00 Phase Boundary (SoT)` を正とする。
 次フェーズ2は「GitHub/Figma読取 → validation（Figma再現度検証）→ controlled write → run/workspace integration」を固定順序とし、完全自動同期と複数AI役割設定は対象外とする。
+次フェーズ3は Workspace の `search -> history -> observability -> operability` のみを対象とし、複数AI接続・役割設定、Figma/GitHub 高度操作の追加拡張、完全自動同期は対象外とする。
+次フェーズ4は **Phase3完了後にのみ** 着手し、Fidelity Hardening（Figma・コード・本番環境の一致率強化）専用とする。複数AI役割設計の再拡張、無関係な新機能追加、大規模UX刷新は対象外とする。
 
 ---
 

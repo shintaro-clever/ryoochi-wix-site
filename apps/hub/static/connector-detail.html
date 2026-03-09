@@ -139,7 +139,10 @@
         if (Array.isArray(connector.inputs) && connector.inputs.length) {
           connector.inputs.forEach((input) => {
             const li = document.createElement('li');
-            li.innerHTML = `<strong>${input.label}</strong>: ${input.description}`;
+            const strong = document.createElement('strong');
+            strong.textContent = input.label;
+            li.appendChild(strong);
+            li.appendChild(document.createTextNode(': ' + (input.description || '')));
             inputsList.appendChild(li);
           });
         } else {

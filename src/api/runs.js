@@ -4,6 +4,8 @@ const path = require("path");
 const { DEFAULT_TENANT } = require("../db/sqlite");
 const { withRetry } = require("../db/retry");
 const { KINDS, buildPublicId, parsePublicIdFor, isUuid } = require("../id/publicIds");
+const { collectClassifiedReasons } = require("../fidelity/reasonTaxonomy");
+const { normalizeFidelityReasonSnapshot } = require("../db/fidelityReasons");
 
 const API_RUNS_PROJECT_ID = "api:runs";
 const RUN_STATUS = Object.freeze({
@@ -85,6 +87,49 @@ function parseInputs(inputsJson) {
   } catch {
     return {};
   }
+}
+
+function firstNonEmptyText(...values) {
+  for (const value of values) {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (text) return text;
+  }
+  return "";
+}
+
+function cloneJson(value) {
+  return JSON.parse(JSON.stringify(value == null ? {} : value));
+}
+
+function extractRetryMetadata(inputs) {
+  const payload = inputs && typeof inputs === "object" ? inputs : {};
+  const retry = payload.retry && typeof payload.retry === "object" ? payload.retry : {};
+  const sourceRunId = firstNonEmptyText(retry.source_run_id, payload.retry_of_run_id);
+  return {
+    retry_of_run_id: sourceRunId || null,
+    retry_kind: firstNonEmptyText(retry.retry_kind, payload.retry_kind) || null,
+    retry_requested_at: firstNonEmptyText(retry.requested_at, payload.retry_requested_at) || null,
+  };
+}
+
+function listRetryChildren(db, sourceRunId) {
+  if (!db || typeof db.prepare !== "function" || !sourceRunId) return [];
+  return withRetry(() =>
+    db
+      .prepare("SELECT id, inputs_json, created_at FROM runs WHERE tenant_id=? ORDER BY created_at DESC")
+      .all(DEFAULT_TENANT)
+      .map((row) => ({
+        id: row.id,
+        inputs: parseInputs(row.inputs_json),
+        created_at: row.created_at,
+      }))
+      .filter((row) => extractRetryMetadata(row.inputs).retry_of_run_id === toPublicRunId(sourceRunId))
+      .map((row) => ({
+        run_id: toPublicRunId(row.id),
+        created_at: row.created_at,
+        retry_kind: extractRetryMetadata(row.inputs).retry_kind,
+      }))
+  );
 }
 
 function normalizeSharedEnvironment(raw) {
@@ -220,6 +265,8 @@ function normalizeFigmaConnectionContext(raw) {
   const summary = raw.layout_summary && typeof raw.layout_summary === "object" ? raw.layout_summary : {};
   const source = raw.target_selection_source && typeof raw.target_selection_source === "object" ? raw.target_selection_source : {};
   const writeGuard = raw.write_guard && typeof raw.write_guard === "object" ? raw.write_guard : {};
+  const comparisonTarget =
+    raw.comparison_target && typeof raw.comparison_target === "object" ? raw.comparison_target : {};
   return {
     provider: "figma",
     status: typeof raw.status === "string" ? raw.status.trim() || "skipped" : "skipped",
@@ -233,6 +280,10 @@ function normalizeFigmaConnectionContext(raw) {
       node_ids: Array.isArray(target.node_ids)
         ? target.node_ids.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
         : [],
+    },
+    comparison_target: {
+      id: typeof comparisonTarget.id === "string" ? comparisonTarget.id.trim() : "",
+      mode: typeof comparisonTarget.mode === "string" ? comparisonTarget.mode.trim() : "",
     },
     target_selection_source: {
       page: typeof source.page === "string" ? source.page.trim() || "none" : "none",
@@ -276,6 +327,60 @@ function normalizeConnectionContext(raw) {
   };
 }
 
+function normalizeFidelityEnvironment(raw) {
+  if (!raw || typeof raw !== "object") return null;
+  const source = raw;
+  const environments = source.environments && typeof source.environments === "object" ? source.environments : {};
+  const conditions = source.conditions && typeof source.conditions === "object" ? source.conditions : {};
+  const viewport = conditions.viewport && typeof conditions.viewport === "object" ? conditions.viewport : {};
+  const authState = conditions.auth_state && typeof conditions.auth_state === "object" ? conditions.auth_state : {};
+  const fixtureData = conditions.fixture_data && typeof conditions.fixture_data === "object" ? conditions.fixture_data : {};
+  const normalizeEnvEntry = (entry, name) => {
+    const obj = entry && typeof entry === "object" ? entry : {};
+    return {
+      name,
+      url: typeof obj.url === "string" ? obj.url.trim() : "",
+      theme: typeof obj.theme === "string" ? obj.theme.trim() : "",
+      auth_state: typeof obj.auth_state === "string" ? obj.auth_state.trim() : "",
+    };
+  };
+  return {
+    version: typeof source.version === "string" ? source.version.trim() : "",
+    target_environment: typeof source.target_environment === "string" ? source.target_environment.trim() : "",
+    compare_environments: Array.isArray(source.compare_environments)
+      ? source.compare_environments.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
+      : [],
+    environments: {
+      localhost: normalizeEnvEntry(environments.localhost, "localhost"),
+      staging: normalizeEnvEntry(environments.staging, "staging"),
+      production: normalizeEnvEntry(environments.production, "production"),
+    },
+    conditions: {
+      viewport: {
+        preset: typeof viewport.preset === "string" ? viewport.preset.trim() : "",
+        width: typeof viewport.width === "number" ? viewport.width : 0,
+        height: typeof viewport.height === "number" ? viewport.height : 0,
+      },
+      theme: typeof conditions.theme === "string" ? conditions.theme.trim() : "",
+      auth_state: {
+        localhost: typeof authState.localhost === "string" ? authState.localhost.trim() : "",
+        staging: typeof authState.staging === "string" ? authState.staging.trim() : "",
+        production: typeof authState.production === "string" ? authState.production.trim() : "",
+      },
+      fixture_data: {
+        mode: typeof fixtureData.mode === "string" ? fixtureData.mode.trim() : "",
+        dataset_id: typeof fixtureData.dataset_id === "string" ? fixtureData.dataset_id.trim() : "",
+        snapshot_id: typeof fixtureData.snapshot_id === "string" ? fixtureData.snapshot_id.trim() : "",
+        seed: typeof fixtureData.seed === "string" ? fixtureData.seed.trim() : "",
+        flags:
+          fixtureData.flags && typeof fixtureData.flags === "object" && !Array.isArray(fixtureData.flags)
+            ? fixtureData.flags
+            : {},
+      },
+    },
+  };
+}
+
 function normalizePathList(value) {
   const list = Array.isArray(value) ? value : [];
   const out = [];
@@ -288,6 +393,29 @@ function normalizePathList(value) {
     out.push(text);
   }
   return out;
+}
+
+function extractSearchRequestedBy(inputs) {
+  const payload = inputs && typeof inputs === "object" ? inputs : {};
+  const contextUsed = payload.context_used && typeof payload.context_used === "object" ? payload.context_used : {};
+  const externalAudit =
+    (contextUsed.external_audit && typeof contextUsed.external_audit === "object" ? contextUsed.external_audit : null) ||
+    (payload.external_audit && typeof payload.external_audit === "object" ? payload.external_audit : null);
+  const actor = externalAudit && externalAudit.actor && typeof externalAudit.actor === "object" ? externalAudit.actor : {};
+  return firstNonEmptyText(actor.requested_by, payload.requested_by, payload.actor_id);
+}
+
+function extractSearchProvider(inputs) {
+  const payload = inputs && typeof inputs === "object" ? inputs : {};
+  const externalOperations = ensureRunExternalOperations(payload);
+  for (let i = externalOperations.length - 1; i >= 0; i -= 1) {
+    const provider = firstNonEmptyText(externalOperations[i] && externalOperations[i].provider);
+    if (provider) return provider;
+  }
+  const connectionContext = payload.connection_context && typeof payload.connection_context === "object" ? payload.connection_context : {};
+  const github = connectionContext.github && typeof connectionContext.github === "object" ? connectionContext.github : null;
+  const figma = connectionContext.figma && typeof connectionContext.figma === "object" ? connectionContext.figma : null;
+  return firstNonEmptyText(github ? "github" : "", figma ? "figma" : "");
 }
 
 function buildFigmaResolvedTargetPaths(target) {
@@ -471,8 +599,22 @@ function ensureRunExternalOperations(inputs) {
 }
 
 function safeAuditText(value) {
-  const text = typeof value === "string" ? value.trim() : "";
+  let text = typeof value === "string" ? value.trim() : "";
   if (!text) return "";
+  const patterns = [
+    /(env|vault):\/\/[^\s"'`]+/gi,
+    /\b(ghp|gho|ghu|ghs|ghr|github_pat|sk|figd|figma)_[A-Za-z0-9_-]+\b/gi,
+    /\bconfirm_token\s*=\s*[^\s,;]+/gi,
+    /\bsecret_id\s*=\s*[^\s,;]+/gi,
+    /\b(token|password|secret|api[_-]?key)\b\s*[:=]\s*[^\s,;]+/gi,
+  ];
+  patterns.forEach((pattern) => {
+    text = text.replace(pattern, "[redacted]");
+  });
+  if (text !== (typeof value === "string" ? value.trim() : "")) {
+    return text || "[redacted]";
+  }
+  // Fallback: if the entire value contains a secret keyword, redact it
   if (/token|secret|password|api[_-]?key/i.test(text)) {
     return "[redacted]";
   }
@@ -709,6 +851,7 @@ function normalizeFigmaSnapshot(raw, sourceLabel) {
   const target = targetRaw && typeof targetRaw === "object" ? targetRaw : {};
   const pageFromResolution = target.page && typeof target.page === "object" ? target.page : {};
   const frameFromResolution = target.frame && typeof target.frame === "object" ? target.frame : {};
+  const comparisonTarget = target.comparison_target && typeof target.comparison_target === "object" ? target.comparison_target : {};
   const nodeIds = Array.isArray(target.node_ids)
     ? target.node_ids.filter((item) => typeof item === "string" && item.trim()).map((item) => item.trim())
     : [];
@@ -732,6 +875,10 @@ function normalizeFigmaSnapshot(raw, sourceLabel) {
       frame_id: frameId || (typeof frameFromResolution.id === "string" ? frameFromResolution.id.trim() : ""),
       frame_name: frameName || (typeof frameFromResolution.name === "string" ? frameFromResolution.name.trim() : ""),
       node_ids: nodeIds,
+    },
+    comparison_target: {
+      id: typeof comparisonTarget.id === "string" ? comparisonTarget.id.trim() : "",
+      mode: typeof comparisonTarget.mode === "string" ? comparisonTarget.mode.trim() : "",
     },
   };
 }
@@ -809,18 +956,243 @@ function buildFigmaBeforeAfter(inputs) {
   };
 }
 
+function buildFidelityReasonSnapshot(inputs) {
+  const payload = inputs && typeof inputs === "object" ? inputs : {};
+  const existingRaw =
+    payload.fidelity_reasons && typeof payload.fidelity_reasons === "object" ? payload.fidelity_reasons : null;
+  const driftSignals =
+    payload.drift_signals && typeof payload.drift_signals === "object" ? payload.drift_signals : {};
+  const collected = collectClassifiedReasons(payload, {
+    manual_design_drift: Boolean(driftSignals.manual_design_drift || payload.manual_design_drift),
+    code_drift_from_approved_design: Boolean(
+      driftSignals.code_drift_from_approved_design || payload.code_drift_from_approved_design
+    ),
+  });
+  if (
+    collected &&
+    collected.counts &&
+    typeof collected.counts.total === "number" &&
+    collected.counts.total > 0
+  ) {
+    return normalizeFidelityReasonSnapshot({ ...collected, updated_at: new Date().toISOString() });
+  }
+  if (existingRaw) {
+    return normalizeFidelityReasonSnapshot(existingRaw);
+  }
+  return null;
+}
+
+function asSafeObject(value) {
+  return value && typeof value === "object" && !Array.isArray(value) ? value : null;
+}
+
+function toNumberOrNull(value) {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function collectFidelityArtifactPaths(captureResult, externalOperations) {
+  const out = [];
+  const seen = new Set();
+  const pushPath = (input) => {
+    if (typeof input !== "string") return;
+    const normalized = input.trim().replace(/^\/+/, "");
+    if (!normalized || seen.has(normalized)) return;
+    seen.add(normalized);
+    out.push(normalized);
+  };
+  const capture = asSafeObject(captureResult);
+  if (capture) {
+    pushPath(capture.output_path);
+    const stateResults = Array.isArray(capture.state_results) ? capture.state_results : [];
+    stateResults.forEach((item) => {
+      if (item && typeof item === "object") {
+        pushPath(item.artifact_path);
+      }
+    });
+  }
+  const ops = Array.isArray(externalOperations) ? externalOperations : [];
+  ops.forEach((entry) => {
+    if (!entry || typeof entry !== "object") return;
+    const target = asSafeObject(entry.target);
+    const artifacts = asSafeObject(entry.artifacts);
+    if (target) {
+      pushPath(target.path);
+      const targetPaths = Array.isArray(target.paths) ? target.paths : [];
+      targetPaths.forEach((item) => pushPath(item));
+    }
+    if (artifacts) {
+      const artifactPaths = Array.isArray(artifacts.paths) ? artifacts.paths : [];
+      artifactPaths.forEach((item) => pushPath(item));
+    }
+  });
+  return out;
+}
+
+function buildFidelityEvidenceSnapshot(inputs) {
+  const payload = inputs && typeof inputs === "object" ? inputs : {};
+  const existing = asSafeObject(payload.fidelity_evidence);
+  const connectionContext = normalizeConnectionContext(payload.connection_context);
+  const fidelityEnvironment = normalizeFidelityEnvironment(payload.fidelity_environment);
+  const captureRequest = asSafeObject(payload.capture_request);
+  const captureResult = asSafeObject(payload.capture_result);
+  const structureDiff = asSafeObject(payload.structure_diff) || asSafeObject(payload.figma_structure_diff);
+  const visualDiff = asSafeObject(payload.visual_diff) || asSafeObject(payload.figma_visual_diff);
+  const behaviorDiff = asSafeObject(payload.behavior_diff);
+  const executionDiff = asSafeObject(payload.execution_diff);
+  const phase4Score = asSafeObject(payload.phase4_score) || asSafeObject(payload.phase4_fidelity_score);
+  const externalOperations = ensureRunExternalOperations(payload);
+  const fidelityReasons = buildFidelityReasonSnapshot(payload);
+
+  const structureRate = toNumberOrNull(asSafeObject(structureDiff && structureDiff.structural_reproduction)?.rate);
+  const structureScore = structureRate === null ? null : Number((structureRate * 100).toFixed(2));
+  const visualScore = toNumberOrNull(visualDiff && visualDiff.score);
+  const behaviorScore = toNumberOrNull(behaviorDiff && behaviorDiff.score);
+  const executionScore = toNumberOrNull(executionDiff && executionDiff.score);
+  const finalScore =
+    toNumberOrNull(phase4Score && phase4Score.final_score) ||
+    toNumberOrNull(payload.fidelity_score) ||
+    null;
+  const artifacts = collectFidelityArtifactPaths(captureResult, externalOperations);
+
+  const hasData = Boolean(
+    (connectionContext && connectionContext.figma && connectionContext.figma.file_key) ||
+      fidelityEnvironment ||
+      captureRequest ||
+      captureResult ||
+      structureDiff ||
+      visualDiff ||
+      behaviorDiff ||
+      executionDiff ||
+      phase4Score ||
+      (fidelityReasons && fidelityReasons.counts && fidelityReasons.counts.total > 0) ||
+      artifacts.length > 0
+  );
+  if (!hasData) {
+    return existing || null;
+  }
+
+  const figma = asSafeObject(connectionContext && connectionContext.figma);
+  const target = asSafeObject(figma && figma.target);
+  const comparisonTarget = asSafeObject(figma && figma.comparison_target);
+
+  return {
+    version: "phase4-fidelity-evidence-v1",
+    figma_target: {
+      file_key: typeof (figma && figma.file_key) === "string" ? figma.file_key : "",
+      page_id: typeof (target && target.page_id) === "string" ? target.page_id : "",
+      page_name: typeof (target && target.page_name) === "string" ? target.page_name : "",
+      frame_id: typeof (target && target.frame_id) === "string" ? target.frame_id : "",
+      frame_name: typeof (target && target.frame_name) === "string" ? target.frame_name : "",
+      node_ids: Array.isArray(target && target.node_ids) ? target.node_ids : [],
+      comparison_target: {
+        id: typeof (comparisonTarget && comparisonTarget.id) === "string" ? comparisonTarget.id : "",
+        mode: typeof (comparisonTarget && comparisonTarget.mode) === "string" ? comparisonTarget.mode : "",
+      },
+    },
+    environment: fidelityEnvironment,
+    capture: {
+      request: captureRequest,
+      result: captureResult,
+    },
+    diff_scores: {
+      structure: {
+        score: structureScore,
+        threshold: toNumberOrNull(structureDiff && structureDiff.threshold),
+        status:
+          structureDiff && structureDiff.structural_reproduction && typeof structureDiff.structural_reproduction.status === "string"
+            ? structureDiff.structural_reproduction.status
+            : null,
+      },
+      visual: {
+        score: visualScore,
+        threshold: toNumberOrNull(visualDiff && visualDiff.threshold),
+        status: visualDiff && typeof visualDiff.status === "string" ? visualDiff.status : null,
+      },
+      behavior: {
+        score: behaviorScore,
+        threshold: toNumberOrNull(behaviorDiff && behaviorDiff.threshold),
+        status: behaviorDiff && typeof behaviorDiff.status === "string" ? behaviorDiff.status : null,
+      },
+      execution: {
+        score: executionScore,
+        threshold: toNumberOrNull(executionDiff && executionDiff.threshold),
+        status: executionDiff && typeof executionDiff.status === "string" ? executionDiff.status : null,
+      },
+      final: {
+        score: finalScore,
+        threshold: toNumberOrNull((phase4Score && phase4Score.threshold) || payload.fidelity_threshold),
+        status:
+          (phase4Score && typeof phase4Score.status === "string" ? phase4Score.status : null) ||
+          (typeof payload.fidelity_status === "string" ? payload.fidelity_status : null),
+      },
+    },
+    diff_reasons: fidelityReasons,
+    artifacts: {
+      paths: artifacts,
+      count: artifacts.length,
+    },
+    updated_at: new Date().toISOString(),
+  };
+}
+
 function extractRunContextUsed(inputs) {
   const payload = inputs && typeof inputs === "object" ? inputs : {};
   const legacyContext = payload.context_used && typeof payload.context_used === "object" ? payload.context_used : {};
   const shared = legacyContext.shared_environment || payload.shared_environment;
   const connection = legacyContext.connection_context || payload.connection_context;
+  const fidelityEnvironment = legacyContext.fidelity_environment || payload.fidelity_environment;
+  const behaviorDiff =
+    (legacyContext.behavior_diff && typeof legacyContext.behavior_diff === "object"
+      ? legacyContext.behavior_diff
+      : null) ||
+    (payload.behavior_diff && typeof payload.behavior_diff === "object" ? payload.behavior_diff : null);
+  const executionDiff =
+    (legacyContext.execution_diff && typeof legacyContext.execution_diff === "object"
+      ? legacyContext.execution_diff
+      : null) ||
+    (payload.execution_diff && typeof payload.execution_diff === "object" ? payload.execution_diff : null);
+  const captureRequest =
+    (legacyContext.capture_request && typeof legacyContext.capture_request === "object"
+      ? legacyContext.capture_request
+      : null) ||
+    (payload.capture_request && typeof payload.capture_request === "object" ? payload.capture_request : null);
+  const captureResult =
+    (legacyContext.capture_result && typeof legacyContext.capture_result === "object"
+      ? legacyContext.capture_result
+      : null) ||
+    (payload.capture_result && typeof payload.capture_result === "object" ? payload.capture_result : null);
   const externalRefs =
     legacyContext.external_references_snapshot ||
     payload.external_references_snapshot ||
     buildExternalReferencesSnapshotFromConnection(normalizeConnectionContext(connection));
+  const fidelityReasons =
+    (legacyContext.fidelity_reasons && typeof legacyContext.fidelity_reasons === "object"
+      ? legacyContext.fidelity_reasons
+      : null) ||
+    buildFidelityReasonSnapshot(payload);
+  const fidelityEvidence =
+    (legacyContext.fidelity_evidence && typeof legacyContext.fidelity_evidence === "object"
+      ? legacyContext.fidelity_evidence
+      : null) ||
+    buildFidelityEvidenceSnapshot(payload);
+  const correctiveActionPlan =
+    (legacyContext.corrective_action_plan && typeof legacyContext.corrective_action_plan === "object"
+      ? legacyContext.corrective_action_plan
+      : null) ||
+    (payload.corrective_action_plan && typeof payload.corrective_action_plan === "object"
+      ? payload.corrective_action_plan
+      : null);
   return {
     shared_environment: normalizeSharedEnvironment(shared),
     connection_context: normalizeConnectionContext(connection),
+    fidelity_environment: normalizeFidelityEnvironment(fidelityEnvironment),
+    behavior_diff: behaviorDiff,
+    execution_diff: executionDiff,
+    capture_request: captureRequest,
+    capture_result: captureResult,
+    fidelity_reasons: fidelityReasons,
+    fidelity_evidence: fidelityEvidence,
+    corrective_action_plan: correctiveActionPlan,
     external_references_snapshot: normalizeExternalReferencesSnapshot(externalRefs),
     external_operations: ensureRunExternalOperations(payload),
     planned_actions: ensureRunPlannedActions(payload),
@@ -867,6 +1239,7 @@ function listRuns(db) {
       .all(DEFAULT_TENANT)
       .map((row) => {
         const parsedInputs = parseInputs(row.inputs_json);
+        const retryMeta = extractRetryMetadata(parsedInputs);
         return {
           status: normalizeRunStatus(row.status),
           run_id: toPublicRunId(row.id),
@@ -897,6 +1270,9 @@ function listRuns(db) {
           ingest_artifact_path: row.ingest_artifact_path || null,
           github_pr_url: row.github_pr_url || null,
           github_pr_number: typeof row.github_pr_number === "number" ? row.github_pr_number : null,
+          retry_of_run_id: retryMeta.retry_of_run_id,
+          retry_kind: retryMeta.retry_kind,
+          retry_requested_at: retryMeta.retry_requested_at,
           created_at: row.created_at,
           updated_at: row.updated_at,
         };
@@ -913,6 +1289,7 @@ function listRunsByProject(db, projectId) {
       .all(DEFAULT_TENANT, projectId)
       .map((row) => {
         const parsedInputs = parseInputs(row.inputs_json);
+        const retryMeta = extractRetryMetadata(parsedInputs);
         return {
           status: normalizeRunStatus(row.status),
           run_id: toPublicRunId(row.id),
@@ -943,6 +1320,9 @@ function listRunsByProject(db, projectId) {
           ingest_artifact_path: row.ingest_artifact_path || null,
           github_pr_url: row.github_pr_url || null,
           github_pr_number: typeof row.github_pr_number === "number" ? row.github_pr_number : null,
+          retry_of_run_id: retryMeta.retry_of_run_id,
+          retry_kind: retryMeta.retry_kind,
+          retry_requested_at: retryMeta.retry_requested_at,
           created_at: row.created_at,
           updated_at: row.updated_at,
         };
@@ -991,30 +1371,49 @@ function createRun(
   }
   const sharedEnvironment = normalizeSharedEnvironment(normalizedInputs.shared_environment);
   const connectionContext = normalizeConnectionContext(normalizedInputs.connection_context);
+  const fidelityEnvironment = normalizeFidelityEnvironment(normalizedInputs.fidelity_environment);
   const externalReferencesSnapshot = ensureRunExternalReferencesSnapshot({
     ...normalizedInputs,
     connection_context: connectionContext,
   });
   const externalOperations = ensureRunExternalOperations(normalizedInputs);
   const plannedActions = ensureRunPlannedActions(normalizedInputs);
+  const fidelityReasons = buildFidelityReasonSnapshot(normalizedInputs);
+  const fidelityEvidence = buildFidelityEvidenceSnapshot({
+    ...normalizedInputs,
+    fidelity_reasons: fidelityReasons,
+    external_operations: externalOperations,
+  });
   normalizedInputs.shared_environment = sharedEnvironment;
   normalizedInputs.connection_context = connectionContext;
+  normalizedInputs.fidelity_environment = fidelityEnvironment;
   normalizedInputs.external_references_snapshot = externalReferencesSnapshot;
   normalizedInputs.external_operations = externalOperations;
   normalizedInputs.planned_actions = plannedActions;
+  if (fidelityReasons) {
+    normalizedInputs.fidelity_reasons = fidelityReasons;
+  }
+  if (fidelityEvidence) {
+    normalizedInputs.fidelity_evidence = fidelityEvidence;
+  }
   normalizedInputs.context_used = {
     ...(normalizedInputs.context_used && typeof normalizedInputs.context_used === "object" ? normalizedInputs.context_used : {}),
     shared_environment: sharedEnvironment,
     connection_context: connectionContext,
+    fidelity_environment: fidelityEnvironment,
     external_references_snapshot: externalReferencesSnapshot,
     external_operations: externalOperations,
     planned_actions: plannedActions,
+    fidelity_reasons: fidelityReasons,
+    fidelity_evidence: fidelityEvidence,
   };
   const inputsJson = JSON.stringify(normalizedInputs);
+  const searchRequestedBy = extractSearchRequestedBy(normalizedInputs);
+  const searchProvider = extractSearchProvider(normalizedInputs);
   withRetry(() =>
     db
       .prepare(
-        "INSERT INTO runs(tenant_id,id,project_id,thread_id,ai_setting_id,status,inputs_json,job_type,run_mode,target_path,figma_file_key,ingest_artifact_path,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
+        "INSERT INTO runs(tenant_id,id,project_id,thread_id,ai_setting_id,status,inputs_json,job_type,run_mode,target_path,figma_file_key,ingest_artifact_path,search_requested_by,search_provider,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)"
       )
       .run(
         DEFAULT_TENANT,
@@ -1029,6 +1428,8 @@ function createRun(
         target_path,
         figma_file_key,
         ingest_artifact_path,
+        searchRequestedBy || null,
+        searchProvider || null,
         ts,
         ts
       )
@@ -1048,6 +1449,7 @@ function getRun(db, runId) {
     return null;
   }
   const parsedInputs = parseInputs(row.inputs_json);
+  const retryMeta = extractRetryMetadata(parsedInputs);
   return {
     status: normalizeRunStatus(row.status),
     run_id: toPublicRunId(row.id),
@@ -1078,6 +1480,10 @@ function getRun(db, runId) {
     ingest_artifact_path: row.ingest_artifact_path || null,
     github_pr_url: row.github_pr_url || null,
     github_pr_number: typeof row.github_pr_number === "number" ? row.github_pr_number : null,
+    retry_of_run_id: retryMeta.retry_of_run_id,
+    retry_kind: retryMeta.retry_kind,
+    retry_requested_at: retryMeta.retry_requested_at,
+    retry_children: listRetryChildren(db, row.id),
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
@@ -1150,18 +1556,26 @@ function appendRunExternalOperation(db, runId, operation) {
   const current = ensureRunExternalOperations(parsedInputs);
   const next = [...current, normalized].slice(-200);
   const contextUsed = parsedInputs.context_used && typeof parsedInputs.context_used === "object" ? parsedInputs.context_used : {};
+  const fidelityEvidence = buildFidelityEvidenceSnapshot({
+    ...parsedInputs,
+    external_operations: next,
+  });
   const updatedInputs = {
     ...parsedInputs,
     external_operations: next,
+    fidelity_evidence: fidelityEvidence,
     context_used: {
       ...contextUsed,
       external_operations: next,
+      fidelity_evidence: fidelityEvidence,
     },
   };
+  const searchRequestedBy = extractSearchRequestedBy(updatedInputs);
+  const searchProvider = extractSearchProvider(updatedInputs);
   const changes = withRetry(() =>
     db
-      .prepare("UPDATE runs SET inputs_json=?, updated_at=? WHERE tenant_id=? AND id=?")
-      .run(JSON.stringify(updatedInputs), nowIso(), DEFAULT_TENANT, runId).changes
+      .prepare("UPDATE runs SET inputs_json=?, search_requested_by=?, search_provider=?, updated_at=? WHERE tenant_id=? AND id=?")
+      .run(JSON.stringify(updatedInputs), searchRequestedBy || null, searchProvider || null, nowIso(), DEFAULT_TENANT, runId).changes
   );
   return changes > 0;
 }
@@ -1189,6 +1603,12 @@ function patchRunInputs(db, runId, patch = {}) {
   });
   const externalOperations = ensureRunExternalOperations(merged);
   const plannedActions = ensureRunPlannedActions(merged);
+  const fidelityReasons = buildFidelityReasonSnapshot(merged);
+  const fidelityEvidence = buildFidelityEvidenceSnapshot({
+    ...merged,
+    fidelity_reasons: fidelityReasons,
+    external_operations: externalOperations,
+  });
   const nextInputs = {
     ...merged,
     shared_environment: sharedEnvironment,
@@ -1196,6 +1616,8 @@ function patchRunInputs(db, runId, patch = {}) {
     external_references_snapshot: externalReferencesSnapshot,
     external_operations: externalOperations,
     planned_actions: plannedActions,
+    fidelity_reasons: fidelityReasons,
+    fidelity_evidence: fidelityEvidence,
     context_used: {
       ...currentContextUsed,
       ...(merged.context_used && typeof merged.context_used === "object" ? merged.context_used : {}),
@@ -1204,12 +1626,16 @@ function patchRunInputs(db, runId, patch = {}) {
       external_references_snapshot: externalReferencesSnapshot,
       external_operations: externalOperations,
       planned_actions: plannedActions,
+      fidelity_reasons: fidelityReasons,
+      fidelity_evidence: fidelityEvidence,
     },
   };
+  const searchRequestedBy = extractSearchRequestedBy(nextInputs);
+  const searchProvider = extractSearchProvider(nextInputs);
   const changes = withRetry(() =>
     db
-      .prepare("UPDATE runs SET inputs_json=?, updated_at=? WHERE tenant_id=? AND id=?")
-      .run(JSON.stringify(nextInputs), nowIso(), DEFAULT_TENANT, runId).changes
+      .prepare("UPDATE runs SET inputs_json=?, search_requested_by=?, search_provider=?, updated_at=? WHERE tenant_id=? AND id=?")
+      .run(JSON.stringify(nextInputs), searchRequestedBy || null, searchProvider || null, nowIso(), DEFAULT_TENANT, runId).changes
   );
   return changes > 0;
 }
@@ -1222,12 +1648,14 @@ module.exports = {
   normalizeExternalReferencesSnapshot,
   ensureRunExternalReferencesSnapshot,
   ensureRunExternalOperations,
+  buildExternalAuditView,
   appendRunExternalOperation,
   patchRunInputs,
   hashConfirmToken,
   ensureRunPlannedActions,
   appendRunPlannedAction,
   confirmRunPlannedAction,
+  extractRetryMetadata,
   toPublicRunId,
   parseRunIdInput,
   claimNextQueuedRun,

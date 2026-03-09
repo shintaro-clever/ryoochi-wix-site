@@ -20,6 +20,7 @@ const {
 } = require("../api/runs");
 const { loadProjectSharedContext } = require("../server/projectSharedContext");
 const { buildConnectionContext, normalizeFilePaths } = require("../server/connectionContext");
+const { buildFidelityEnvironmentContext } = require("../server/fidelityEnvironment");
 
 const runJobScript = path.join(__dirname, "..", "..", "scripts", "run-job.js");
 const PROJECT_RUN_JOB_TYPE = "integration_hub.phase2.project_run";
@@ -37,8 +38,11 @@ function writeTempJobFile(jobPayload) {
 
 function resolveProjectRunTargetPath(inputsJson, runId) {
   const rawTarget = typeof inputsJson?.target_path === "string" ? inputsJson.target_path.trim() : "";
-  if (rawTarget && rawTarget.startsWith(".ai-runs/")) {
-    return rawTarget;
+  if (rawTarget) {
+    const normalized = path.normalize(rawTarget).replace(/\\/g, "/");
+    if (normalized.startsWith(".ai-runs/")) {
+      return normalized;
+    }
   }
   const template = ".ai-runs/{{run_id}}/project_run.json";
   if (!runId) {
@@ -204,9 +208,10 @@ function buildProjectJob(projectId, inputs) {
   const payload = typeof inputs === "object" && inputs !== null ? inputs : {};
   const hasPageUrl = typeof payload.page_url === "string" && payload.page_url.trim().length > 0;
   const rawTarget = typeof payload.target_path === "string" ? payload.target_path.trim() : "";
+  const normalizedTarget = rawTarget ? path.normalize(rawTarget).replace(/\\/g, "/") : "";
   const targetPath =
-    rawTarget && rawTarget.startsWith(".ai-runs/")
-      ? rawTarget
+    normalizedTarget && normalizedTarget.startsWith(".ai-runs/")
+      ? normalizedTarget
       : ".ai-runs/{{run_id}}/project_run.json";
   const message =
     typeof payload.message === "string" && payload.message.trim().length > 0
@@ -239,8 +244,8 @@ function buildProjectJob(projectId, inputs) {
       inputs: {
         ...jobInputs,
         target_path:
-          rawTarget && rawTarget.startsWith(".ai-runs/")
-            ? rawTarget
+          normalizedTarget && normalizedTarget.startsWith(".ai-runs/")
+            ? normalizedTarget
             : ".ai-runs/{{run_id}}/code_to_figma_report.json",
       },
       constraints: {
@@ -463,12 +468,25 @@ async function handleProjectRunsPost(req, res, db, projectId) {
       reason: error.reason || null,
     });
   }
+  let fidelityEnvironment;
+  try {
+    fidelityEnvironment = buildFidelityEnvironmentContext({
+      body,
+      inputs: baseValidation.normalized,
+      sharedEnvironment: sharedContext.shared_environment,
+    });
+  } catch (error) {
+    return jsonError(res, error.status || 400, error.code || "VALIDATION_ERROR", error.message || "入力が不正です", {
+      failure_code: error.failure_code || "validation_error",
+    });
+  }
 
   const inputsJson = {
     ...baseValidation.normalized,
     ...(sharedContext.publicProjectId ? { project_id: sharedContext.publicProjectId } : {}),
     shared_environment: sharedContext.shared_environment,
     connection_context: connectionContext,
+    fidelity_environment: fidelityEnvironment,
   };
   const runId = createRun(db, projectId, inputsJson);
   const jobPayload = buildProjectJob(projectId, inputsJson);

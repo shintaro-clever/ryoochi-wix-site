@@ -41,10 +41,13 @@
     try {
       const res = await fetch("/ui/partials/sidebar.html", { cache: "no-store" });
       if (!res.ok) throw new Error("sidebar fetch failed");
-      root.innerHTML = await res.text();
-      applyActiveState(root);
+      const tmp = document.createElement("div");
+      tmp.innerHTML = await res.text();
+      const aside = tmp.firstElementChild;
+      if (!aside) throw new Error("sidebar partial is empty");
+      root.replaceWith(aside);
+      applyActiveState(aside);
     } catch (error) {
-      root.innerHTML = "";
       console.error("Failed to mount sidebar", error);
     }
   }

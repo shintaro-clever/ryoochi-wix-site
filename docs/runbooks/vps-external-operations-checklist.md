@@ -3,6 +3,7 @@
 ## Purpose
 - VPS反映後に、外部操作フェーズ（GitHub/Figma read/write）が安全に動作することを確認する。
 - 対象: Workspace / chat orchestration / Run / external integrations。
+- Phase3 Workspace 運用機能（search/history/metrics/retry/export）の確認は `docs/runbooks/vps-workspace-phase3-checklist.md` を併用する。
 
 ## Preconditions
 1. `bin/vps 'echo connected'` で接続確認する。
@@ -44,6 +45,7 @@
    - `safety >= 95`
    - `score_total >= 95`
 3. いずれか未達の場合は不合格として運用投入を止める。
+4. `localhost / staging / production` の比較と切り分けは `docs/runbooks/fidelity-hardening-operations.md` に従う。
 
 ### 7. Failure handling (rollback / retry)
 1. 失敗時は failure_code / reason を Run で確認する。

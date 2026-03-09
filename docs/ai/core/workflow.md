@@ -92,12 +92,184 @@ The goal is: PR → Issue → Figma → Decision must always be traceable.
 ### NEXT3-00 Next Phase Entry (SoT)
 - Phase2 完了後の次フェーズ3は、Workspace の実運用強化（検索 / 履歴 / 可観測性 / 運用性改善）を対象とする。
 - これはフェーズ3の入口定義であり、フェーズ2の完了条件には含めない。
+- `search` の対象モデル SoT は `docs/ai/core/search-model.md` を正とする。
+- `history` の統合表示モデル SoT は `docs/ai/core/history-model.md` を正とする。
+- `observability` の主要指標 SoT は `docs/ai/core/observability-model.md` を正とする。
+- `operability` の許可アクション SoT は `docs/ai/core/operability-model.md` を正とする。
 - フェーズ3の着手順は次の順序に固定する。
   1. `search`（Run / external operations / audit を横断検索できる最小要件）
-  2. `history`（時系列の追跡と差分参照を安定化）
+  2. `history`（run / chat / operation / confirm を統合し、時系列の追跡と差分参照を安定化）
   3. `observability`（失敗分類・遅延・再試行判断に必要な可視化）
   4. `operability`（運用導線・手順・権限境界の改善）
+- フェーズ3の `history` で最低限扱う event 種別は次に固定する。
+  - `run.created`
+  - `run.status_changed`
+  - `read.plan_recorded`
+  - `write.plan_recorded`
+  - `confirm.executed`
+  - `external_operation.recorded`
+  - `audit.projected`
+- `history` は単なる message history ではなく、Phase2 で保存された `external_operations` / `external_audit` / Run 状態 / confirm 状態を横断する統合表示モデルとする。
+- `external_operations` は actual execution record の正本として維持し、`history` はその投影表示として扱う。
+- フェーズ3の `observability` で最低限扱う主要指標は次に固定する。
+  - `run counts`
+  - `queued / running / ok / failed / skipped`
+  - `confirm rate`
+  - `provider 別 operation counts`
+  - `failure_code distribution`
+  - `figma fidelity distribution`
+  - `duration median / p95`
+- ただし `observability` の主軸は Workspace 運用指標とし、`figma fidelity distribution` は参照指標として扱う。
+- fidelity score の詳細分析、reason taxonomy、before/after 差分深掘りは Phase4 の責務として `docs/ai/core/fidelity-model.md` 系へ委譲する。
+- フェーズ3の対象外:
+  - 複数AI接続・役割設定（role/profile/persona routing の拡張）
+  - Figma / GitHub 高度操作の新規拡張
+  - 完全自動同期（human approval を挟まない end-to-end 自動反映）
+- 上記の対象外は Deferred Track または post-Phase3 の別フェーズへ分離し、フェーズ3へ責務を逆流させない。
 - フェーズ3の詳細タスクは backlog で管理し、本節は順序と境界のみを SoT とする。
+
+### NEXT3-01 Phase3 Completion Criteria (SoT)
+Phase3 を完了とみなすための必須条件は次の 6 項目で固定する。いずれか 1 つでも未達なら完了扱いにしない。
+
+1. Search 固定
+- Workspace Search が `project/thread/run/message/external_operation/external_audit` を対象に動作すること。
+- `project/thread/provider/status/time range` の絞り込み、result link、secret-like mask が有効であること。
+
+2. History 固定
+- Workspace History が `run/chat/operation/confirm` を統合表示できること。
+- 最低 event 種別:
+  - `run.created`
+  - `run.status_changed`
+  - `read.plan_recorded`
+  - `write.plan_recorded`
+  - `confirm.executed`
+  - `external_operation.recorded`
+  - `audit.projected`
+- day grouping または run summary により長い履歴でも可読性を保てること。
+
+3. Observability / Operability 固定
+- Workspace Observability で最低限次を表示できること:
+  - `run counts`
+  - `queued/running/ok/failed/skipped`
+  - `confirm rate`
+  - `provider 別 operation counts`
+  - `failure_code distribution`
+  - `figma fidelity distribution`
+  - `duration median/p95`
+- Workspace Operability で最低限次を安全に実行できること:
+  - `retry read-only`
+  - `retry failed run`
+  - `refresh`
+  - `export`
+- confirm 必須 write を operability から無断再実行しないこと。
+
+4. Export / Mask 固定
+- `search/history/audit/metrics` を CSV / JSON で export できること。
+- 列順と shape が固定されていること。
+- `confirm_token`, `confirm_token_hash`, `secret_id` 解決値、生 credential, secret-like 値が露出しないこと。
+
+5. Selftest 固定
+- Phase3 の主要ケースが selftest に登録され継続実行されること。
+- 最低限の対象:
+  - search
+  - history
+  - metrics
+  - retry
+  - export
+  - mask
+- Phase3 単独 runner で主要フローを通せること。
+
+6. VPS / Runbook 固定
+- VPS 反映後確認の手順が runbook 化されていること。
+- `search -> history -> observability(metrics) -> retry -> export` の順で確認できること。
+- 期待結果、失敗時確認点、ロールバック観点が文書化されていること。
+
+### NEXT3-02 Phase3 Non-Completion Items (SoT)
+- 次の項目は Phase3 完了条件に含めない。
+  - 複数AI接続
+  - role/profile/persona routing などの役割設定拡張
+  - 新たな Figma / GitHub 高度操作の追加拡張
+  - human approval を挟まない完全自動同期
+- これらは Deferred Track または post-Phase3 の別フェーズへ分離し、Phase3 完了判定へ逆流させない。
+
+### NEXT4-00 Phase4 Fidelity Hardening Entry (SoT)
+- Phase4 は **Phase3 完了後にのみ** 着手する。
+- Phase4 は Fidelity Hardening 専用フェーズとして固定し、目的を **Figma / コード / 本番環境の三者一致率の強化** に限定する。
+- Phase4 では、既存実装と運用導線の再現度向上・差分縮小・検証精度向上を扱う。
+- 一致判定は 4軸（`構造差分` / `視覚差分` / `挙動差分` / `実行差分`）で固定し、最低必須項目は `docs/ai/core/fidelity-model.md` を SoT とする。
+- Design Token の SoT（`color` / `spacing` / `radius` / `shadow` / `typography` / `breakpoint`）は `docs/design-system/tokens.md` を正とし、Figma変数名とコード側token名の対応および未対応tokenの可視化を必須とする。
+- Phase4 の実施順は次に固定する（比較器先行で判定/修正導線が後追いになることを防ぐため）。
+  1. 判定モデル固定（4軸の最低必須項目、配点、合格閾値、失格条件）
+  2. 証跡入力固定（Figma target / 環境条件 / capture条件を Run に固定保存）
+  3. 差分算出（構造/視覚/挙動/実行）
+  4. 総合判定（最終スコア、pass/fail、failure_code、主要理由分類）
+  5. 修正導線生成（どの軸のどの項目を直すかを actionable に返す）
+- Phase4 の対象外:
+  - 複数AI役割設計の再拡張（role/profile/persona routing の再設計）
+  - Fidelity Hardening と無関係な新機能追加
+  - 大規模UX刷新（全面的な情報設計・画面構成の作り直し）
+- Phase4 の詳細タスクは backlog (`backlog/phase4-fidelity-hardening.md`) で管理し、本節は目的・着手条件・対象外のみを SoT とする。
+
+### NEXT4-01 Phase4 Completion Criteria (SoT)
+Phase4 を完了とみなすための必須条件は次の 8 項目で固定する。いずれか 1 つでも未達なら完了扱いにしない。
+
+1. SoT 固定
+- 判定モデル、理由分類、環境比較、運用手順の SoT が文書化され、相互参照できること。
+- 最低限の参照先:
+  - `docs/ai/core/fidelity-model.md`
+  - `docs/ai/core/fidelity-reasons.md`
+  - `docs/ai/core/fidelity-scoring-phase4.md`
+  - `docs/operations/fidelity-environments.md`
+  - `docs/runbooks/fidelity-hardening-operations.md`
+
+2. 比較固定
+- `localhost / staging / production` の比較手順が固定され、Run に比較条件を保存できること。
+- `inputs.fidelity_environment` と `context_used.fidelity_environment` の両方に保存されること。
+
+3. スコア固定
+- 4軸（構造 / 視覚 / 挙動 / 実行）と最終スコアが算出されること。
+- `phase4_score.final_score` と `fidelity_score` のどちらから見ても最終判定が追えること。
+- 完了条件として、標準運用の受け入れラインは `final_score >= 95` を基準値とする。
+
+4. 理由分類固定
+- 差分理由が taxonomy に沿って `reason_type` へ分類されること。
+- `fidelity_reasons.counts.by_type` を集計可能であること。
+
+5. Run 証跡固定
+- Run に次が保存されること:
+  - target
+  - environment
+  - capture
+  - diff
+  - score
+  - reasons
+  - before/after または比較 artifact
+- 最低限 `inputs.*` と `context_used.*` の双方から追跡できること。
+
+6. UI 固定
+- operator UI で最低限次を表示できること:
+  - 平均総合スコア
+  - 95点未満率
+  - 差分理由上位
+  - 環境別失敗率
+  - コンポーネント別失敗率
+  - 最近の失敗
+  - before / after 比較導線
+
+7. selftest 固定
+- Phase4 の主要ケースが `scripts/selftest.js` に登録され、継続実行されること。
+- 最低限の対象:
+  - 構造差分
+  - 視覚差分
+  - 挙動差分
+  - 実行差分
+  - 理由分類
+  - Run 保存
+  - 主要 UI 表示
+
+8. VPS / 本番確認固定
+- VPS 反映と本番比較の確認手順が runbook 化されていること。
+- `docs/runbooks/vps-external-operations-checklist.md` と `docs/runbooks/fidelity-hardening-operations.md` に従って確認できること。
 
 ### NEXT1-00 Deferred Track (SoT)
 - 複数AI接続と役割設定（AI routing 高度化）は、次フェーズ1の後順位トラックとして維持する。

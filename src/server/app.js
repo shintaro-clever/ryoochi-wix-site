@@ -44,20 +44,12 @@ const {
 } = require('../api/personalAiSettings');
 const { loadProjectSharedContext } = require('./projectSharedContext');
 const { buildConnectionContext, normalizeFilePaths } = require('./connectionContext');
+const { buildFidelityEnvironmentContext } = require('./fidelityEnvironment');
 const { processChatTurnWithLocalStub } = require('./chatStub');
 
 const ROOT_DIR = path.join(__dirname, '..', '..');
 const distDir = path.join(ROOT_DIR, 'apps', 'hub', 'dist');
 const staticDir = path.join(ROOT_DIR, 'apps', 'hub', 'static');
-const staticJobs = path.join(staticDir, 'jobs.html');
-const staticConnections = path.join(staticDir, 'connections.html');
-const staticConnectors = path.join(staticDir, 'connectors.html');
-const staticConnectorDetail = path.join(staticDir, 'connector-detail.html');
-const staticAccount = path.join(staticDir, 'account.html');
-const staticChat = path.join(staticDir, 'chat.html');
-const staticProjects = path.join(staticDir, 'projects.html');
-const staticRunsList = path.join(staticDir, 'runs.html');
-const staticRunDetail = path.join(staticDir, 'run.html');
 const STATIC_ROUTE_PREFIX = '/static';
 const RUNS_DIR = path.join(ROOT_DIR, '.ai-runs');
 const scriptsDir = path.join(ROOT_DIR, 'scripts');
@@ -148,62 +140,6 @@ function tryServeStaticRoute(urlPath, res, method) {
   return tryServeStatic(staticDir, relative, res, method);
 }
 
-function resolveJobsPath() {
-  if (fileExists(staticJobs)) {
-    return staticJobs;
-  }
-  const distIndex = path.join(distDir, 'index.html');
-  if (fileExists(distIndex)) {
-    return distIndex;
-  }
-  return null;
-}
-
-function handleJobs(res, method) {
-  const jobsPath = resolveJobsPath();
-  if (jobsPath) {
-    serveFile(res, jobsPath, method);
-    return;
-  }
-  res.writeHead(500, { 'Content-Type': 'text/plain' });
-  res.end('Missing Hub UI (fallback not found)');
-}
-
-function handleConnectionsPage(res, method) {
-  if (fileExists(staticConnections)) {
-    serveFile(res, staticConnections, method);
-    return;
-  }
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
-  res.end('Connections UI not found');
-}
-
-function handleConnectorsPage(res, method) {
-  if (fileExists(staticConnectors)) {
-    serveFile(res, staticConnectors, method);
-    return;
-  }
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
-  res.end('Connectors UI not found');
-}
-
-function handleConnectorDetailPage(res, method) {
-  if (fileExists(staticConnectorDetail)) {
-    serveFile(res, staticConnectorDetail, method);
-    return;
-  }
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
-  res.end('Connector detail UI not found');
-}
-
-function handleProjectsPage(res, method) {
-  if (fileExists(staticProjects)) {
-    serveFile(res, staticProjects, method);
-    return;
-  }
-  res.writeHead(404, { 'Content-Type': 'text/plain' });
-  res.end('Projects UI not found');
-}
 function computeConnectorStatus(providerKey, connections, updatedAt) {
   let configured = false;
   switch (providerKey) {
@@ -991,7 +927,8 @@ async function handleRequest(req, res) {
   }
   const isGetLikeMethod = method === 'GET' || method === 'HEAD';
   if (isGetLikeMethod && (urlPath === '/jobs' || urlPath === '/jobs/')) {
-    handleJobs(res, method);
+    res.writeHead(302, { Location: '/ui/jobs.html' });
+    res.end();
     return;
   }
   if (method === 'GET' && urlPath === '/healthz') {
@@ -1000,11 +937,13 @@ async function handleRequest(req, res) {
     return;
   }
   if (isGetLikeMethod && (urlPath === '/connections' || urlPath === '/connections/')) {
-    handleConnectionsPage(res, method);
+    res.writeHead(302, { Location: '/ui/connections.html' });
+    res.end();
     return;
   }
   if (isGetLikeMethod && (urlPath === '/connectors' || urlPath === '/connectors/')) {
-    handleConnectorsPage(res, method);
+    res.writeHead(302, { Location: '/ui/connections.html' });
+    res.end();
     return;
   }
   if (
@@ -1012,26 +951,19 @@ async function handleRequest(req, res) {
     urlPath.startsWith('/connectors/') &&
     urlPath.split('/').filter(Boolean).length === 2
   ) {
-    handleConnectorDetailPage(res, method);
+    res.writeHead(302, { Location: '/ui/connection.html' });
+    res.end();
     return;
   }
   if (isGetLikeMethod && (urlPath === '/runs' || urlPath === '/runs/')) {
-    if (fileExists(staticRunsList)) {
-      serveFile(res, staticRunsList, method);
-    } else {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Runs UI not found');
-    }
+    res.writeHead(302, { Location: '/ui/runs.html' });
+    res.end();
     return;
   }
   if (segments[0] === 'runs') {
     if (segments.length === 2 && isGetLikeMethod) {
-      if (fileExists(staticRunDetail)) {
-        serveFile(res, staticRunDetail, method);
-      } else {
-        res.writeHead(404, { 'Content-Type': 'text/plain' });
-        res.end('Run detail UI not found');
-      }
+      res.writeHead(302, { Location: `/ui/run.html?run_id=${encodeURIComponent(segments[1])}` });
+      res.end();
       return;
     }
     if (segments.length === 3 && segments[2] === 'artifact' && isGetLikeMethod) {
@@ -1042,29 +974,23 @@ async function handleRequest(req, res) {
     }
   }
   if (isGetLikeMethod && (urlPath === '/account' || urlPath === '/account/')) {
-    if (fileExists(staticAccount)) {
-      serveFile(res, staticAccount, method);
-    } else {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Account UI not found');
-    }
+    res.writeHead(302, { Location: '/ui/settings.html' });
+    res.end();
     return;
   }
   if (isGetLikeMethod && (urlPath === '/chat' || urlPath === '/chat/')) {
-    if (fileExists(staticChat)) {
-      serveFile(res, staticChat, method);
-    } else {
-      res.writeHead(404, { 'Content-Type': 'text/plain' });
-      res.end('Chat UI not found');
-    }
+    res.writeHead(302, { Location: '/ui/dashboard.html' });
+    res.end();
     return;
   }
   if (isGetLikeMethod && (urlPath === '/projects' || urlPath === '/projects/')) {
-    handleProjectsPage(res, method);
+    res.writeHead(302, { Location: '/ui/projects.html' });
+    res.end();
     return;
   }
   if (isGetLikeMethod && urlPath.startsWith('/projects/') && urlPath.split('/').filter(Boolean).length === 2) {
-    handleProjectsPage(res, method);
+    res.writeHead(302, { Location: `/ui/project.html?project_id=${encodeURIComponent(segments[1])}` });
+    res.end();
     return;
   }
   if (urlPath === '/api/connections') {
@@ -1449,6 +1375,10 @@ async function handleRequest(req, res) {
             figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
             figmaWritableScope: typeof body.figma_writable_scope === 'string' ? body.figma_writable_scope.trim() : '',
           }),
+          fidelity_environment: buildFidelityEnvironmentContext({
+            body,
+            sharedEnvironment: sharedContext.shared_environment,
+          }),
         },
         target_path: '.ai-runs/{{run_id}}/workspace_chat.json',
       });
@@ -1555,6 +1485,10 @@ async function handleRequest(req, res) {
             figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
             figmaWritableScope: typeof body.figma_writable_scope === 'string' ? body.figma_writable_scope.trim() : '',
           }),
+          fidelity_environment: buildFidelityEnvironmentContext({
+            body,
+            sharedEnvironment: sharedContext.shared_environment,
+          }),
         },
         target_path: '.ai-runs/{{run_id}}/workspace_chat.json',
       });
@@ -1643,7 +1577,7 @@ async function handleRequest(req, res) {
     return;
   }
   if (isGetLikeMethod && urlPath === '/') {
-    res.writeHead(302, { Location: '/jobs' });
+    res.writeHead(302, { Location: '/ui/dashboard.html' });
     res.end();
     return;
   }

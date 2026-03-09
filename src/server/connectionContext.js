@@ -430,6 +430,24 @@ async function buildFigmaConnectionContext({
       frame_name: selection.frame.name || "",
       node_ids: selection.nodeIds,
     },
+    comparison_target: {
+      id:
+        selection.nodeIds.length > 0
+          ? `node:${selection.nodeIds.slice().sort().join(",")}`
+          : selection.frame.id
+            ? `frame:${selection.frame.id}`
+            : selection.page.id
+              ? `page:${selection.page.id}`
+              : "file:*",
+      mode:
+        selection.nodeIds.length > 0
+          ? "node"
+          : selection.frame.id
+            ? "frame"
+            : selection.page.id
+              ? "page"
+              : "file",
+    },
     target_selection_source: selection.source,
     writable_scope: selection.writableScope || "",
     write_guard: buildFigmaWriteGuard({
@@ -478,6 +496,17 @@ async function buildFigmaConnectionContext({
       file_key: read.file_key || base.file_key || "",
       last_modified: read.file?.last_modified || "",
       target: resolvedTarget,
+      comparison_target:
+        read.target_resolution?.comparison_target && typeof read.target_resolution.comparison_target === "object"
+          ? {
+              id: typeof read.target_resolution.comparison_target.id === "string"
+                ? read.target_resolution.comparison_target.id
+                : base.comparison_target.id,
+              mode: typeof read.target_resolution.comparison_target.mode === "string"
+                ? read.target_resolution.comparison_target.mode
+                : base.comparison_target.mode,
+            }
+          : base.comparison_target,
       write_guard: buildFigmaWriteGuard({ writableScope: selection.writableScope || "", target: resolvedTarget }),
       node_summaries: summarizeFigmaNodes(read.nodes),
       layout_summary: {

@@ -1,7 +1,7 @@
 module.exports = {
   apps: [
     {
-      name: "integration-hub",
+      name: "integration-hub-web",
       script: "server.js",
       cwd: "/srv/integration-hub",
       env: {

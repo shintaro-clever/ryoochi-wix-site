@@ -4,6 +4,7 @@ const { validateRunInputs } = require("../../validation/runInputs");
 const { DEFAULT_TENANT } = require("../../db/sqlite");
 const { loadProjectSharedContext } = require("../projectSharedContext");
 const { buildConnectionContext, normalizeFilePaths } = require("../connectionContext");
+const { buildFidelityEnvironmentContext } = require("../fidelityEnvironment");
 
 async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
   const method = (req.method || "GET").toUpperCase();
@@ -114,6 +115,18 @@ async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
       reason: error.reason || null,
     });
   }
+  let fidelityEnvironment;
+  try {
+    fidelityEnvironment = buildFidelityEnvironmentContext({
+      body,
+      inputs,
+      sharedEnvironment: sharedContext.shared_environment,
+    });
+  } catch (error) {
+    return jsonError(res, error.status || 400, error.code || "VALIDATION_ERROR", error.message || "入力が不正です", {
+      failure_code: error.failure_code || "validation_error",
+    });
+  }
   const runId = createRun(db, {
     job_type: jobType,
     run_mode: runMode,
@@ -124,6 +137,7 @@ async function handleRunsCollection(req, res, db, { onRunQueued } = {}) {
       ...(sharedContext.publicProjectId ? { project_id: sharedContext.publicProjectId } : {}),
       shared_environment: sharedContext.shared_environment,
       connection_context: connectionContext,
+      fidelity_environment: fidelityEnvironment,
     },
     project_id: sharedContext.internalProjectId || validation.normalized.project_id || null,
     thread_id:

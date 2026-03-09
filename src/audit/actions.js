@@ -22,4 +22,7 @@ module.exports = Object.freeze({
   // Artifacts
   ARTIFACT_CREATE: "artifact_create",
   ARTIFACT_DELETE: "artifact_delete",
+
+  // Workspace
+  WORKSPACE_SEARCH: "workspace.search",
 });

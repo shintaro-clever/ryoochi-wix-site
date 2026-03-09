@@ -41,6 +41,16 @@ const { handleGithubRead } = require("./routes/githubRead");
 const { handleFigmaRead } = require("./routes/figmaRead");
 const { handleFigmaWritePlan } = require("./routes/figmaWritePlan");
 const { handleFigmaWrite } = require("./routes/figmaWrite");
+const { handleCaptureScreenshot } = require("./routes/capture");
+const { handleBehaviorDiff } = require("./routes/behaviorDiff");
+const { handleExecutionDiff } = require("./routes/executionDiff");
+const { handleCorrectiveActionPlan } = require("./routes/correctiveActionPlan");
+const { handleCorrectiveActionWritePlan } = require("./routes/correctiveActionWritePlan");
+const { handleWorkspaceSearch } = require("./routes/workspaceSearch");
+const { handleHistory } = require("./routes/history");
+const { handleWorkspaceMetrics } = require("./routes/workspaceMetrics");
+const { handleWorkspaceExport } = require("./routes/workspaceExport");
+const { handleRunRetry } = require("./routes/runRetry");
 const { processChatTurnWithLocalStub } = require("./chatStub");
 const { buildExternalReadPlan, buildChatAssistantGuardMessage } = require("./chatReadPlan");
 const { planChatWrite, confirmChatWrite } = require("./chatWriteOrchestration");
@@ -78,6 +88,9 @@ const {
 } = require("../api/personalAiSettings");
 const { loadProjectSharedContext } = require("./projectSharedContext");
 const { buildConnectionContext, normalizeFilePaths } = require("./connectionContext");
+const { buildFidelityEnvironmentContext } = require("./fidelityEnvironment");
+const { buildProjectFidelityMetrics } = require("./fidelityMetrics");
+const { SEARCH_MODEL } = require("../db/searchModel");
 
 const ROOT_DIR = path.join(__dirname, "..", "..");
 const RUNS_DIR = path.join(ROOT_DIR, ".ai-runs");
@@ -663,6 +676,36 @@ function createApiServer(dbConn) {
       if (urlPath === "/api/figma/write") {
         return handleFigmaWrite(req, res, db);
       }
+      if (urlPath === "/api/capture/screenshot") {
+        return handleCaptureScreenshot(req, res, db);
+      }
+      if (urlPath === "/api/fidelity/behavior-diff") {
+        return handleBehaviorDiff(req, res, db);
+      }
+      if (urlPath === "/api/fidelity/execution-diff") {
+        return handleExecutionDiff(req, res, db);
+      }
+      if (urlPath === "/api/fidelity/corrective-action-plan") {
+        return handleCorrectiveActionPlan(req, res, db);
+      }
+      if (urlPath === "/api/fidelity/corrective-action-write-plan") {
+        return handleCorrectiveActionWritePlan(req, res, db);
+      }
+      if (urlPath === "/api/search/model") {
+        return sendJson(res, 200, SEARCH_MODEL);
+      }
+      if (urlPath === "/api/workspace/search") {
+        return handleWorkspaceSearch(req, res, db);
+      }
+      if (urlPath === "/api/history") {
+        return handleHistory(req, res, db);
+      }
+      if (urlPath === "/api/metrics/workspace") {
+        return handleWorkspaceMetrics(req, res, db);
+      }
+      if (urlPath === "/api/exports/workspace") {
+        return handleWorkspaceExport(req, res, db);
+      }
 
       if (urlPath === "/api/connectors") {
         if (method !== "GET") {
@@ -884,6 +927,15 @@ function createApiServer(dbConn) {
           },
         });
       }
+      if (method === "POST" && /^\/api\/runs\/[^/]+\/retry$/.test(urlPath)) {
+        return handleRunRetry(req, res, db, {
+          onRunQueued: () => {
+            if (inlineRunner) {
+              inlineRunner.kick();
+            }
+          },
+        });
+      }
       if (method === "GET" && /^\/api\/runs\/[^/]+$/.test(urlPath)) {
         const runIdInput = urlPath.split("/").filter(Boolean)[2];
         const parsedRunId = parseRunIdInput(runIdInput);
@@ -915,7 +967,12 @@ function createApiServer(dbConn) {
             return jsonError(res, projectRef.status, projectRef.code, projectRef.message, projectRef.details);
           }
           if (!projectRef.item) return jsonError(res, 404, "NOT_FOUND", "project not found", { failure_code: "not_found" });
-          return sendJson(res, 200, { project_id: publicProjectId, runs: mapRunsWithPublicProjectId(listRunsByProject(db, internalProjectId)) });
+          const runs = mapRunsWithPublicProjectId(listRunsByProject(db, internalProjectId));
+          return sendJson(res, 200, {
+            project_id: publicProjectId,
+            runs,
+            fidelity_metrics: buildProjectFidelityMetrics(runs),
+          });
         }
         if (method === "POST") {
           return await handleProjectRunsPost(req, res, db, internalProjectId);
@@ -1070,6 +1127,10 @@ function createApiServer(dbConn) {
             figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
             figmaWritableScope: typeof body.figma_writable_scope === "string" ? body.figma_writable_scope.trim() : "",
           });
+          const fidelityEnvironment = buildFidelityEnvironmentContext({
+            body,
+            sharedEnvironment: sharedContext.shared_environment,
+          });
           const externalReadPlan = buildExternalReadPlan({
             content,
             body,
@@ -1092,6 +1153,7 @@ function createApiServer(dbConn) {
               content,
               shared_environment: sharedContext.shared_environment,
               connection_context: connectionContext,
+              fidelity_environment: fidelityEnvironment,
               external_read_plan: externalReadPlan,
             },
             target_path: ".ai-runs/{{run_id}}/workspace_chat.json",
@@ -1244,6 +1306,10 @@ function createApiServer(dbConn) {
             figmaNodeIds: Array.isArray(body.figma_node_ids) ? body.figma_node_ids : [],
             figmaWritableScope: typeof body.figma_writable_scope === "string" ? body.figma_writable_scope.trim() : "",
           });
+          const fidelityEnvironment = buildFidelityEnvironmentContext({
+            body,
+            sharedEnvironment: sharedContext.shared_environment,
+          });
           const externalReadPlan = buildExternalReadPlan({
             content,
             body,
@@ -1264,6 +1330,7 @@ function createApiServer(dbConn) {
               content,
               shared_environment: sharedContext.shared_environment,
               connection_context: connectionContext,
+              fidelity_environment: fidelityEnvironment,
               external_read_plan: externalReadPlan,
             },
             target_path: ".ai-runs/{{run_id}}/workspace_chat.json",

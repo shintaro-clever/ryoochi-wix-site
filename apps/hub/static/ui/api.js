@@ -26,14 +26,26 @@ function normalizeApiPath(path) {
 
 async function fetchJson(url) {
   const res = await fetch(url, { headers: { Accept: "application/json" } });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
+  let payload = null;
   try {
-    return await res.json();
+    payload = await res.json();
   } catch (_) {
+    payload = null;
+  }
+  if (!res.ok) {
+    const error = new Error(
+      (payload && (payload.message || payload.error)) || `HTTP ${res.status}`
+    );
+    error.status = res.status;
+    error.code = payload && payload.code ? payload.code : "";
+    error.details = payload && payload.details ? payload.details : null;
+    error.payload = payload;
+    throw error;
+  }
+  if (payload === null) {
     throw new Error("Invalid JSON");
   }
+  return payload;
 }
 
 async function loadDict(lang) {
@@ -64,14 +76,60 @@ export async function apiPost(path, payload = {}) {
     },
     body: JSON.stringify(payload || {}),
   });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
+  let result = null;
   try {
-    return await res.json();
+    result = await res.json();
   } catch (_) {
-    throw new Error("Invalid JSON");
+    result = null;
   }
+  if (!res.ok) {
+    const error = new Error(
+      (result && (result.message || result.error)) || `HTTP ${res.status}`
+    );
+    error.status = res.status;
+    error.code = result && result.code ? result.code : "";
+    error.details = result && result.details ? result.details : null;
+    error.payload = result;
+    throw error;
+  }
+  if (result === null) throw new Error("Invalid JSON");
+  return result;
+}
+
+export async function apiPostDownload(path, payload = {}) {
+  const url = normalizeApiPath(path);
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json, text/csv",
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload || {}),
+  });
+  if (!res.ok) {
+    let result = null;
+    try {
+      result = await res.json();
+    } catch (_) {
+      result = null;
+    }
+    const error = new Error(
+      (result && (result.message || result.error)) || `HTTP ${res.status}`
+    );
+    error.status = res.status;
+    error.code = result && result.code ? result.code : "";
+    error.details = result && result.details ? result.details : null;
+    error.payload = result;
+    throw error;
+  }
+  const blob = await res.blob();
+  const disposition = res.headers.get("content-disposition") || "";
+  const match = disposition.match(/filename=\"?([^\";]+)\"?/i);
+  return {
+    blob,
+    filename: match && match[1] ? match[1] : "export.dat",
+    contentType: res.headers.get("content-type") || "",
+  };
 }
 
 export async function apiPut(path, payload = {}) {
@@ -84,14 +142,24 @@ export async function apiPut(path, payload = {}) {
     },
     body: JSON.stringify(payload || {}),
   });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
+  let result = null;
   try {
-    return await res.json();
+    result = await res.json();
   } catch (_) {
-    throw new Error("Invalid JSON");
+    result = null;
   }
+  if (!res.ok) {
+    const error = new Error(
+      (result && (result.message || result.error)) || `HTTP ${res.status}`
+    );
+    error.status = res.status;
+    error.code = result && result.code ? result.code : "";
+    error.details = result && result.details ? result.details : null;
+    error.payload = result;
+    throw error;
+  }
+  if (result === null) throw new Error("Invalid JSON");
+  return result;
 }
 
 export async function apiPatch(path, payload = {}) {
@@ -104,14 +172,24 @@ export async function apiPatch(path, payload = {}) {
     },
     body: JSON.stringify(payload || {}),
   });
-  if (!res.ok) {
-    throw new Error(`HTTP ${res.status}`);
-  }
+  let result = null;
   try {
-    return await res.json();
+    result = await res.json();
   } catch (_) {
-    throw new Error("Invalid JSON");
+    result = null;
   }
+  if (!res.ok) {
+    const error = new Error(
+      (result && (result.message || result.error)) || `HTTP ${res.status}`
+    );
+    error.status = res.status;
+    error.code = result && result.code ? result.code : "";
+    error.details = result && result.details ? result.details : null;
+    error.payload = result;
+    throw error;
+  }
+  if (result === null) throw new Error("Invalid JSON");
+  return result;
 }
 
 export function isPrefixedId(kind, value) {

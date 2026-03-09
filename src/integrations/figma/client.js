@@ -28,6 +28,9 @@ function resolveFigmaToken(secretId) {
     if (!envName) {
       throw validationError("figma_secret_id env reference is invalid");
     }
+    if (!/^[A-Za-z_][A-Za-z0-9_]{0,99}$/.test(envName)) {
+      throw validationError("figma_secret_id env reference name is invalid");
+    }
     const value = typeof process.env[envName] === "string" ? process.env[envName].trim() : "";
     if (!value) {
       throw validationError(`figma secret env is missing: ${envName}`);
@@ -155,8 +158,9 @@ function buildTreeIndexes(root) {
   const pages = [];
   const frames = [];
 
-  function walk(node, parentId = null, pageId = null) {
+  function walk(node, parentId = null, pageId = null, depth = 0) {
     if (!node || typeof node !== "object") return;
+    if (depth > 100) return;
     const id = typeof node.id === "string" ? node.id : "";
     const type = typeof node.type === "string" ? node.type : "";
     if (id) {
@@ -182,7 +186,7 @@ function buildTreeIndexes(root) {
     }
     const children = Array.isArray(node.children) ? node.children : [];
     for (const child of children) {
-      walk(child, id || null, pageId);
+      walk(child, id || null, pageId, depth + 1);
     }
   }
 
@@ -201,22 +205,94 @@ function findUniqueByName(list, name, entityName) {
   throw validationError(`${entityName}_name not found`);
 }
 
+function findNodePageId({ indexes, nodeId }) {
+  const text = typeof nodeId === "string" ? nodeId.trim() : "";
+  if (!text) return "";
+  let cursor = text;
+  const seen = new Set();
+  while (cursor && !seen.has(cursor)) {
+    seen.add(cursor);
+    const current = indexes.byId.get(cursor);
+    if (!current || typeof current !== "object") break;
+    if (current.type === "CANVAS") return cursor;
+    const parentId = indexes.parentById.get(cursor);
+    cursor = typeof parentId === "string" ? parentId : "";
+  }
+  return "";
+}
+
+function isNodeWithinAncestor({ indexes, nodeId, ancestorId }) {
+  const nodeText = typeof nodeId === "string" ? nodeId.trim() : "";
+  const ancestorText = typeof ancestorId === "string" ? ancestorId.trim() : "";
+  if (!nodeText || !ancestorText) return false;
+  let cursor = nodeText;
+  const seen = new Set();
+  while (cursor && !seen.has(cursor)) {
+    if (cursor === ancestorText) return true;
+    seen.add(cursor);
+    const parentId = indexes.parentById.get(cursor);
+    cursor = typeof parentId === "string" ? parentId : "";
+  }
+  return false;
+}
+
+function resolveComparisonTarget({ selectedNodeIds, resolvedFrame, resolvedPage }) {
+  if (selectedNodeIds.length > 0) {
+    return {
+      mode: "node",
+      id: `node:${selectedNodeIds.slice().sort().join(",")}`,
+    };
+  }
+  if (resolvedFrame && resolvedFrame.id) {
+    return {
+      mode: "frame",
+      id: `frame:${resolvedFrame.id}`,
+    };
+  }
+  if (resolvedPage && resolvedPage.id) {
+    return {
+      mode: "page",
+      id: `page:${resolvedPage.id}`,
+    };
+  }
+  return {
+    mode: "file",
+    id: "file:*",
+  };
+}
+
 function resolveTargets({ pages, frames, pageId, pageName, frameId, frameName, nodeIds, nodeId }) {
   const requestedPageId = typeof pageId === "string" ? pageId.trim() : "";
+  const requestedPageName = typeof pageName === "string" ? pageName.trim() : "";
   const requestedFrameId = typeof frameId === "string" ? frameId.trim() : "";
+  const requestedFrameName = typeof frameName === "string" ? frameName.trim() : "";
+  const requestedNodeId = typeof nodeId === "string" ? nodeId.trim() : "";
+  const hasNodeIdsArray = Array.isArray(nodeIds);
   const resolvedNodeIds = normalizeNodeIdList(
-    nodeIds !== undefined
+    hasNodeIdsArray
       ? nodeIds
-      : typeof nodeId === "string" && nodeId.trim()
-        ? [nodeId]
+      : requestedNodeId
+        ? [requestedNodeId]
         : []
   );
+  if (requestedPageId && requestedPageName) {
+    throw validationError("ambiguous target: page_id and page_name cannot be used together");
+  }
+  if (requestedFrameId && requestedFrameName) {
+    throw validationError("ambiguous target: frame_id and frame_name cannot be used together");
+  }
+  if (requestedNodeId && hasNodeIdsArray && normalizeNodeIdList(nodeIds).length > 0) {
+    throw validationError("ambiguous target: node_id and node_ids cannot be used together");
+  }
+  if (!requestedFrameId && requestedFrameName && !requestedPageId && !requestedPageName) {
+    throw validationError("frame_name requires page_id or page_name");
+  }
   let resolvedPage = null;
   if (requestedPageId) {
     resolvedPage = pages.find((item) => item.id === requestedPageId) || null;
     if (!resolvedPage) throw validationError("page_id not found");
-  } else if (typeof pageName === "string" && pageName.trim()) {
-    resolvedPage = findUniqueByName(pages, pageName, "page");
+  } else if (requestedPageName) {
+    resolvedPage = findUniqueByName(pages, requestedPageName, "page");
   }
 
   let resolvedFrame = null;
@@ -224,8 +300,8 @@ function resolveTargets({ pages, frames, pageId, pageName, frameId, frameName, n
   if (requestedFrameId) {
     resolvedFrame = frameCandidates.find((item) => item.id === requestedFrameId) || null;
     if (!resolvedFrame) throw validationError("frame_id not found");
-  } else if (typeof frameName === "string" && frameName.trim()) {
-    resolvedFrame = findUniqueByName(frameCandidates, frameName, "frame");
+  } else if (requestedFrameName) {
+    resolvedFrame = findUniqueByName(frameCandidates, requestedFrameName, "frame");
   }
 
   return { resolvedPage, resolvedFrame, resolvedNodeIds };
@@ -234,15 +310,16 @@ function resolveTargets({ pages, frames, pageId, pageName, frameId, frameName, n
 function collectSubtreeNodeIds(rootNode) {
   const ids = [];
   const seen = new Set();
-  function walk(node) {
+  function walk(node, depth = 0) {
     if (!node || typeof node !== "object") return;
+    if (depth > 100) return;
     const id = typeof node.id === "string" ? node.id : "";
     if (id && !seen.has(id)) {
       seen.add(id);
       ids.push(id);
     }
     const children = Array.isArray(node.children) ? node.children : [];
-    for (const child of children) walk(child);
+    for (const child of children) walk(child, depth + 1);
   }
   walk(rootNode);
   return ids;
@@ -354,7 +431,7 @@ async function readFigmaFile({
   }
 
   const indexes = buildTreeIndexes(root);
-  const { resolvedPage, resolvedFrame, resolvedNodeIds } = resolveTargets({
+  let { resolvedPage, resolvedFrame, resolvedNodeIds } = resolveTargets({
     pages: indexes.pages,
     frames: indexes.frames,
     pageId,
@@ -416,6 +493,50 @@ async function readFigmaFile({
     throw integrationError("figma node not found", { status: 404, reason: "not_found" });
   }
 
+  if (!resolvedPage && resolvedFrame && resolvedFrame.page_id) {
+    resolvedPage = indexes.pages.find((item) => item.id === resolvedFrame.page_id) || null;
+  }
+
+  if (resolvedNodeIds.length > 0) {
+    if (resolvedPage && resolvedPage.id) {
+      const outOfPageNodeId = resolvedNodeIds.find(
+        (id) => !isNodeWithinAncestor({ indexes, nodeId: id, ancestorId: resolvedPage.id })
+      );
+      if (outOfPageNodeId) {
+        throw validationError("ambiguous target: node_ids must belong to the resolved page");
+      }
+    }
+    if (resolvedFrame && resolvedFrame.id) {
+      const outOfFrameNodeId = resolvedNodeIds.find(
+        (id) => !isNodeWithinAncestor({ indexes, nodeId: id, ancestorId: resolvedFrame.id })
+      );
+      if (outOfFrameNodeId) {
+        throw validationError("ambiguous target: node_ids must belong to the resolved frame");
+      }
+    }
+  }
+
+  if (!resolvedPage && resolvedNodeIds.length > 0) {
+    const pageIds = new Set(
+      resolvedNodeIds
+        .map((id) => findNodePageId({ indexes, nodeId: id }))
+        .filter((id) => typeof id === "string" && id)
+    );
+    if (pageIds.size > 1) {
+      throw validationError("ambiguous target: node_ids span multiple pages");
+    }
+    if (pageIds.size === 1) {
+      const [pageIdFromNodes] = Array.from(pageIds);
+      resolvedPage = indexes.pages.find((item) => item.id === pageIdFromNodes) || null;
+    }
+  }
+
+  const comparisonTarget = resolveComparisonTarget({
+    selectedNodeIds,
+    resolvedFrame,
+    resolvedPage,
+  });
+
   const nodesToSummarize =
     nodeSummaries.length > 0
       ? nodeSummaries
@@ -439,6 +560,10 @@ async function readFigmaFile({
       page: resolvedPage ? { id: resolvedPage.id, name: resolvedPage.name } : null,
       frame: resolvedFrame ? { id: resolvedFrame.id, name: resolvedFrame.name, page_id: resolvedFrame.page_id } : null,
       node_ids: selectedNodeIds,
+      comparison_target: {
+        id: comparisonTarget.id,
+        mode: comparisonTarget.mode,
+      },
     },
     nodes: nodesToSummarize,
     summary: summarizeNodes(nodesToSummarize),

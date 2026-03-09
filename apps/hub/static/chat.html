@@ -156,7 +156,13 @@
           configured.forEach((item) => {
             const li = document.createElement('li');
             li.className = 'connector-card';
-            li.innerHTML = `<div>${item.name}</div><div class="label">${item.category} / ${item.provider_key}</div>`;
+            const nameDiv = document.createElement('div');
+            nameDiv.textContent = item.name;
+            const labelDiv = document.createElement('div');
+            labelDiv.className = 'label';
+            labelDiv.textContent = `${item.category} / ${item.provider_key}`;
+            li.appendChild(nameDiv);
+            li.appendChild(labelDiv);
             connectorListEl.appendChild(li);
           });
         } catch (error) {

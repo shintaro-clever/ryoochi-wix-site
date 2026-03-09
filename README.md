@@ -63,6 +63,11 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 ## Docs（一次情報）
 
 - 正規ルートと運用ルール: `docs/ai/core/workflow.md`
+- Workspace 検索対象モデル SoT: `docs/ai/core/search-model.md`
+- Workspace 履歴モデル SoT: `docs/ai/core/history-model.md`
+- Workspace 観測指標モデル SoT: `docs/ai/core/observability-model.md`
+- Workspace 運用操作モデル SoT: `docs/ai/core/operability-model.md`
+- Workspace Phase3 VPS確認メモ: `docs/operations/workspace-phase3-operations.md`
 - Decisionの残し方: `docs/ai/core/decision-policy.md`
 - Connectors/Connections APIスキーマSoT: `docs/connectors-connections-schema.md`
 - Secret参照方針（GitHub/Figma）: `docs/connection-secret-reference-policy.md`
@@ -72,6 +77,9 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 - Figma再現度評価軸（FG-VAL-01）: `docs/figma-validation-scoring.md`
 - 外部操作の監査/可観測性最小要件（OPSX-02）: `docs/external-audit-observability-minimum.md`
 - VPS反映チェックリスト（外部操作フェーズ, OPSX-01）: `docs/runbooks/vps-external-operations-checklist.md`
+- VPS反映チェックリスト（Workspace Phase3: search/history/metrics/retry/export, P3-OPSX-01）: `docs/runbooks/vps-workspace-phase3-checklist.md`
+- Fidelity Hardening 運用手順（localhost/staging/production 比較, P4-OPSX-01）: `docs/runbooks/fidelity-hardening-operations.md`
+- Phase4 完了条件 SoT（P4-REL-01）: `docs/ai/core/workflow.md`
 
 ---
 
@@ -110,6 +118,33 @@ Phase1 Integration Hub Stub（検証器：/jobs）
 - 対象は Workspace の検索・履歴・可観測性・運用性改善
 - フェーズ2完了条件には含めず、着手順のみを固定
 - 着手順: `search` → `history` → `observability` → `operability`
+- `history` は message 一覧ではなく、`run created/status changed`、`read plan`、`write plan`、`confirm executed`、`external operation recorded`、`audit projected` を統合表示する
+- `external_operations` は actual result の正本として維持し、`history` は Run / audit / confirm を横断する表示モデルとして追加する
+- `observability` の主要指標は `run counts`、`queued/running/ok/failed/skipped`、`confirm rate`、`provider 別 operation counts`、`failure_code distribution`、`figma fidelity distribution`、`duration median/p95` を最低要件とする
+- ただし Phase3 observability の主軸は Workspace 運用指標であり、fidelity の詳細分析や reason taxonomy は Phase4 の責務とする
+- 対象外:
+  - 複数AI接続・役割設定
+  - Figma / GitHub 高度操作の追加拡張
+  - 完全自動同期
+
+Phase3 完了条件（NEXT3-01）:
+- `search`
+- `history`
+- `observability`
+- `operability`
+- `selftest`
+- `VPS確認`
+- 上記 6 条件をすべて満たした場合のみ完了扱いにする
+- `複数AI接続・役割設定` や `新たな Figma/GitHub 拡張` は完了条件に含めない
+
+次フェーズ4（NEXT4-00: Fidelity Hardening）の入口:
+- フェーズ3完了後にのみ着手する
+- 目的は Figma・コード・本番環境の三者一致率の強化に限定する
+- 対象は再現度向上・差分縮小・検証精度向上
+- 対象外は次の3点:
+  - 複数AI役割設計の再拡張（role/profile/persona routing の再設計）
+  - Fidelity Hardening と無関係な新機能追加
+  - 大規模UX刷新（全面的な情報設計・画面構成の作り直し）
 
 次フェーズ1（NEXT1-00: 複数AI/役割設定）は後順位:
 - 複数AI接続・role/profile/persona routing 高度化は後続トラックで扱う

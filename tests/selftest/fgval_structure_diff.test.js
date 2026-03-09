@@ -27,6 +27,12 @@ async function run() {
   assert(badResult.diffs.auto_layout_mismatches.length >= 1, "bad candidate should detect auto layout mismatch");
   assert(badResult.diffs.text_mismatches.length >= 1, "bad candidate should detect text mismatch");
   assert(badResult.diffs.component_mismatches.length >= 1, "bad candidate should detect component mismatch");
+  assert(badResult.diffs.reason_classification, "bad candidate should include reason classification");
+  assert(Array.isArray(badResult.diffs.reason_classification.hierarchy), "reason.hierarchy should be array");
+  assert(Array.isArray(badResult.diffs.reason_classification.component_mapping), "reason.component_mapping should be array");
+  assert(Array.isArray(badResult.diffs.reason_classification.slot), "reason.slot should be array");
+  assert(Array.isArray(badResult.diffs.reason_classification.visibility), "reason.visibility should be array");
+  assert(Array.isArray(badResult.diffs.reason_classification.instance_variant), "reason.instance_variant should be array");
 }
 
 module.exports = { run };

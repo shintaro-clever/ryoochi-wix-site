@@ -100,6 +100,8 @@ function openDb() {
         meta_json  TEXT,
         created_at TEXT NOT NULL
       );
+      CREATE INDEX IF NOT EXISTS audit_logs_action_created
+        ON audit_logs(tenant_id, action, created_at DESC);
       CREATE TABLE IF NOT EXISTS personal_ai_settings (
         tenant_id   TEXT NOT NULL,
         id          TEXT NOT NULL,
@@ -138,6 +140,7 @@ function openDb() {
   ensureRunColumns(db);
   ensureThreadMessageColumns(db);
   ensurePersonalAiSettingColumns(db);
+  ensureAuditColumns(db);
   ensureJobTemplates(db);
   migrateConnectionConfigJsonEncryption(db);
   return db;
@@ -160,6 +163,7 @@ function ensureProjectColumns(db) {
   if (!columns.includes("project_shared_env_json")) {
     db.exec("ALTER TABLE projects ADD COLUMN project_shared_env_json TEXT");
   }
+  db.exec("CREATE INDEX IF NOT EXISTS project_threads_project_created ON project_threads(tenant_id, project_id, created_at DESC)");
 }
 
 function ensureConnectionColumns(db) {
@@ -170,6 +174,10 @@ function ensureConnectionColumns(db) {
   if (!columns.includes("config_json")) {
     db.exec("ALTER TABLE connections ADD COLUMN config_json TEXT");
   }
+}
+
+function ensureAuditColumns(db) {
+  db.exec("CREATE INDEX IF NOT EXISTS audit_logs_action_created ON audit_logs(tenant_id, action, created_at DESC)");
 }
 
 function ensureRunColumns(db) {
@@ -204,7 +212,19 @@ function ensureRunColumns(db) {
   if (!columns.includes("ai_setting_id")) {
     db.exec("ALTER TABLE runs ADD COLUMN ai_setting_id TEXT");
   }
+  if (!columns.includes("search_requested_by")) {
+    db.exec("ALTER TABLE runs ADD COLUMN search_requested_by TEXT");
+  }
+  if (!columns.includes("search_provider")) {
+    db.exec("ALTER TABLE runs ADD COLUMN search_provider TEXT");
+  }
   db.exec("UPDATE runs SET failure_code='unknown_failure' WHERE status='failed' AND (failure_code IS NULL OR trim(failure_code)='')");
+  db.exec("CREATE INDEX IF NOT EXISTS runs_project_thread_created ON runs(tenant_id, project_id, thread_id, created_at DESC)");
+  db.exec("CREATE INDEX IF NOT EXISTS runs_thread_created ON runs(tenant_id, thread_id, created_at DESC)");
+  db.exec("CREATE INDEX IF NOT EXISTS runs_status_created ON runs(tenant_id, status, created_at DESC)");
+  db.exec("CREATE INDEX IF NOT EXISTS runs_search_requested_by_created ON runs(tenant_id, search_requested_by, created_at DESC)");
+  db.exec("CREATE INDEX IF NOT EXISTS runs_search_provider_created ON runs(tenant_id, search_provider, created_at DESC)");
+  backfillRunSearchColumns(db);
 }
 
 function ensureThreadMessageColumns(db) {
@@ -217,6 +237,61 @@ function ensureThreadMessageColumns(db) {
   }
   if (!columns.includes("run_id")) {
     db.exec("ALTER TABLE thread_messages ADD COLUMN run_id TEXT");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS thread_messages_thread_run_created ON thread_messages(tenant_id, thread_id, run_id, created_at DESC)");
+  db.exec("CREATE INDEX IF NOT EXISTS thread_messages_run_created ON thread_messages(tenant_id, run_id, created_at DESC)");
+}
+
+function parseJsonSafe(text) {
+  if (typeof text !== "string" || !text) return {};
+  try {
+    const parsed = JSON.parse(text);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch {
+    return {};
+  }
+}
+
+function firstNonEmptyText(...values) {
+  for (const value of values) {
+    const text = typeof value === "string" ? value.trim() : "";
+    if (text) return text;
+  }
+  return "";
+}
+
+function backfillRunSearchColumns(db) {
+  const rows = db
+    .prepare("SELECT id, inputs_json, search_requested_by, search_provider FROM runs WHERE tenant_id=?")
+    .all(DEFAULT_TENANT);
+  const update = db.prepare("UPDATE runs SET search_requested_by=?, search_provider=? WHERE tenant_id=? AND id=?");
+  for (const row of rows) {
+    const payload = parseJsonSafe(row.inputs_json);
+    const contextUsed = payload.context_used && typeof payload.context_used === "object" ? payload.context_used : {};
+    const externalAudit =
+      (contextUsed.external_audit && typeof contextUsed.external_audit === "object" ? contextUsed.external_audit : null) ||
+      (payload.external_audit && typeof payload.external_audit === "object" ? payload.external_audit : null);
+    const actor = externalAudit && externalAudit.actor && typeof externalAudit.actor === "object" ? externalAudit.actor : {};
+    const requestedBy = firstNonEmptyText(actor.requested_by, payload.requested_by, payload.actor_id);
+    const externalOperations = Array.isArray(payload.external_operations)
+      ? payload.external_operations
+      : Array.isArray(contextUsed.external_operations)
+        ? contextUsed.external_operations
+        : [];
+    let provider = "";
+    for (let i = externalOperations.length - 1; i >= 0; i -= 1) {
+      const entry = externalOperations[i] && typeof externalOperations[i] === "object" ? externalOperations[i] : {};
+      provider = firstNonEmptyText(entry.provider);
+      if (provider) break;
+    }
+    if (!provider) {
+      const connectionContext = payload.connection_context && typeof payload.connection_context === "object" ? payload.connection_context : {};
+      provider = firstNonEmptyText(connectionContext.github ? "github" : "", connectionContext.figma ? "figma" : "");
+    }
+    if ((row.search_requested_by || "") === requestedBy && (row.search_provider || "") === provider) {
+      continue;
+    }
+    update.run(requestedBy || null, provider || null, DEFAULT_TENANT, row.id);
   }
 }
 

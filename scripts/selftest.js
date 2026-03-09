@@ -69,6 +69,35 @@ function loadSelftestRunners() {
     'man2_project_runs.test.js',
     'ms4_targetPath_cases.test.js',
     'ms4_figma_verify.test.js',
+    'p3_phase_boundary_sot.test.js',
+    'p3_search_model.test.js',
+    'p3_selftest_suite.test.js',
+    'p3_secret_masking.test.js',
+    'p3_history_api.test.js',
+    'p3_workspace_export_api.test.js',
+    'p3_workspace_metrics_api.test.js',
+    'p3_workspace_search_api.test.js',
+    'p3_workspace_search_audit.test.js',
+    'p3_workspace_search_indexing.test.js',
+    'p3_workspace_search_ui.test.js',
+    'p3_run_retry_api.test.js',
+    'p4_structure_diff_enhanced.test.js',
+    'p4_visual_diff_enhanced.test.js',
+    'p4_corrective_action_plan.test.js',
+    'p4_corrective_action_plan_api.test.js',
+    'p4_corrective_action_write_plan_api.test.js',
+    'p4_fidelity_metrics_api.test.js',
+    'p4_fidelity_hardening_runbook.test.js',
+    'p4_phase4_completion_criteria.test.js',
+    'p4_selftest_suite.test.js',
+    'p4_behavior_diff_api.test.js',
+    'p4_execution_diff_api.test.js',
+    'p4_phase4_scoring.test.js',
+    'p4_reason_taxonomy.test.js',
+    'p4_run_fidelity_evidence.test.js',
+    'p4_ui_fidelity_dashboard.test.js',
+    'p4_ui_before_after_compare.test.js',
+    'p4_capture_screenshot.test.js',
     'integration_ms0_ms4.test.js'
   ];
   const runners = [];
@@ -1281,17 +1310,18 @@ function verifyFigmaPlanGuarantee() {
 async function verifyServerRoutes() {
   const app = createApp();
   const jobs = await requestLocal(app, { path: '/jobs' });
-  assert(jobs.statusCode === 200, '/jobs should return 200');
+  assert(jobs.statusCode === 302, '/jobs should redirect to /ui/jobs.html');
+  assert(jobs.headers?.location === '/ui/jobs.html', '/jobs redirect target should be /ui/jobs.html');
   const jobsHead = await requestLocal(app, { method: 'HEAD', path: '/jobs' });
-  assert(jobsHead.statusCode === 200, 'HEAD /jobs should return 200');
+  assert(jobsHead.statusCode === 302, 'HEAD /jobs should redirect');
   const notFound = await requestLocal(app, { path: '/does-not-exist' });
   assert(notFound.statusCode === 404, 'Unknown path should return 404');
   const connections = await requestLocal(app, { path: '/connections' });
-  assert(connections.statusCode === 200, '/connections UI should be available');
+  assert(connections.statusCode === 302, '/connections should redirect to /ui/connections.html');
   const connectors = await requestLocal(app, { path: '/connectors' });
-  assert(connectors.statusCode === 200, '/connectors UI should be available');
+  assert(connectors.statusCode === 302, '/connectors should redirect to /ui/connections.html');
   const runs = await requestLocal(app, { path: '/runs' });
-  assert(runs.statusCode === 200, '/runs UI should be available');
+  assert(runs.statusCode === 302, '/runs should redirect to /ui/runs.html');
 
   const createRunRes = await requestLocal(app, {
     method: 'POST',
