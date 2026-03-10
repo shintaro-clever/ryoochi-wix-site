@@ -19,6 +19,14 @@ CREATE TABLE IF NOT EXISTS connections (
   provider     TEXT,
   provider_key TEXT,
   config_json  TEXT,
+  scope_type   TEXT,
+  scope_id     TEXT,
+  status       TEXT,
+  secret_ref   TEXT,
+  policy_json  TEXT,
+  disabled_at  TEXT,
+  created_by   TEXT,
+  updated_by   TEXT,
   created_at   TEXT NOT NULL,
   updated_at   TEXT NOT NULL,
   PRIMARY KEY (tenant_id, id)
@@ -109,8 +117,104 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS organizations (
+  tenant_id   TEXT NOT NULL DEFAULT 'internal',
+  id          TEXT NOT NULL,
+  name        TEXT NOT NULL,
+  slug        TEXT,
+  status      TEXT NOT NULL DEFAULT 'active',
+  created_at  TEXT NOT NULL,
+  updated_at  TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS organization_roles (
+  tenant_id         TEXT NOT NULL DEFAULT 'internal',
+  id                TEXT NOT NULL,
+  organization_id   TEXT NOT NULL,
+  role_key          TEXT NOT NULL,
+  name              TEXT NOT NULL,
+  description       TEXT,
+  permissions_json  TEXT NOT NULL,
+  is_system         INTEGER NOT NULL DEFAULT 0,
+  created_at        TEXT NOT NULL,
+  updated_at        TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id),
+  UNIQUE (tenant_id, organization_id, role_key)
+);
+
+CREATE TABLE IF NOT EXISTS organization_members (
+  tenant_id            TEXT NOT NULL DEFAULT 'internal',
+  id                   TEXT NOT NULL,
+  organization_id      TEXT NOT NULL,
+  account_id           TEXT NOT NULL,
+  email                TEXT,
+  display_name         TEXT,
+  status               TEXT NOT NULL,
+  assigned_roles_json  TEXT NOT NULL,
+  created_at           TEXT NOT NULL,
+  updated_at           TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id),
+  UNIQUE (tenant_id, organization_id, account_id)
+);
+
+CREATE TABLE IF NOT EXISTS organization_invites (
+  tenant_id             TEXT NOT NULL DEFAULT 'internal',
+  id                    TEXT NOT NULL,
+  organization_id       TEXT NOT NULL,
+  email                 TEXT NOT NULL,
+  account_id            TEXT,
+  invited_by            TEXT,
+  proposed_roles_json   TEXT NOT NULL,
+  status                TEXT NOT NULL,
+  expires_at            TEXT,
+  created_at            TEXT NOT NULL,
+  updated_at            TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS faq_knowledge_source_policies (
+  tenant_id        TEXT NOT NULL DEFAULT 'internal',
+  source_path      TEXT NOT NULL,
+  enabled          INTEGER NOT NULL DEFAULT 1,
+  priority         INTEGER NOT NULL DEFAULT 100,
+  audiences_json   TEXT NOT NULL,
+  public_scope     TEXT NOT NULL DEFAULT 'both',
+  updated_at       TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, source_path)
+);
+
+CREATE TABLE IF NOT EXISTS organization_language_policies (
+  tenant_id                  TEXT NOT NULL DEFAULT 'internal',
+  organization_id            TEXT NOT NULL,
+  default_language           TEXT NOT NULL DEFAULT 'ja',
+  supported_languages_json   TEXT NOT NULL,
+  glossary_mode              TEXT NOT NULL DEFAULT 'managed_terms_locked',
+  glossary_path              TEXT NOT NULL DEFAULT 'docs/i18n/glossary.md',
+  updated_at                 TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, organization_id)
+);
+
 CREATE INDEX IF NOT EXISTS audit_logs_action_created
   ON audit_logs(tenant_id, action, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS organizations_slug
+  ON organizations(tenant_id, slug);
+
+CREATE INDEX IF NOT EXISTS organization_roles_org_updated
+  ON organization_roles(tenant_id, organization_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS organization_members_org_updated
+  ON organization_members(tenant_id, organization_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS organization_invites_org_updated
+  ON organization_invites(tenant_id, organization_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS faq_knowledge_source_policies_priority
+  ON faq_knowledge_source_policies(tenant_id, enabled, priority ASC, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS organization_language_policies_updated
+  ON organization_language_policies(tenant_id, updated_at DESC);
 
 CREATE TABLE IF NOT EXISTS job_templates (
   name                  TEXT NOT NULL,

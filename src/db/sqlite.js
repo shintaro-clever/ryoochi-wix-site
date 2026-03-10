@@ -141,6 +141,9 @@ function openDb() {
   ensureThreadMessageColumns(db);
   ensurePersonalAiSettingColumns(db);
   ensureAuditColumns(db);
+  ensureOrganizationTables(db);
+  ensureFaqKnowledgeSourcePolicies(db);
+  ensureOrganizationLanguagePolicies(db);
   ensureJobTemplates(db);
   migrateConnectionConfigJsonEncryption(db);
   return db;
@@ -174,10 +177,134 @@ function ensureConnectionColumns(db) {
   if (!columns.includes("config_json")) {
     db.exec("ALTER TABLE connections ADD COLUMN config_json TEXT");
   }
+  if (!columns.includes("scope_type")) {
+    db.exec("ALTER TABLE connections ADD COLUMN scope_type TEXT");
+  }
+  if (!columns.includes("scope_id")) {
+    db.exec("ALTER TABLE connections ADD COLUMN scope_id TEXT");
+  }
+  if (!columns.includes("status")) {
+    db.exec("ALTER TABLE connections ADD COLUMN status TEXT");
+  }
+  if (!columns.includes("secret_ref")) {
+    db.exec("ALTER TABLE connections ADD COLUMN secret_ref TEXT");
+  }
+  if (!columns.includes("policy_json")) {
+    db.exec("ALTER TABLE connections ADD COLUMN policy_json TEXT");
+  }
+  if (!columns.includes("disabled_at")) {
+    db.exec("ALTER TABLE connections ADD COLUMN disabled_at TEXT");
+  }
+  if (!columns.includes("created_by")) {
+    db.exec("ALTER TABLE connections ADD COLUMN created_by TEXT");
+  }
+  if (!columns.includes("updated_by")) {
+    db.exec("ALTER TABLE connections ADD COLUMN updated_by TEXT");
+  }
+  db.exec("CREATE INDEX IF NOT EXISTS connections_scope_updated ON connections(tenant_id, scope_type, scope_id, updated_at DESC)");
 }
 
 function ensureAuditColumns(db) {
   db.exec("CREATE INDEX IF NOT EXISTS audit_logs_action_created ON audit_logs(tenant_id, action, created_at DESC)");
+}
+
+function ensureOrganizationTables(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS organizations (
+      tenant_id   TEXT NOT NULL DEFAULT 'internal',
+      id          TEXT NOT NULL,
+      name        TEXT NOT NULL,
+      slug        TEXT,
+      status      TEXT NOT NULL DEFAULT 'active',
+      created_at  TEXT NOT NULL,
+      updated_at  TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id)
+    );
+    CREATE TABLE IF NOT EXISTS organization_roles (
+      tenant_id         TEXT NOT NULL DEFAULT 'internal',
+      id                TEXT NOT NULL,
+      organization_id   TEXT NOT NULL,
+      role_key          TEXT NOT NULL,
+      name              TEXT NOT NULL,
+      description       TEXT,
+      permissions_json  TEXT NOT NULL,
+      is_system         INTEGER NOT NULL DEFAULT 0,
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id),
+      UNIQUE (tenant_id, organization_id, role_key)
+    );
+    CREATE TABLE IF NOT EXISTS organization_members (
+      tenant_id            TEXT NOT NULL DEFAULT 'internal',
+      id                   TEXT NOT NULL,
+      organization_id      TEXT NOT NULL,
+      account_id           TEXT NOT NULL,
+      email                TEXT,
+      display_name         TEXT,
+      status               TEXT NOT NULL,
+      assigned_roles_json  TEXT NOT NULL,
+      created_at           TEXT NOT NULL,
+      updated_at           TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id),
+      UNIQUE (tenant_id, organization_id, account_id)
+    );
+    CREATE TABLE IF NOT EXISTS organization_invites (
+      tenant_id             TEXT NOT NULL DEFAULT 'internal',
+      id                    TEXT NOT NULL,
+      organization_id       TEXT NOT NULL,
+      email                 TEXT NOT NULL,
+      account_id            TEXT,
+      invited_by            TEXT,
+      proposed_roles_json   TEXT NOT NULL,
+      status                TEXT NOT NULL,
+      expires_at            TEXT,
+      created_at            TEXT NOT NULL,
+      updated_at            TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id)
+    );
+    CREATE INDEX IF NOT EXISTS organizations_slug
+      ON organizations(tenant_id, slug);
+    CREATE INDEX IF NOT EXISTS organization_roles_org_updated
+      ON organization_roles(tenant_id, organization_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS organization_members_org_updated
+      ON organization_members(tenant_id, organization_id, updated_at DESC);
+    CREATE INDEX IF NOT EXISTS organization_invites_org_updated
+      ON organization_invites(tenant_id, organization_id, updated_at DESC);
+  `);
+}
+
+function ensureFaqKnowledgeSourcePolicies(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS faq_knowledge_source_policies (
+      tenant_id        TEXT NOT NULL DEFAULT 'internal',
+      source_path      TEXT NOT NULL,
+      enabled          INTEGER NOT NULL DEFAULT 1,
+      priority         INTEGER NOT NULL DEFAULT 100,
+      audiences_json   TEXT NOT NULL,
+      public_scope     TEXT NOT NULL DEFAULT 'both',
+      updated_at       TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, source_path)
+    );
+    CREATE INDEX IF NOT EXISTS faq_knowledge_source_policies_priority
+      ON faq_knowledge_source_policies(tenant_id, enabled, priority ASC, updated_at DESC);
+  `);
+}
+
+function ensureOrganizationLanguagePolicies(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS organization_language_policies (
+      tenant_id                  TEXT NOT NULL DEFAULT 'internal',
+      organization_id            TEXT NOT NULL,
+      default_language           TEXT NOT NULL DEFAULT 'ja',
+      supported_languages_json   TEXT NOT NULL,
+      glossary_mode              TEXT NOT NULL DEFAULT 'managed_terms_locked',
+      glossary_path              TEXT NOT NULL DEFAULT 'docs/i18n/glossary.md',
+      updated_at                 TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, organization_id)
+    );
+    CREATE INDEX IF NOT EXISTS organization_language_policies_updated
+      ON organization_language_policies(tenant_id, updated_at DESC);
+  `);
 }
 
 function ensureRunColumns(db) {

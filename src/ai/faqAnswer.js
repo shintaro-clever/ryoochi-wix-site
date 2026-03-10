@@ -180,6 +180,8 @@ async function generateFaqAnswer({
     ? normalizeText(language).toLowerCase()
     : "ja";
   const sources = searchFaqKnowledgeSources({
+    db,
+    tenantId,
     question: normalizedQuestion,
     audience: normalizedAudience,
     limit: normalizedAudience === "operator" ? 4 : 3,

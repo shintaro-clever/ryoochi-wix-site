@@ -3,6 +3,10 @@
     const path = (window.location && window.location.pathname) ? window.location.pathname : "";
     const file = path.split("/").pop() || "";
     if (!file) return "";
+    if (file === "admin-console.html") return "admin-console";
+    if (file === "ops-console.html") return "ops-console";
+    if (file === "ai-admin.html") return "ai-admin";
+    if (file === "knowledge-admin.html") return "knowledge-admin";
     if (file === "runs.html" || file === "run.html" || file === "jobs.html" || file === "job.html") return "projects";
     if (file === "connections.html" || file === "connection.html") return "projects";
     if (file === "dashboard.html") return "dashboard";
@@ -17,6 +21,7 @@
     if (!page) return inferPageFromPath();
     if (page === "dashboard") return "dashboard";
     if (page === "help") return "help";
+    if (page === "admin-console" || page === "ops-console" || page === "ai-admin" || page === "knowledge-admin") return page;
     if (page === "run" || page === "runs" || page === "job" || page === "jobs") return "projects";
     if (page === "connection" || page === "connections") return "projects";
     if (page === "project" || page === "projects" || page.startsWith("project-")) return "projects";
@@ -41,7 +46,11 @@
     }
 
     try {
-      const res = await fetch("/ui/partials/sidebar.html", { cache: "no-store" });
+      const partialPath =
+        document.body && document.body.getAttribute("data-layout") === "admin"
+          ? "/ui/partials/admin-sidebar.html"
+          : "/ui/partials/sidebar.html";
+      const res = await fetch(partialPath, { cache: "no-store" });
       if (!res.ok) throw new Error("sidebar fetch failed");
       const tmp = document.createElement("div");
       tmp.innerHTML = await res.text();

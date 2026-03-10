@@ -47,6 +47,12 @@ const { handleRunAiSummary, handleHistoryAiSummary, handleObservabilityAiSummary
 const { handleObservabilityAiAnalysis } = require('./routes/aiAnalysis');
 const { handleAiTranslate } = require('./routes/aiTranslate');
 const { handleFaqQuery } = require('./routes/faq');
+const { handleAdminRbac } = require('./routes/adminRbac');
+const { handleAdminConnections } = require('./routes/adminConnections');
+const { handleAdminAiOverview } = require('./routes/adminAiOverview');
+const { handleAdminKnowledgeSources } = require('./routes/adminKnowledgeSources');
+const { handleAdminI18nPolicy } = require('./routes/adminI18nPolicy');
+const { handleAdminAuditOverview } = require('./routes/adminAuditOverview');
 const { handleCorrectiveActionAssist, handleCorrectiveActionAssistWritePlan } = require('./routes/aiActionAssist');
 const { loadProjectSharedContext } = require('./projectSharedContext');
 const { buildConnectionContext, normalizeFilePaths } = require('./connectionContext');
@@ -1657,6 +1663,34 @@ async function handleRequest(req, res) {
   }
   if (urlPath === '/api/faq/query') {
     await handleFaqQuery(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (/^\/api\/admin\/organizations\/[^/]+\/(members|invites|roles)(?:\/[^/]+)?(?:\/revoke)?$/.test(urlPath)) {
+    await handleAdminRbac(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/admin/organizations') {
+    await handleAdminRbac(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/admin/connections' || /^\/api\/admin\/connections\/[^/]+(?:\/(reauth|disable|policy))?$/.test(urlPath)) {
+    await handleAdminConnections(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/admin/ai-overview') {
+    await handleAdminAiOverview(req, res, appDb);
+    return;
+  }
+  if (urlPath === '/api/admin/knowledge-sources') {
+    await handleAdminKnowledgeSources(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/admin/i18n-policy') {
+    await handleAdminI18nPolicy(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/admin/audit-overview') {
+    await handleAdminAuditOverview(req, res, appDb);
     return;
   }
   if (urlPath === '/api/ai-action-assist/corrective-action') {

@@ -3,14 +3,13 @@
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>Orchestrator AI - Project Audit</title>
+  <title>Project Audit</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
   <script>
     tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{
-      primary:"#a55c50","background-light":"#f7f6f6","background-dark":"#1d1615",
-      "card-dark":"#251f1e","border-dark":"#3d3432","text-muted":"#b1a7a5"
+      primary:"#a55c50","background-light":"#f7f6f6","background-dark":"#1d1615","card-dark":"#251f1e","border-dark":"#3d3432","text-muted":"#b1a7a5"
     }, fontFamily:{display:["Inter","Noto Sans JP","sans-serif"]} } } };
   </script>
   <style>
@@ -21,54 +20,145 @@
 </head>
 <body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
   <div id="sidebar-root"></div>
-
   <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
     <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-      <h2 class="text-xl font-bold"><span data-i18n="ui.projectAudit.title">ui.projectAudit.title</span></h2>
-      <a href="/ui/project.html" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-        <span class="material-symbols-outlined text-base">arrow_back</span>
-        <span data-i18n="ui.projectAudit.back">Project概要へ戻る</span>
+      <h2 class="text-xl font-bold">Project Audit</h2>
+      <a href="/ui/ops-console.html" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
+        <span class="material-symbols-outlined text-base">open_in_new</span>
+        <span>Ops Console へ</span>
       </a>
     </header>
-
     <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8 space-y-6">
       <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-6">
-        <h1 class="text-xl font-bold" data-i18n="ui.projectAudit.h1">プロジェクト監査ログ</h1>
-        <p class="mt-2 text-sm text-text-muted" data-i18n="ui.projectAudit.desc">監査イベントの検索と確認を行います。</p>
-
-        <section class="mt-6 rounded-lg border border-border-dark p-4">
-          <div class="grid grid-cols-1 md:grid-cols-5 gap-3 items-end">
-            <label class="text-sm md:col-span-1"><span class="block text-xs text-text-muted mb-1" data-i18n="ui.projectAudit.filter.actor">Actor</span><input disabled class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 opacity-60 cursor-not-allowed" type="text"/></label>
-            <label class="text-sm md:col-span-1"><span class="block text-xs text-text-muted mb-1" data-i18n="ui.projectAudit.filter.action">Action</span><select disabled class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 opacity-60 cursor-not-allowed"><option>all</option><option>invite.create</option><option>member.update</option></select></label>
-            <label class="text-sm md:col-span-1"><span class="block text-xs text-text-muted mb-1" data-i18n="ui.projectAudit.filter.dateRange">Date range</span><input disabled class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 opacity-60 cursor-not-allowed" type="text" placeholder="2026-03-01..2026-03-05"/></label>
-            <button disabled class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold opacity-60 cursor-not-allowed" type="button" data-i18n="ui.projectAudit.filter.apply">適用</button>
-            <button disabled class="px-4 py-2 rounded-lg border border-border-dark text-sm font-semibold opacity-60 cursor-not-allowed" type="button" data-i18n="ui.projectAudit.filter.reset">リセット</button>
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 class="text-xl font-bold">プロジェクト監査ログ</h1>
+            <p class="mt-2 text-sm text-text-muted">project 単位で AI / 接続ライフサイクルの監査を read-only 参照します。権限変更や組織統制の全体像は Ops Console に分離します。</p>
           </div>
-          <p class="mt-3 text-xs text-amber-600" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</p>
-        </section>
-
+          <span id="project-audit-status" class="text-xs text-text-muted">loading...</span>
+        </div>
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+          <label class="text-sm">
+            <span class="block text-xs text-text-muted mb-1">Project</span>
+            <select id="project-audit-project" class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm"></select>
+          </label>
+          <label class="text-sm">
+            <span class="block text-xs text-text-muted mb-1">Domain</span>
+            <select id="project-audit-group" class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm">
+              <option value="all">all</option>
+              <option value="connection">connection</option>
+              <option value="ai">ai</option>
+              <option value="faq">faq</option>
+            </select>
+          </label>
+          <label class="text-sm">
+            <span class="block text-xs text-text-muted mb-1">Actor</span>
+            <input id="project-audit-actor" class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="acct_..." type="text"/>
+          </label>
+        </div>
+        <div id="project-audit-summary" class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-3"></div>
         <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
           <table class="min-w-full text-sm">
             <thead class="bg-slate-100 dark:bg-background-dark/70">
               <tr class="text-left text-slate-600 dark:text-slate-300">
-                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectAudit.col.time">Time</th>
-                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectAudit.col.actor">Actor</th>
-                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectAudit.col.action">Action</th>
-                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectAudit.col.target">Target</th>
-                <th class="px-4 py-3 font-semibold" data-i18n="ui.projectAudit.col.result">Result</th>
+                <th class="px-4 py-3 font-semibold">Time</th>
+                <th class="px-4 py-3 font-semibold">Domain</th>
+                <th class="px-4 py-3 font-semibold">Action</th>
+                <th class="px-4 py-3 font-semibold">Actor</th>
+                <th class="px-4 py-3 font-semibold">Context</th>
               </tr>
             </thead>
-            <tbody>
-              <tr class="border-t border-border-dark"><td class="px-4 py-3">2026-03-05 16:44:12</td><td class="px-4 py-3">ken@example.com</td><td class="px-4 py-3">invite.create</td><td class="px-4 py-3">new-member@example.com</td><td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-full text-xs bg-emerald-500/15 text-emerald-500">success</span></td></tr>
-              <tr class="border-t border-border-dark"><td class="px-4 py-3">2026-03-05 16:33:01</td><td class="px-4 py-3">system</td><td class="px-4 py-3">connection.update</td><td class="px-4 py-3">github.enabled</td><td class="px-4 py-3"><span class="inline-flex px-2 py-1 rounded-full text-xs bg-amber-500/15 text-amber-500">pending</span></td></tr>
+            <tbody id="project-audit-events">
+              <tr><td class="px-4 py-3 text-text-muted" colspan="5">loading...</td></tr>
             </tbody>
           </table>
         </div>
       </section>
     </div>
   </main>
-
   <script src="/ui/sidebar.js"></script>
-  <script src="/ui/i18n/i18n.js" defer></script>
+  <script type="module">
+    import { apiGet } from "/ui/api.js";
+
+    const statusEl = document.getElementById("project-audit-status");
+    const projectEl = document.getElementById("project-audit-project");
+    const groupEl = document.getElementById("project-audit-group");
+    const actorEl = document.getElementById("project-audit-actor");
+    const summaryEl = document.getElementById("project-audit-summary");
+    const eventsEl = document.getElementById("project-audit-events");
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function renderSummary(summary) {
+      summaryEl.innerHTML = [
+        { label: "All Events", value: summary.total_events || 0 },
+        { label: "Connection", value: summary.connection_events || 0 },
+        { label: "AI", value: summary.ai_events || 0 },
+        { label: "FAQ", value: summary.faq_events || 0 },
+      ].map((item) => `
+        <article class="rounded-lg border border-border-dark p-4">
+          <p class="text-xs text-text-muted">${escapeHtml(item.label)}</p>
+          <p class="mt-2 text-xl font-bold">${escapeHtml(String(item.value))}</p>
+        </article>
+      `).join("");
+    }
+
+    function renderEvents(events) {
+      const rows = Array.isArray(events) ? events : [];
+      if (!rows.length) {
+        eventsEl.innerHTML = '<tr><td class="px-4 py-3 text-text-muted" colspan="5">no events</td></tr>';
+        return;
+      }
+      eventsEl.innerHTML = rows.map((event) => `
+        <tr class="border-t border-border-dark">
+          <td class="px-4 py-3">${escapeHtml(event.created_at || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(event.group || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(event.action || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(event.actor_id || "system")}</td>
+          <td class="px-4 py-3 text-text-muted">${escapeHtml([event.meta && event.meta.project_id, event.meta && event.meta.scope_type, event.meta && event.meta.failure_code].filter(Boolean).join(" / ") || "-")}</td>
+        </tr>
+      `).join("");
+    }
+
+    async function loadProjects() {
+      const payload = await apiGet("/projects");
+      const items = Array.isArray(payload.projects) ? payload.projects : [];
+      projectEl.innerHTML = items.map((item) => `<option value="${escapeHtml(item.id)}">${escapeHtml(item.name || item.id)}</option>`).join("");
+      return items;
+    }
+
+    async function loadAudit() {
+      statusEl.textContent = "loading...";
+      const params = new URLSearchParams();
+      if (projectEl.value) params.set("project_id", projectEl.value);
+      if (groupEl.value) params.set("action_group", groupEl.value);
+      if (actorEl.value.trim()) params.set("actor_id", actorEl.value.trim());
+      params.set("limit", "40");
+      const payload = await apiGet(`/admin/audit-overview?${params.toString()}`);
+      renderSummary(payload.summary || {});
+      renderEvents(payload.recent_events || []);
+      statusEl.textContent = `events=${escapeHtml(String((payload.summary || {}).total_events || 0))}`;
+    }
+
+    Promise.resolve()
+      .then(loadProjects)
+      .then(() => loadAudit())
+      .catch((error) => {
+        statusEl.textContent = error.message;
+      });
+
+    [projectEl, groupEl].forEach((node) => node.addEventListener("change", () => {
+      loadAudit().catch((error) => {
+        statusEl.textContent = error.message;
+      });
+    }));
+  </script>
 </body>
 </html>

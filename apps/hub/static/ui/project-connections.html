@@ -3,236 +3,216 @@
 <head>
   <meta charset="utf-8"/>
   <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-  <title>Orchestrator AI - Project Connections</title>
+  <title>Project Connections</title>
   <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet"/>
   <script>
     tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{
-      primary:"#a55c50","background-light":"#f7f6f6","background-dark":"#1d1615",
-      "card-dark":"#251f1e","border-dark":"#3d3432","text-muted":"#b1a7a5"
-    }, fontFamily:{display:["Inter","sans-serif"]}, borderRadius:{DEFAULT:"0.25rem",lg:"0.5rem",xl:"0.75rem",full:"9999px"} } } };
+      accent:"#14b8a6","adminBg":"#020617","adminCard":"#0f172a","adminMuted":"#94a3b8","adminLine":"#1e293b"
+    }, fontFamily:{display:["IBM Plex Sans","sans-serif"]}, borderRadius:{DEFAULT:"0.375rem",lg:"0.75rem",xl:"1rem",full:"9999px"} } } };
   </script>
   <style>
-    body{font-family:'Inter',"Noto Sans JP",sans-serif;}
+    body{font-family:'IBM Plex Sans',"Noto Sans JP",sans-serif;}
     .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;}
-    .custom-scrollbar::-webkit-scrollbar{width:6px;height:6px;}
-    .custom-scrollbar::-webkit-scrollbar-thumb{background:#3d3432;border-radius:10px;}
+    .custom-scrollbar::-webkit-scrollbar{width:6px;}
+    .custom-scrollbar::-webkit-scrollbar-thumb{background:#1e293b;border-radius:999px;}
   </style>
 </head>
-<body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
+<body data-page="ops-console" data-layout="admin" class="bg-adminBg text-slate-100 min-h-screen flex overflow-hidden">
   <div id="sidebar-root"></div>
-
   <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-    <header class="h-16 border-b border-border-dark px-6 md:px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-      <h2 class="text-xl font-bold"><span data-i18n="ui.projectConnections.title">ui.projectConnections.title</span></h2>
-      <a id="back-link" href="/ui/project.html" class="inline-flex items-center gap-2 text-sm font-semibold text-primary hover:underline">
-        <span class="material-symbols-outlined text-base">arrow_back</span>
-        <span data-i18n="ui.projectConnections.back">Project概要へ戻る</span>
-      </a>
+    <header class="border-b border-adminLine bg-slate-950/80 backdrop-blur px-6 md:px-8 py-5 flex items-center justify-between gap-4">
+      <div>
+        <p class="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-300">Ops Console / Project Scope</p>
+        <h1 class="mt-2 text-2xl font-bold">Project Connections</h1>
+        <p class="mt-2 text-sm text-adminMuted">project boundary の connector を扱います。thread / run の日常操作ではなく、project ごとの GitHub / Figma / AI connector lifecycle を管理します。</p>
+      </div>
+      <div class="flex items-center gap-3 text-xs">
+        <a href="/ui/settings-connections.html" class="text-emerald-300 hover:underline">Account Scope</a>
+        <a href="/ui/connection.html?scope_type=organization" class="text-emerald-300 hover:underline">Organization Scope</a>
+      </div>
     </header>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-4 md:p-8 space-y-6">
+      <section class="rounded-3xl border border-adminLine bg-adminCard p-6">
+        <div class="grid grid-cols-1 xl:grid-cols-[minmax(18rem,24rem)_minmax(0,1fr)] gap-4">
+          <section class="rounded-2xl border border-adminLine p-4">
+            <label class="block text-xs text-adminMuted">
+              Project
+              <select id="project-scope-selector" class="mt-2 w-full rounded-xl border border-adminLine bg-slate-950 px-3 py-2 text-sm"></select>
+            </label>
+            <form id="project-connection-form" class="mt-4 space-y-3">
+              <label class="block text-xs text-adminMuted">
+                Provider
+                <select name="provider_key" class="mt-2 w-full rounded-xl border border-adminLine bg-slate-950 px-3 py-2 text-sm">
+                  <option value="github">github</option>
+                  <option value="figma">figma</option>
+                  <option value="openai">openai</option>
+                </select>
+              </label>
+              <label class="block text-xs text-adminMuted">
+                secret_ref
+                <input name="secret_ref" class="mt-2 w-full rounded-xl border border-adminLine bg-slate-950 px-3 py-2 text-sm" placeholder="vault://project/github"/>
+              </label>
+              <label class="block text-xs text-adminMuted">
+                Config JSON
+                <textarea name="config_json" class="mt-2 h-24 w-full rounded-xl border border-adminLine bg-slate-950 px-3 py-2 text-sm">{"repository":"owner/repo","writable_scope":"docs/"}</textarea>
+              </label>
+              <button type="submit" class="w-full rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950 hover:bg-emerald-400">add project connection</button>
+            </form>
+            <p id="project-connection-form-status" class="mt-3 text-xs text-adminMuted">project scope は project ごとの作業対象接続です。</p>
+          </section>
 
-    <div class="flex-1 overflow-y-auto p-4 md:p-8 custom-scrollbar space-y-6">
-      <section class="bg-white dark:bg-card-dark p-5 rounded-xl border border-border-dark">
-        <h1 class="text-xl font-bold" data-i18n="ui.projectConnections.h1">プロジェクト接続</h1>
-        <p class="mt-2 text-sm text-text-muted" data-i18n="ui.projectConnections.desc">このプロジェクトで利用する接続状態を確認します。</p>
-      </section>
-
-      <!-- loading state -->
-      <section id="loading-section" class="bg-white dark:bg-card-dark p-5 rounded-xl border border-border-dark">
-        <p class="text-sm text-text-muted" data-i18n="ui.projectConnections.loading">読み込み中...</p>
-      </section>
-
-      <!-- error state -->
-      <section id="error-section" class="bg-rose-50 dark:bg-rose-900/10 border border-rose-300/40 rounded-xl p-4 hidden">
-        <h3 class="text-sm font-semibold text-rose-700 dark:text-rose-300" data-i18n="ui.projectConnections.error.title">取得エラー</h3>
-        <p id="error-message" class="mt-1 text-xs text-rose-600 dark:text-rose-400"></p>
-        <button id="retry-btn" type="button" class="mt-3 inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border border-rose-400/40 text-xs font-semibold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/20">
-          <span class="material-symbols-outlined text-sm">refresh</span>
-          <span data-i18n="ui.projectConnections.retry">再試行</span>
-        </button>
-      </section>
-
-      <!-- main content -->
-      <section id="content-section" class="bg-white dark:bg-card-dark p-5 rounded-xl border border-border-dark overflow-x-auto hidden">
-        <table class="min-w-full text-sm">
-          <thead>
-            <tr class="border-b border-border-dark text-left text-xs text-text-muted uppercase tracking-wide">
-              <th class="py-3 pr-4" data-i18n="ui.projectConnections.col.key">Key</th>
-              <th class="py-3 pr-4" data-i18n="ui.projectConnections.col.enabled">Enabled</th>
-            </tr>
-          </thead>
-          <tbody id="connections-tbody"></tbody>
-        </table>
-      </section>
-
-      <!-- save section -->
-      <section id="save-section" class="bg-white dark:bg-card-dark p-5 rounded-xl border border-border-dark hidden">
-        <div class="flex flex-wrap items-center gap-3">
-          <button id="save-btn" type="button" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 disabled:opacity-60 disabled:cursor-not-allowed">
-            <span class="material-symbols-outlined text-base">save</span>
-            <span data-i18n="ui.projectConnections.action.save">保存</span>
-          </button>
-          <a href="/ui/connections.html" class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-dark text-sm font-semibold hover:bg-primary/10">
-            <span class="material-symbols-outlined text-base">tune</span>
-            <span data-i18n="ui.projectConnections.action.edit">接続を編集</span>
-          </a>
-          <!-- common.notImplementedYet: toggle per-project connection is a future phase -->
-          <button type="button" disabled class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-border-dark text-sm font-semibold opacity-60 cursor-not-allowed">
-            <span class="material-symbols-outlined text-base">toggle_on</span>
-            <span data-i18n="ui.projectConnections.action.toggle">プロジェクト固有の接続切替</span>
-          </button>
+          <section class="rounded-2xl border border-adminLine p-4">
+            <div class="flex items-center justify-between gap-3">
+              <div>
+                <h2 class="text-lg font-semibold">Project Connection List</h2>
+                <p class="mt-1 text-sm text-adminMuted">選択 project の connection 一覧です。</p>
+              </div>
+              <span id="project-connections-status" class="text-xs text-adminMuted">loading...</span>
+            </div>
+            <div id="project-connections-empty" class="mt-4 hidden rounded-2xl border border-dashed border-adminLine p-6 text-sm text-adminMuted">project scope の接続はまだありません。</div>
+            <div id="project-connections-list" class="mt-4 space-y-3"></div>
+          </section>
         </div>
-        <p id="save-status" class="mt-2 text-xs hidden"></p>
-        <p class="mt-2 text-xs text-amber-600" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</p>
-      </section>
-
-      <section class="bg-white dark:bg-card-dark border border-dashed border-border-dark rounded-xl p-5 hidden" data-project-connections-empty>
-        <h3 class="text-sm font-semibold" data-i18n="ui.projectConnections.empty.title">接続データがありません</h3>
-        <p class="mt-1 text-xs text-text-muted" data-i18n="ui.projectConnections.empty.desc">接続を追加するとここに表示されます。</p>
       </section>
     </div>
   </main>
-
   <script src="/ui/sidebar.js"></script>
-  <script src="/ui/i18n/i18n.js" defer></script>
-  <script>
-    (function () {
-      const params = new URLSearchParams(location.search);
-      const rawProjectId = (params.get('project_id') || '').trim();
-      const PROJECT_ID_RE = /^project_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-      const projectId = PROJECT_ID_RE.test(rawProjectId) ? rawProjectId : '';
+  <script type="module">
+    import { apiGet, apiPost } from "/ui/api.js";
 
-      const backLink = document.getElementById('back-link');
-      if (projectId && backLink) {
-        backLink.href = `/ui/project.html?project_id=${encodeURIComponent(projectId)}`;
+    const projectSelect = document.getElementById("project-scope-selector");
+    const formEl = document.getElementById("project-connection-form");
+    const formStatusEl = document.getElementById("project-connection-form-status");
+    const statusEl = document.getElementById("project-connections-status");
+    const listEl = document.getElementById("project-connections-list");
+    const emptyEl = document.getElementById("project-connections-empty");
+
+    let selectedProjectId = "";
+
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
+
+    function parseJsonSafe(text, fallback) {
+      try { return JSON.parse(String(text || "").trim() || JSON.stringify(fallback)); } catch { return fallback; }
+    }
+
+    function queryProjectId() {
+      const url = new URL(window.location.href);
+      return String(url.searchParams.get("project_id") || "").trim();
+    }
+
+    function writeProjectIdToUrl(projectId) {
+      const url = new URL(window.location.href);
+      if (projectId) url.searchParams.set("project_id", projectId);
+      else url.searchParams.delete("project_id");
+      window.history.replaceState({}, "", url);
+    }
+
+    function renderCard(item) {
+      return `
+        <article class="rounded-2xl border border-adminLine bg-slate-950/40 p-4">
+          <div class="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <p class="font-semibold">${escapeHtml(item.provider_key || "-")}</p>
+              <p class="mt-1 text-xs text-adminMuted break-all">scope_id=${escapeHtml(item.scope_id || "-")}</p>
+            </div>
+            <span class="rounded-full border border-adminLine px-3 py-1 text-xs">${escapeHtml(item.status || "-")}</span>
+          </div>
+          <dl class="mt-4 grid grid-cols-1 md:grid-cols-3 gap-3 text-sm">
+            <div><dt class="text-adminMuted text-xs">secret_ref</dt><dd class="mt-1 break-all">${escapeHtml(item.secret_ref || "-")}</dd></div>
+            <div><dt class="text-adminMuted text-xs">updated_at</dt><dd class="mt-1">${escapeHtml(item.updated_at || "-")}</dd></div>
+            <div><dt class="text-adminMuted text-xs">detail</dt><dd class="mt-1"><a class="text-emerald-300 hover:underline" href="/ui/connection.html?id=${encodeURIComponent(item.connection_id)}">connection detail</a></dd></div>
+          </dl>
+        </article>
+      `;
+    }
+
+    async function loadProjects() {
+      const payload = await apiGet("/projects");
+      const items = Array.isArray(payload.projects) ? payload.projects : [];
+      projectSelect.innerHTML = items.map((item) => `<option value="${escapeHtml(item.project_id)}">${escapeHtml(item.name)}</option>`).join("");
+      const preferred = queryProjectId();
+      selectedProjectId = items.find((item) => item.project_id === preferred)?.project_id || items[0]?.project_id || "";
+      if (selectedProjectId) {
+        projectSelect.value = selectedProjectId;
+        writeProjectIdToUrl(selectedProjectId);
       }
+      return items;
+    }
 
-      const loadingSection = document.getElementById('loading-section');
-      const errorSection = document.getElementById('error-section');
-      const errorMessage = document.getElementById('error-message');
-      const contentSection = document.getElementById('content-section');
-      const saveSection = document.getElementById('save-section');
-      const tbody = document.getElementById('connections-tbody');
-      const saveBtn = document.getElementById('save-btn');
-      const saveStatus = document.getElementById('save-status');
-      const retryBtn = document.getElementById('retry-btn');
-
-      function showLoading() {
-        loadingSection.classList.remove('hidden');
-        errorSection.classList.add('hidden');
-        contentSection.classList.add('hidden');
-        saveSection.classList.add('hidden');
+    async function loadConnections() {
+      if (!selectedProjectId) {
+        statusEl.textContent = "project がありません";
+        return;
       }
+      statusEl.textContent = "loading project connections...";
+      const payload = await apiGet(`/admin/connections?scope_type=project&scope_id=${encodeURIComponent(selectedProjectId)}`);
+      const items = Array.isArray(payload.items) ? payload.items : [];
+      emptyEl.classList.toggle("hidden", items.length > 0);
+      listEl.innerHTML = items.map(renderCard).join("");
+      statusEl.textContent = `${items.length} project connections loaded`;
+    }
 
-      function showError(msg) {
-        loadingSection.classList.add('hidden');
-        errorSection.classList.remove('hidden');
-        contentSection.classList.add('hidden');
-        saveSection.classList.add('hidden');
-        errorMessage.textContent = msg || 'エラーが発生しました';
+    projectSelect.addEventListener("change", async () => {
+      selectedProjectId = String(projectSelect.value || "").trim();
+      writeProjectIdToUrl(selectedProjectId);
+      try {
+        await loadConnections();
+      } catch (error) {
+        statusEl.textContent = error.message || "project connection load failed";
       }
+    });
 
-      function showContent(data) {
-        loadingSection.classList.add('hidden');
-        errorSection.classList.add('hidden');
-        contentSection.classList.remove('hidden');
-        saveSection.classList.remove('hidden');
+    formEl.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (!selectedProjectId) return;
+      const formData = new FormData(formEl);
+      const providerKey = String(formData.get("provider_key") || "").trim();
+      const fallback =
+        providerKey === "github"
+          ? { repository: "", writable_scope: "" }
+          : providerKey === "figma"
+            ? { file_key: "", page_scope: "" }
+            : { model: "" };
+      const payload = {
+        provider_key: providerKey,
+        scope_type: "project",
+        scope_id: selectedProjectId,
+        secret_ref: String(formData.get("secret_ref") || "").trim(),
+        config: parseJsonSafe(formData.get("config_json"), fallback),
+      };
+      formStatusEl.textContent = "creating project connection...";
+      try {
+        await apiPost("/admin/connections", payload);
+        formEl.reset();
+        formStatusEl.textContent = "project connection created";
+        await loadConnections();
+      } catch (error) {
+        formStatusEl.textContent = error.message || "project connection create failed";
+      }
+    });
 
-        tbody.innerHTML = '';
-        if (!data || !Array.isArray(data.items) || data.items.length === 0) {
-          const tr = document.createElement('tr');
-          tr.innerHTML = '<td colspan="2" class="py-4 text-xs text-text-muted" data-i18n="ui.projectConnections.empty.title">接続データがありません</td>';
-          tbody.appendChild(tr);
+    (async () => {
+      try {
+        const items = await loadProjects();
+        if (!items.length) {
+          statusEl.textContent = "project がありません";
+          formStatusEl.textContent = "まず project を作成してください。";
+          emptyEl.classList.remove("hidden");
           return;
         }
-        data.items.forEach(function (item) {
-          const tr = document.createElement('tr');
-          tr.className = 'border-b border-border-dark/60';
-          const checked = item.enabled ? 'checked' : '';
-          tr.innerHTML = `
-            <td class="py-3 pr-4 font-semibold">${escapeHtml(item.key)}</td>
-            <td class="py-3 pr-4">
-              <label class="flex items-center gap-2 cursor-pointer">
-                <input type="checkbox" class="connection-toggle rounded" data-key="${escapeHtml(item.key)}" ${checked}/>
-                <span class="text-xs">${item.enabled ? 'enabled' : 'disabled'}</span>
-              </label>
-            </td>
-          `;
-          tbody.appendChild(tr);
-          const cb = tr.querySelector('input[type="checkbox"]');
-          cb.addEventListener('change', function () {
-            cb.nextElementSibling.textContent = cb.checked ? 'enabled' : 'disabled';
-          });
-        });
+        await loadConnections();
+      } catch (error) {
+        statusEl.textContent = error.message || "project connection load failed";
       }
-
-      function escapeHtml(str) {
-        return String(str).replace(/[&<>"']/g, function (c) {
-          return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
-        });
-      }
-
-      function loadData() {
-        if (!projectId) {
-          showError(rawProjectId ? 'project_id format is invalid' : 'project_id が指定されていません');
-          return;
-        }
-        showLoading();
-        fetch(`/api/projects/${encodeURIComponent(projectId)}/connections`)
-          .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, status: r.status, body: b }; }); })
-          .then(function (res) {
-            if (!res.ok) {
-              showError((res.body && res.body.message) || 'HTTP ' + res.status);
-            } else {
-              showContent(res.body);
-            }
-          })
-          .catch(function (e) { showError(e.message); });
-      }
-
-      if (saveBtn) {
-        saveBtn.addEventListener('click', function () {
-          if (!projectId) return;
-          const checkboxes = tbody.querySelectorAll('input.connection-toggle');
-          const items = [];
-          checkboxes.forEach(function (cb) {
-            items.push({ key: cb.dataset.key, enabled: cb.checked });
-          });
-          saveBtn.disabled = true;
-          saveStatus.className = 'mt-2 text-xs text-text-muted';
-          saveStatus.textContent = '保存中...';
-          saveStatus.classList.remove('hidden');
-          fetch(`/api/projects/${encodeURIComponent(projectId)}/connections`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ items: items })
-          })
-            .then(function (r) { return r.json().then(function (b) { return { ok: r.ok, status: r.status, body: b }; }); })
-            .then(function (res) {
-              saveBtn.disabled = false;
-              if (!res.ok) {
-                saveStatus.className = 'mt-2 text-xs text-rose-600';
-                saveStatus.textContent = (res.body && res.body.message) || '保存に失敗しました';
-              } else {
-                saveStatus.className = 'mt-2 text-xs text-emerald-600';
-                saveStatus.textContent = '保存しました';
-                showContent(res.body);
-              }
-            })
-            .catch(function (e) {
-              saveBtn.disabled = false;
-              saveStatus.className = 'mt-2 text-xs text-rose-600';
-              saveStatus.textContent = e.message;
-            });
-        });
-      }
-
-      if (retryBtn) {
-        retryBtn.addEventListener('click', loadData);
-      }
-
-      loadData();
     })();
   </script>
 </body>

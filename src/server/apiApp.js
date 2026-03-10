@@ -56,6 +56,12 @@ const { handleRunAiSummary, handleHistoryAiSummary, handleObservabilityAiSummary
 const { handleObservabilityAiAnalysis } = require("./routes/aiAnalysis");
 const { handleAiTranslate } = require("./routes/aiTranslate");
 const { handleFaqQuery } = require("./routes/faq");
+const { handleAdminRbac } = require("./routes/adminRbac");
+const { handleAdminConnections } = require("./routes/adminConnections");
+const { handleAdminAiOverview } = require("./routes/adminAiOverview");
+const { handleAdminKnowledgeSources } = require("./routes/adminKnowledgeSources");
+const { handleAdminI18nPolicy } = require("./routes/adminI18nPolicy");
+const { handleAdminAuditOverview } = require("./routes/adminAuditOverview");
 const { processChatTurnWithLocalStub } = require("./chatStub");
 const { buildExternalReadPlan, buildChatAssistantGuardMessage } = require("./chatReadPlan");
 const { planChatWrite, confirmChatWrite } = require("./chatWriteOrchestration");
@@ -1016,6 +1022,27 @@ function createApiServer(dbConn) {
       }
       if (urlPath === "/api/faq/query") {
         return handleFaqQuery(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (/^\/api\/admin\/organizations\/[^/]+\/(members|invites|roles)(?:\/[^/]+)?(?:\/revoke)?$/.test(urlPath)) {
+        return handleAdminRbac(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/admin/organizations") {
+        return handleAdminRbac(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/admin/connections" || /^\/api\/admin\/connections\/[^/]+(?:\/(reauth|disable|policy))?$/.test(urlPath)) {
+        return handleAdminConnections(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/admin/ai-overview") {
+        return handleAdminAiOverview(req, res, db);
+      }
+      if (urlPath === "/api/admin/knowledge-sources") {
+        return handleAdminKnowledgeSources(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/admin/i18n-policy") {
+        return handleAdminI18nPolicy(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/admin/audit-overview") {
+        return handleAdminAuditOverview(req, res, db);
       }
       if (method === "GET" && /^\/api\/runs\/[^/]+$/.test(urlPath)) {
         const runIdInput = urlPath.split("/").filter(Boolean)[2];

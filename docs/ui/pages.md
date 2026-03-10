@@ -23,6 +23,16 @@
   - 右: 接続済みリソース / roadmap / recent files
 - 新規ページ追加や導線変更は、この3面構成と `/ui/` 正本前提を崩さないこと。
 
+## Admin IA Target (Phase6 SoT)
+
+- Phase6 の管理画面 IA は `docs/admin/admin-ia.md` を正とする。
+- 一般 Workspace と同じ見え方にせず、管理責務を次の4系統に分ける。
+  - Admin Console
+  - Ops Console
+  - AI Admin
+  - Knowledge Admin
+- Phase6 の管理系ページは `/ui/admin-*.html` を基本とし、Workspace 系ページと左ナビ / 用語 / 導線を分離する。
+
 ## i18n Key Naming（固定）
 
 - 新規キー（ページ）：`ui.<page>.(title|h1|desc|primary|empty.*|table.*|section.*|action.*)`
@@ -67,6 +77,10 @@
 | 設定: 接続管理 | `/ui/settings-connections.html` | `apps/hub/static/ui/settings-connections.html` | `settings` | 同上 |
 | 設定: Drive出力先 | `/ui/settings-drive.html` | `apps/hub/static/ui/settings-drive.html` | `settings` | 同上 |
 | 設定: 言語 | `/ui/settings-language.html` | `apps/hub/static/ui/settings-language.html` | `settings` | 同上 |
+| Admin Console | `/ui/admin-console.html` | `apps/hub/static/ui/admin-console.html` | `admin-console` | Phase6 管理面。Workspace と左ナビを分離 |
+| Ops Console | `/ui/ops-console.html` | `apps/hub/static/ui/ops-console.html` | `ops-console` | Connections Lifecycle / Audit / Incident |
+| AI Admin | `/ui/ai-admin.html` | `apps/hub/static/ui/ai-admin.html` | `ai-admin` | AI Policy / Usage Limits / Language Policy |
+| Knowledge Admin | `/ui/knowledge-admin.html` | `apps/hub/static/ui/knowledge-admin.html` | `knowledge-admin` | FAQ knowledge source / runbook / glossary |
 
 ## Sidebar Link Check (NAV-10)
 

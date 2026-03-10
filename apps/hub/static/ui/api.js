@@ -192,6 +192,36 @@ export async function apiPatch(path, payload = {}) {
   return result;
 }
 
+export async function apiDelete(path) {
+  const url = normalizeApiPath(path);
+  const res = await fetch(url, {
+    method: "DELETE",
+    headers: {
+      Accept: "application/json",
+    },
+  });
+  if (res.status === 204) {
+    return { ok: true };
+  }
+  let result = null;
+  try {
+    result = await res.json();
+  } catch (_) {
+    result = null;
+  }
+  if (!res.ok) {
+    const error = new Error(
+      (result && (result.message || result.error)) || `HTTP ${res.status}`
+    );
+    error.status = res.status;
+    error.code = result && result.code ? result.code : "";
+    error.details = result && result.details ? result.details : null;
+    error.payload = result;
+    throw error;
+  }
+  return result;
+}
+
 export function isPrefixedId(kind, value) {
   const text = typeof value === "string" ? value.trim() : "";
   if (!text) return false;

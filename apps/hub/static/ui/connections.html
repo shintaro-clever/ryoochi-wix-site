@@ -1,241 +1,138 @@
 <!DOCTYPE html>
 <html class="dark" lang="ja">
-  <head>
-    <meta charset="utf-8" />
-    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-    <title>AI Orchestrator - connections</title>
-    <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
-    <script>
-      tailwind.config = {
-        darkMode: "class",
-        theme: {
-          extend: {
-            colors: {
-              primary: "#a55c50",
-              "background-light": "#f7f6f6",
-              "background-dark": "#1d1615",
-              "card-dark": "#251f1e",
-              "border-dark": "#3d3432",
-              "text-muted": "#b1a7a5"
-            },
-            fontFamily: { display: ["Inter", "Noto Sans JP", "sans-serif"] }
-          }
-        }
-      };
-    </script>
-    <style>
-      body { font-family: "Inter", "Noto Sans JP", sans-serif; }
-      .custom-scrollbar::-webkit-scrollbar { width: 6px; }
-      .custom-scrollbar::-webkit-scrollbar-thumb { background: #3d3432; border-radius: 10px; }
-    </style>
-  </head>
-  <body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
-    <!-- PAGE_TITLE_KEY: ui.connections.title -->
-
-    <div id="sidebar-root"></div>
-
-    <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
-      <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
-  <h2 class="text-xl font-bold"><span data-i18n="ui.connections.title">ui.connections.title</span></h2>
-  
-</header>
-
-      <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
-        <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-6">
-          <div class="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <h1 class="text-xl font-bold" data-i18n="ui.connections.h1">接続一覧</h1>
-              <p class="mt-2 text-sm text-text-muted" data-i18n="ui.connections.desc">Providerごとの接続状態を確認します。</p>
-            </div>
-            <a href="/ui/settings-connections.html" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-colors" data-i18n="ui.connections.add">
-              接続を追加
-            </a>
+<head>
+  <meta charset="utf-8" />
+  <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+  <title>Connections Registry</title>
+  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
+  <script>
+    tailwind.config = { darkMode:"class", theme:{ extend:{ colors:{
+      primary:"#a55c50","background-light":"#f7f6f6","background-dark":"#1d1615","card-dark":"#251f1e","border-dark":"#3d3432","text-muted":"#b1a7a5"
+    }, fontFamily:{display:["Inter","Noto Sans JP","sans-serif"]} } } };
+  </script>
+  <style>
+    body { font-family: "Inter", "Noto Sans JP", sans-serif; }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #3d3432; border-radius: 10px; }
+  </style>
+</head>
+<body data-page="projects" class="bg-background-light dark:bg-background-dark text-slate-900 dark:text-slate-100 min-h-screen flex overflow-hidden">
+  <div id="sidebar-root"></div>
+  <main class="flex-1 flex flex-col h-screen overflow-hidden min-w-0">
+    <header class="h-16 border-b border-border-dark px-8 flex items-center justify-between bg-background-light/50 dark:bg-background-dark/50 backdrop-blur-md z-10">
+      <h2 class="text-xl font-bold">Connections Registry</h2>
+      <a href="/ui/settings-connections.html" class="text-sm font-semibold text-primary hover:underline">account 追加へ</a>
+    </header>
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+      <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-6">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h1 class="text-xl font-bold">接続一覧</h1>
+            <p class="mt-2 text-sm text-text-muted">account / project / organization を横断した read-only registry です。実操作は scope 別の管理画面へ分離します。</p>
           </div>
-
-          <section class="mt-6 rounded-lg border border-border-dark p-4">
-            <h2 class="text-sm font-semibold" data-i18n="ui.connections.role.title">画面の役割</h2>
-            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.connections.role.desc">接続状態の確認と、設定画面への導線を提供します。</p>
-          </section>
-
-          <section class="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
-            <article class="rounded-lg border border-border-dark p-4">
-              <p class="text-xs text-text-muted" data-i18n="ui.connections.card.updatedAt">最終更新</p>
-              <p id="connections-updated-at-card" class="mt-1 font-mono text-xs">-</p>
-            </article>
-            <article class="rounded-lg border border-border-dark p-4">
-              <p class="text-xs text-text-muted" data-i18n="ui.connections.card.total">接続数</p>
-              <p id="connections-total-card" class="mt-1 text-sm font-semibold">0</p>
-            </article>
-          </section>
-
-          <section class="mt-4 rounded-lg border border-border-dark p-4">
-            <h2 class="text-sm font-semibold" data-i18n="ui.connections.filter.title">検索とフィルタ</h2>
-            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.connections.filter.desc">provider / status / keyword で絞り込みます。</p>
-            <div class="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3">
-              <label class="text-sm">
-                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.connections.filter.provider">provider</span>
-                <select class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm">
-                  <option value="" data-i18n="ui.connections.filter.all">すべて</option>
-                  <option value="ai">ai</option>
-                  <option value="github">github</option>
-                  <option value="figma">figma</option>
-                </select>
-              </label>
-              <label class="text-sm">
-                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.connections.filter.status">status</span>
-                <select class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm">
-                  <option value="" data-i18n="ui.connections.filter.all">すべて</option>
-                  <option value="connected">connected</option>
-                  <option value="disconnected">disconnected</option>
-                </select>
-              </label>
-              <label class="text-sm">
-                <span class="mb-1 block text-xs text-text-muted" data-i18n="ui.connections.filter.keyword">keyword</span>
-                <input type="text" class="w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="key / notes" />
-              </label>
-            </div>
-            <div class="mt-3 flex flex-wrap items-center gap-2">
-              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.connections.filter.apply">
-                適用
-              </button>
-              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm text-text-muted cursor-not-allowed" data-i18n="ui.connections.filter.reset">
-                リセット
-              </button>
-              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
-            </div>
-          </section>
-
-          <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
-            <table class="min-w-full text-sm">
-              <thead class="bg-slate-100 dark:bg-background-dark/70">
-                <tr class="text-left text-slate-600 dark:text-slate-300">
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.connections.col.key">key</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.connections.col.connected">connected</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.connections.col.status">Status</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.connections.col.account">Account</th>
-                  <th class="px-4 py-3 font-semibold" data-i18n="ui.connections.col.updated">Updated</th>
-                </tr>
-              </thead>
-              <tbody id="connections-table-body"></tbody>
-            </table>
-          </div>
-
-          <div id="connections-feedback" class="mt-4 text-sm text-text-muted" data-i18n="common.loading">読み込み中</div>
-          <button id="connections-retry" class="mt-2 px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80 hidden" type="button" data-i18n="common.retry">
-            再試行
-          </button>
-
-          <div id="connections-empty-state" class="mt-6 rounded-lg border border-dashed border-border-dark p-6 text-center hidden">
-            <p class="text-sm font-semibold" data-i18n="ui.connections.empty.title">接続がまだありません</p>
-            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.connections.empty.desc">接続を追加するとここに表示されます。</p>
+          <span id="connections-status" class="text-xs text-text-muted">loading...</span>
+        </div>
+        <div class="mt-6 grid grid-cols-1 md:grid-cols-4 gap-3">
+          <article class="rounded-lg border border-border-dark p-4">
+            <p class="text-xs text-text-muted">All</p>
+            <p id="connections-total-all" class="mt-1 text-lg font-semibold">0</p>
+          </article>
+          <article class="rounded-lg border border-border-dark p-4">
+            <p class="text-xs text-text-muted">Account</p>
+            <p id="connections-total-account" class="mt-1 text-lg font-semibold">0</p>
+          </article>
+          <article class="rounded-lg border border-border-dark p-4">
+            <p class="text-xs text-text-muted">Project</p>
+            <p id="connections-total-project" class="mt-1 text-lg font-semibold">0</p>
+          </article>
+          <article class="rounded-lg border border-border-dark p-4">
+            <p class="text-xs text-text-muted">Organization</p>
+            <p id="connections-total-organization" class="mt-1 text-lg font-semibold">0</p>
+          </article>
+        </div>
+        <section class="mt-4 rounded-lg border border-border-dark p-4">
+          <h2 class="text-sm font-semibold">Scope 導線</h2>
+          <div class="mt-3 flex flex-wrap gap-2 text-sm">
+            <a class="px-3 py-2 rounded-lg border border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80" href="/ui/settings-connections.html">account</a>
+            <a class="px-3 py-2 rounded-lg border border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80" href="/ui/project-connections.html">project</a>
+            <a class="px-3 py-2 rounded-lg border border-border-dark hover:bg-slate-100 dark:hover:bg-background-dark/80" href="/ui/connection.html">organization</a>
           </div>
         </section>
-      </div>
-    </main>
+        <div class="mt-6 overflow-x-auto rounded-lg border border-border-dark">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 dark:bg-background-dark/70">
+              <tr class="text-left text-slate-600 dark:text-slate-300">
+                <th class="px-4 py-3 font-semibold">provider</th>
+                <th class="px-4 py-3 font-semibold">scope</th>
+                <th class="px-4 py-3 font-semibold">scope_id</th>
+                <th class="px-4 py-3 font-semibold">status</th>
+                <th class="px-4 py-3 font-semibold">updated</th>
+              </tr>
+            </thead>
+            <tbody id="connections-table-body"></tbody>
+          </table>
+        </div>
+      </section>
+    </div>
+  </main>
+  <script src="/ui/sidebar.js"></script>
+  <script type="module">
+    import { apiGet } from "/ui/api.js";
 
-    <script src="/ui/sidebar.js"></script>
-    <script src="/ui/i18n/i18n.js" defer></script>
-    <script type="module">
-      import { apiGet, setText, t } from "/ui/api.js";
+    const statusEl = document.getElementById("connections-status");
+    const tbody = document.getElementById("connections-table-body");
+    const totalAllEl = document.getElementById("connections-total-all");
+    const totalAccountEl = document.getElementById("connections-total-account");
+    const totalProjectEl = document.getElementById("connections-total-project");
+    const totalOrganizationEl = document.getElementById("connections-total-organization");
 
-      const tbody = document.getElementById("connections-table-body");
-      const feedback = document.getElementById("connections-feedback");
-      const retry = document.getElementById("connections-retry");
-      const empty = document.getElementById("connections-empty-state");
-      const updatedCard = document.getElementById("connections-updated-at-card");
-      const totalCard = document.getElementById("connections-total-card");
+    function escapeHtml(value) {
+      return String(value == null ? "" : value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;");
+    }
 
-      function clearRows() {
-        if (tbody) tbody.innerHTML = "";
+    function renderRows(items) {
+      if (!items.length) {
+        tbody.innerHTML = '<tr><td class="px-4 py-3 text-text-muted" colspan="5">no connections</td></tr>';
+        return;
       }
+      tbody.innerHTML = items.map((item) => `
+        <tr class="border-t border-border-dark">
+          <td class="px-4 py-3">${escapeHtml(item.provider_key || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(item.scope_type || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(item.scope_id || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(item.status || "-")}</td>
+          <td class="px-4 py-3">${escapeHtml(item.updated_at || "-")}</td>
+        </tr>
+      `).join("");
+    }
 
-      function toggleEmpty(show) {
-        if (!empty) return;
-        empty.classList.toggle("hidden", !show);
-      }
+    async function loadConnections() {
+      statusEl.textContent = "loading...";
+      const [allPayload, projectPayload, projectsPayload] = await Promise.all([
+        apiGet("/admin/connections"),
+        apiGet("/admin/connections?scope_type=project"),
+        apiGet("/projects"),
+      ]);
+      const items = Array.isArray(allPayload.items) ? allPayload.items : [];
+      const projects = Array.isArray(projectsPayload.projects) ? projectsPayload.projects : [];
+      renderRows(items);
+      totalAllEl.textContent = String(items.length);
+      totalAccountEl.textContent = String(items.filter((item) => item.scope_type === "account").length);
+      totalProjectEl.textContent = String(items.filter((item) => item.scope_type === "project").length);
+      totalOrganizationEl.textContent = String(items.filter((item) => item.scope_type === "organization").length);
+      statusEl.textContent = `projects=${escapeHtml(String(projects.length))} / project_scope=${escapeHtml(String((projectPayload.items || []).length))}`;
+    }
 
-      function buildStatusBadge(connected) {
-        const badge = document.createElement("span");
-        badge.className = "inline-flex px-2 py-1 rounded-full text-xs";
-        if (connected) {
-          badge.classList.add("bg-emerald-500/15", "text-emerald-500");
-          badge.textContent = "connected";
-        } else {
-          badge.classList.add("bg-rose-500/15", "text-rose-500");
-          badge.textContent = "disconnected";
-        }
-        return badge;
-      }
-
-      function appendRow(item, updatedAt) {
-        if (!tbody) return;
-        const tr = document.createElement("tr");
-        tr.className = "border-t border-border-dark";
-
-        const key = String(item && item.key ? item.key : "-");
-        const connected = Boolean(item && item.connected);
-        const account = item && (item.account || item.name) ? String(item.account || item.name) : "-";
-        const updated = String(updatedAt || "-");
-
-        const tdKey = document.createElement("td");
-        tdKey.className = "px-4 py-3";
-        const a = document.createElement("a");
-        a.href = `/ui/connection.html?key=${encodeURIComponent(key)}`;
-        a.className = "text-primary hover:underline";
-        a.textContent = key;
-        tdKey.appendChild(a);
-
-        const tdConnected = document.createElement("td");
-        tdConnected.className = "px-4 py-3";
-        tdConnected.textContent = connected ? "true" : "false";
-
-        const tdStatus = document.createElement("td");
-        tdStatus.className = "px-4 py-3";
-        tdStatus.appendChild(buildStatusBadge(connected));
-
-        const tdAccount = document.createElement("td");
-        tdAccount.className = "px-4 py-3";
-        tdAccount.textContent = account;
-
-        const tdUpdated = document.createElement("td");
-        tdUpdated.className = "px-4 py-3";
-        tdUpdated.textContent = updated;
-
-        tr.append(tdKey, tdConnected, tdStatus, tdAccount, tdUpdated);
-        tbody.appendChild(tr);
-      }
-
-      async function loadConnections() {
-        clearRows();
-        toggleEmpty(false);
-        retry.classList.add("hidden");
-        await setText(feedback, "common.loading", true);
-
-        try {
-          const payload = await apiGet("/connections");
-          const items = Array.isArray(payload && payload.items) ? payload.items : [];
-          const updatedAt = payload && payload.updated_at ? String(payload.updated_at) : "-";
-          if (updatedCard) updatedCard.textContent = updatedAt;
-          if (totalCard) totalCard.textContent = String(items.length);
-          if (items.length === 0) {
-            feedback.textContent = "";
-            toggleEmpty(true);
-            return;
-          }
-          items.forEach((item) => appendRow(item, updatedAt));
-          feedback.textContent = "";
-        } catch (error) {
-          const msg = await t("common.error");
-          feedback.textContent = `${msg}: ${error && error.message ? error.message : "unknown"}`;
-          retry.classList.remove("hidden");
-          toggleEmpty(false);
-        }
-      }
-
-      retry.addEventListener("click", loadConnections);
-      loadConnections();
-    </script>
-  </body>
+    loadConnections().catch((error) => {
+      statusEl.textContent = error.message;
+    });
+  </script>
+</body>
 </html>

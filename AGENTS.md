@@ -55,6 +55,7 @@ alias codex='codex --sandbox=workspace-write'
 次フェーズ5は **Phase4完了後にのみ** 着手し、単一運用者前提の `OpenAI運用補助AI` `多言語説明` `FAQボット` `Workspace IA再編` のみに限定する。今後の UI 正本は `/ui/` 配下とし、旧ページ直配信を設計基準に戻さない。
 Workspace IA再編は `1枚目=現状UI` `2枚目=目標UI` を前提にし、目標UIは `左=横断ナビ` `中央=AI作業面` `右=接続済みリソース/roadmap/recent files` の3面構成へ寄せる。
 Phase5 の対象外は `社内管理画面` `組織ユーザー管理` `RBAC強化` `複数AI routing` `confirmなし自動実行` `完全自律エージェント` とし、これらは Phase6 以降へ分離して混入させない。
+次フェーズ6は `社内管理画面` `組織ユーザー管理` `RBAC` `接続ライフサイクル管理` `AI利用管理` `FAQ知識源管理` `多言語設定管理` `監査ビュー` のみを対象とする管理・組織運用レイヤーとし、Phase5 の単一運用者向け Workspace 責務へ逆流させない。`複数AI routing の高度化` `confirmなし自動実行` `完全自律エージェント` は Phase6 にも混入させない。
 
 ---
 

@@ -416,14 +416,138 @@ Phase5 は、単に OpenAI 接続できるだけではなく、**運用可能状
 - `docs/runbooks/phase5-openai-assist-operations.md` を operator FAQ / runbook nav から到達できること。
 
 ### NEXT6-00 Phase6 Reserved Boundary (SoT)
-- Phase6 は Phase5 の対象外として列挙した拡張責務を扱うための将来フェーズとして予約し、Phase5 へ先行混入させない。
-- 最低限、次の責務は Phase5 ではなく Phase6 以降に分離する。
+- Phase6 は **社内活用向け管理画面 / 組織運用レイヤー専用フェーズ** として固定し、Phase5 の単一運用者向け Workspace 責務と混線させない。
+- Phase6 の対象は次に固定する。
   - 社内管理画面
   - 組織ユーザー管理
   - RBAC
-  - 複数AI routing
+  - 接続ライフサイクル管理
+  - AI利用管理
+  - FAQ知識源管理
+  - 多言語設定管理
+  - 監査ビュー
+- 組織・ユーザーモデルは `docs/admin/org-model.md` を SoT とし、`organization / member / invite / role / permission` の責務と `account / project / organization` の境界をここで固定する。
+- Phase6 の管理責務は、Phase5 の `Run / Workspace / Help / Help Admin` を中心とした単一運用者向け補助導線へ逆流させない。
+- Phase5 は運用者が自分の作業を進めるための補助面、Phase6 は管理者が組織設定・権限・接続・知識源・監査を統制する面として責務分離する。
+- Phase6 の対象外は次に固定する。
+  - 複数AI routing の高度化
   - confirm なし自動実行
   - 完全自律エージェント
+- 上記の対象外は、Phase6 の完了条件や管理UIへも混入させず、さらに後続フェーズへ分離する。
+- Phase6 の詳細タスクは backlog (`backlog/phase6-admin-org-ops.md`) で管理し、本節は境界と対象のみを SoT とする。
+
+### NEXT6-01 Phase6 Completion Criteria (SoT)
+Phase6 の完了は、単に管理画面が増えた状態ではなく、**組織統制が運用可能な状態**に到達したときにのみ成立する。
+
+1. SoT / Boundary 固定
+- Phase6 の境界、管理画面 IA、組織モデルが SoT として固定されていること。
+- 少なくとも次を正として参照できること。
+  - `docs/ai/core/workflow.md`
+  - `docs/admin/admin-ia.md`
+  - `docs/admin/org-model.md`
+- Phase5 の単一運用者向け Workspace 責務へ、管理責務を逆流させないこと。
+
+2. 組織運用 / RBAC 固定
+- `organization / member / invite / role / permission` の責務が API と UI の両方で成立していること。
+- `members / invites / roles` の API が動作し、組織境界に反しないこと。
+- member 管理、invite 管理、role catalog の確認と更新が管理画面から行えること。
+- 権限変更、招待、role 更新に監査が残ること。
+
+3. 接続ライフサイクル管理 固定
+- `add / reauth / disable / delete / policy` を `account / project / organization` の責務で分離して扱えること。
+- lifecycle API と UI が対応し、管理レイヤーから運用できること。
+- `connections registry` は read-only の横断参照面として成立し、scope 別正式画面へ自然に遷移できること。
+
+4. 管理画面 IA / Base UI 固定
+- `Admin Console / Ops Console / AI Admin / Knowledge Admin` の4系統が管理面として成立していること。
+- admin layout を維持し、一般 Workspace UI と誤認しないこと。
+- `/ui/` を正本とし、管理導線も `/ui/admin-*.html` と関連 `/ui/` ページに統一されていること。
+
+5. Members / Invites / B分類残差回収
+- `project-members / project-invites` が stub ではなく実データ接続済みであること。
+- Phase5 で B分類に送った残差導線が、本実装または明確な read-only 管理画面へ置換されていること。
+- 未実装導線を正式機能のように残さないこと。
+
+6. AI Admin 固定
+- AI 利用管理画面で次を確認できること。
+  - AI Usage Metrics
+  - FAQ 利用状況
+  - 主要 AI 監査イベント
+  - organization-level language policy の運用状態
+- 一般 Workspace 側の observability と責務が混線していないこと。
+
+7. Knowledge Admin 固定
+- FAQ 知識源の `enable / disable / priority / audience / public_scope` を管理できること。
+- FAQ model と矛盾せず、実際の FAQ 検索にも同じ policy が効くこと。
+- runbook / glossary / source の管理責務が Knowledge Admin に整理されていること。
+
+8. 多言語設定管理 固定
+- organization-level の `default_language / supported_languages / glossary_mode` を管理できること。
+- 個人表示切替 UI と責務分離されていること。
+- `language.policy.update` が監査に残ること。
+
+9. 監査ビュー 固定
+- `Ops Console` と関連 API により、少なくとも次を横断閲覧できること。
+  - member / invite / role
+  - connection lifecycle
+  - ai events
+  - faq events
+- 時系列と最低限の filter があり、`project audit bridge` は project 起点の read-only 参照面として成立していること。
+
+10. 監査証跡 固定
+- 少なくとも次の監査 action が残ること。
+  - `org.member.create`
+  - `org.member.role_update`
+  - `org.invite.create`
+  - `org.invite.revoke`
+  - `org.role.upsert`
+  - `connection.lifecycle.add`
+  - `connection.lifecycle.reauth`
+  - `connection.lifecycle.disable`
+  - `connection.lifecycle.delete`
+  - `connection.policy.update`
+  - `ai.requested`
+  - `ai.completed`
+  - `ai.failed`
+  - `summary.generated`
+  - `analysis.generated`
+  - `translation.generated`
+  - `faq.queried`
+  - `faq.answered`
+  - `faq.escalated`
+  - `faq.guardrail_applied`
+  - `knowledge.source.policy.update`
+  - `language.policy.update`
+
+11. selftest 固定
+- Phase6 の主要ケースが `scripts/selftest.js` に統合登録され、継続実行されること。
+- 少なくとも次を selftest で確認できること。
+  - RBAC
+  - connection lifecycle
+  - admin base UI
+  - members / invites UI
+  - connections UI
+  - AI admin
+  - knowledge admin
+  - i18n admin
+  - audit overview
+  - B分類残差回収
+  - Phase6 selftest suite
+- admin layout と `/ui/` 正本前提を selftest で壊さないこと。
+
+12. Runbook 固定
+- Phase6 の運用 runbook が存在し、少なくとも次を文書化していること。
+  - 権限事故
+  - 誤招待
+  - 接続停止 / 接続異常
+  - AI設定確認
+  - 監査確認
+  - FAQ知識源管理
+  - 多言語設定管理
+  - connections registry
+  - project audit bridge
+  - 管理画面運用
+- `docs/runbooks/phase6-admin-ops.md` を管理画面導線から到達できること。
 
 ### NEXT1-00 Deferred Track (SoT)
 - 複数AI接続と役割設定（AI routing 高度化）は、次フェーズ1の後順位トラックとして維持する。

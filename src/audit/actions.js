@@ -42,4 +42,18 @@ module.exports = Object.freeze({
   AI_ANALYSIS_REQUEST: "ai.analysis.request",
   AI_TRANSLATION_REQUEST: "ai.translation.request",
   FAQ_QUERY: "faq.query",
+
+  // Phase6 RBAC
+  ORG_MEMBER_CREATE: "org.member.create",
+  ORG_MEMBER_ROLE_UPDATE: "org.member.role_update",
+  ORG_INVITE_CREATE: "org.invite.create",
+  ORG_INVITE_REVOKE: "org.invite.revoke",
+  ORG_ROLE_UPSERT: "org.role.upsert",
+  CONNECTION_LIFECYCLE_ADD: "connection.lifecycle.add",
+  CONNECTION_LIFECYCLE_REAUTH: "connection.lifecycle.reauth",
+  CONNECTION_LIFECYCLE_DISABLE: "connection.lifecycle.disable",
+  CONNECTION_LIFECYCLE_DELETE: "connection.lifecycle.delete",
+  CONNECTION_POLICY_UPDATE: "connection.policy.update",
+  KNOWLEDGE_SOURCE_POLICY_UPDATE: "knowledge.source.policy.update",
+  LANGUAGE_POLICY_UPDATE: "language.policy.update",
 });

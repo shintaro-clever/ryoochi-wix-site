@@ -2,6 +2,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { DEFAULT_TENANT } = require("./sqlite");
 
 const ROOT_DIR = path.join(__dirname, "..", "..");
 
@@ -85,8 +86,14 @@ const FAQ_SOURCE_REGISTRY = Object.freeze([
   },
 ]);
 
+const PUBLIC_SCOPES = Object.freeze(["both", "general_only", "operator_only", "internal_only"]);
+
 function normalizeText(value) {
   return typeof value === "string" ? value.trim() : "";
+}
+
+function nowIso() {
+  return new Date().toISOString();
 }
 
 function tokenize(text) {
@@ -152,15 +159,96 @@ function scoreSource(questionTokens, entry, text, sectionLines) {
   return { score, bestLineIndex };
 }
 
-function listFaqKnowledgeSources({ audience = "general" } = {}) {
-  const normalizedAudience = normalizeText(audience).toLowerCase() === "operator" ? "operator" : "general";
-  return FAQ_SOURCE_REGISTRY.filter((entry) => Array.isArray(entry.audiences) && entry.audiences.includes(normalizedAudience));
+function normalizeAudienceList(value, fallback = ["general", "operator"]) {
+  const source = Array.isArray(value) ? value : [];
+  const normalized = Array.from(
+    new Set(
+      source
+        .map((item) => normalizeText(item).toLowerCase())
+        .filter((item) => item === "general" || item === "operator")
+    )
+  );
+  return normalized.length ? normalized : fallback.slice();
 }
 
-function searchFaqKnowledgeSources({ question = "", audience = "general", limit = 4 } = {}) {
+function parseJsonSafe(value, fallback = []) {
+  const text = normalizeText(value);
+  if (!text) return fallback;
+  try {
+    const parsed = JSON.parse(text);
+    return Array.isArray(parsed) ? parsed : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function defaultPriorityFor(entry, index) {
+  const audienceWeight = Array.isArray(entry.audiences) && entry.audiences.includes("operator") && !entry.audiences.includes("general")
+    ? 60
+    : 100;
+  return audienceWeight + index * 10;
+}
+
+function listRegistryWithPolicies(db = null, tenantId = DEFAULT_TENANT) {
+  const policyRows =
+    db &&
+    typeof db.prepare === "function"
+      ? db
+          .prepare(
+            `SELECT source_path, enabled, priority, audiences_json, public_scope, updated_at
+             FROM faq_knowledge_source_policies
+             WHERE tenant_id=?`
+          )
+          .all(tenantId)
+      : [];
+  const policyMap = new Map(
+    policyRows.map((row) => [
+      normalizeText(row.source_path),
+      {
+        enabled: Number(row.enabled || 0) === 1,
+        priority: Number.isFinite(Number(row.priority)) ? Number(row.priority) : 100,
+        audiences: normalizeAudienceList(parseJsonSafe(row.audiences_json, [])),
+        public_scope: PUBLIC_SCOPES.includes(normalizeText(row.public_scope)) ? normalizeText(row.public_scope) : "both",
+        updated_at: normalizeText(row.updated_at) || null,
+      },
+    ])
+  );
+  return FAQ_SOURCE_REGISTRY.map((entry, index) => {
+    const policy = policyMap.get(entry.path);
+    return {
+      ...entry,
+      enabled: policy ? policy.enabled : true,
+      priority: policy ? policy.priority : defaultPriorityFor(entry, index),
+      audiences: policy ? policy.audiences : normalizeAudienceList(entry.audiences, ["general"]),
+      public_scope: policy ? policy.public_scope : "both",
+      policy_updated_at: policy ? policy.updated_at : null,
+    };
+  });
+}
+
+function matchesAudiencePolicy(entry, audience) {
+  const normalizedAudience = normalizeText(audience).toLowerCase() === "operator" ? "operator" : "general";
+  const allowedAudiences = normalizeAudienceList(entry.audiences, ["general", "operator"]);
+  if (!allowedAudiences.includes(normalizedAudience)) return false;
+  const scope = normalizeText(entry.public_scope) || "both";
+  if (normalizedAudience === "general") {
+    return scope === "both" || scope === "general_only";
+  }
+  return scope === "both" || scope === "operator_only" || scope === "internal_only";
+}
+
+function listFaqKnowledgeSources({ db = null, tenantId = DEFAULT_TENANT, audience = "general" } = {}) {
+  const normalizedAudience = normalizeText(audience).toLowerCase() === "operator" ? "operator" : "general";
+  return listRegistryWithPolicies(db, tenantId)
+    .filter((entry) => entry.enabled)
+    .filter((entry) => matchesAudiencePolicy(entry, normalizedAudience))
+    .sort((a, b) => a.priority - b.priority || a.path.localeCompare(b.path));
+}
+
+function searchFaqKnowledgeSources({ db = null, tenantId = DEFAULT_TENANT, question = "", audience = "general", limit = 4 } = {}) {
   const normalizedQuestion = normalizeText(question);
   const questionTokens = tokenize(normalizedQuestion);
-  const candidates = listFaqKnowledgeSources({ audience }).map((entry) => {
+  const candidates = listFaqKnowledgeSources({ db, tenantId, audience }).map((entry) => {
     const absolutePath = path.join(ROOT_DIR, entry.path);
     const text = safeRead(absolutePath);
     const sectionLines = buildSectionMap(text);
@@ -171,20 +259,82 @@ function searchFaqKnowledgeSources({ question = "", audience = "general", limit 
       title: entry.title,
       path: entry.path,
       audience: normalizeText(audience).toLowerCase() === "operator" ? "operator" : "general",
+      enabled: entry.enabled,
+      priority: entry.priority,
+      public_scope: entry.public_scope,
       section: normalizeText(sectionRow && sectionRow.section),
       ref_kind: normalizeText(sectionRow && sectionRow.section) ? "section" : "document",
       excerpt: buildExcerpt(sectionLines.map((row) => row.line), scoreResult.bestLineIndex),
-      score: scoreResult.score,
+      score: scoreResult.score + Math.max(0, 30 - Number(entry.priority || 0)),
     };
   });
   return candidates
     .filter((item) => item.score > 0)
-    .sort((a, b) => b.score - a.score || a.path.localeCompare(b.path))
+    .sort((a, b) => b.score - a.score || a.priority - b.priority || a.path.localeCompare(b.path))
     .slice(0, Math.max(1, Math.min(10, Number(limit) || 4)));
+}
+
+function validatePolicyPayload(payload = {}) {
+  const sourcePath = normalizeText(payload.source_path);
+  if (!sourcePath) {
+    const error = new Error("source_path is required");
+    error.status = 400;
+    error.code = "VALIDATION_ERROR";
+    error.details = { failure_code: "validation_error", field: "source_path" };
+    throw error;
+  }
+  if (!FAQ_SOURCE_REGISTRY.some((entry) => entry.path === sourcePath)) {
+    const error = new Error("source_path is not registered");
+    error.status = 400;
+    error.code = "VALIDATION_ERROR";
+    error.details = { failure_code: "validation_error", field: "source_path" };
+    throw error;
+  }
+  const publicScope = normalizeText(payload.public_scope) || "both";
+  if (!PUBLIC_SCOPES.includes(publicScope)) {
+    const error = new Error("public_scope is invalid");
+    error.status = 400;
+    error.code = "VALIDATION_ERROR";
+    error.details = { failure_code: "validation_error", field: "public_scope" };
+    throw error;
+  }
+  return {
+    source_path: sourcePath,
+    enabled: payload.enabled === undefined ? true : Boolean(payload.enabled),
+    priority: Number.isFinite(Number(payload.priority)) ? Number(payload.priority) : 100,
+    audiences: normalizeAudienceList(payload.audiences, ["general", "operator"]),
+    public_scope: publicScope,
+  };
+}
+
+function upsertFaqKnowledgeSourcePolicy(db, payload = {}, tenantId = DEFAULT_TENANT) {
+  const data = validatePolicyPayload(payload);
+  db.prepare(
+    `INSERT INTO faq_knowledge_source_policies(tenant_id,source_path,enabled,priority,audiences_json,public_scope,updated_at)
+     VALUES(?,?,?,?,?,?,?)
+     ON CONFLICT(tenant_id,source_path) DO UPDATE SET
+       enabled=excluded.enabled,
+       priority=excluded.priority,
+       audiences_json=excluded.audiences_json,
+       public_scope=excluded.public_scope,
+       updated_at=excluded.updated_at`
+  ).run(
+    tenantId,
+    data.source_path,
+    data.enabled ? 1 : 0,
+    data.priority,
+    JSON.stringify(data.audiences),
+    data.public_scope,
+    nowIso()
+  );
+  return listRegistryWithPolicies(db, tenantId).find((entry) => entry.path === data.source_path) || null;
 }
 
 module.exports = {
   FAQ_SOURCE_REGISTRY,
+  PUBLIC_SCOPES,
   listFaqKnowledgeSources,
+  listRegistryWithPolicies,
   searchFaqKnowledgeSources,
+  upsertFaqKnowledgeSourcePolicy,
 };

@@ -54,6 +54,9 @@ Phase5 の目標UI構成:
 - 右: 接続済みリソース / roadmap / recent files
 Phase5 の OpenAI は補助AIに限定し、役割は `要約` `分析` `提案` `翻訳` `FAQ回答` のみとする。GitHub / Figma への無確認実行や組織管理判断は対象外とする。
 Phase5 の完了条件は `docs/ai/core/workflow.md` の `NEXT5-01` を正とし、SoT、OpenAI接続、要約 / 分析 / 翻訳 / FAQ、監査、秘匿境界、metrics、selftest、runbook を含む運用可能状態までを対象にする。
+Phase6 の管理画面 IA は `docs/admin/admin-ia.md` を正とし、`Admin Console / Ops Console / AI Admin / Knowledge Admin` に責務分割する。一般 Workspace と同じ見え方にはせず、管理責務を別導線で扱う。
+Phase6 の組織運用モデルは `docs/admin/org-model.md` を正とし、`organization / member / invite / role / permission` と `account / project / organization` の境界を固定する。
+Phase6 の完了条件は `docs/ai/core/workflow.md` の `NEXT6-01` を正とし、組織運用、RBAC、接続管理、AI管理、知識源管理、多言語設定、監査、B分類回収、selftest、runbook を含む統制運用成立までを対象にする。
 
 ## Not Included（このテンプレが提供しないもの）
 
@@ -95,7 +98,11 @@ Phase5 の完了条件は `docs/ai/core/workflow.md` の `NEXT5-01` を正とし
 - VPS反映チェックリスト（Workspace Phase3: search/history/metrics/retry/export, P3-OPSX-01）: `docs/runbooks/vps-workspace-phase3-checklist.md`
 - Fidelity Hardening 運用手順（localhost/staging/production 比較, P4-OPSX-01）: `docs/runbooks/fidelity-hardening-operations.md`
 - Phase5 OpenAI運用 runbook（summary/analysis/translate/faq/metrics/audit, P5-TEST-01）: `docs/runbooks/phase5-openai-assist-operations.md`
+- Phase6 Admin運用 runbook（RBAC/connection lifecycle/AI admin/knowledge admin/i18n/audit, P6-OPSX-01）: `docs/runbooks/phase6-admin-ops.md`
 - Phase5 完了条件 SoT（P5-REL-01）: `docs/ai/core/workflow.md`
+- Phase6 完了条件 SoT（P6-REL-01）: `docs/ai/core/workflow.md`
+- Phase6 管理画面 IA SoT（P6-ADMIN-01）: `docs/admin/admin-ia.md`
+- Phase6 組織・ユーザーモデル SoT（P6-ORG-01）: `docs/admin/org-model.md`
 - Phase4 完了条件 SoT（P4-REL-01）: `docs/ai/core/workflow.md`
 
 ---
@@ -182,6 +189,12 @@ Phase3 完了条件（NEXT3-01）:
   - 完全自律エージェント
 - 加えて、GitHub / Figma への無確認実行や組織管理判断は OpenAI の対象外とする
 - これらの対象外は Phase6 以降へ分離し、Phase5 に混入させない
+
+次フェーズ6（NEXT6-00: Admin / Org Ops）の入口:
+- Phase6 は社内活用向けの `管理画面 / 組織運用レイヤー` 専用フェーズとする
+- 対象は `社内管理画面` `組織ユーザー管理` `RBAC` `接続ライフサイクル管理` `AI利用管理` `FAQ知識源管理` `多言語設定管理` `監査ビュー`
+- Phase5 の単一運用者向け Workspace とは責務分離し、管理責務を Phase5 側へ混入させない
+- `複数AI routing の高度化` と `完全自律エージェント` は Phase6 の対象外とし、さらに後続へ分離する
 
 次フェーズ1（NEXT1-00: 複数AI/役割設定）は後順位:
 - 複数AI接続・role/profile/persona routing 高度化は後続トラックで扱う
