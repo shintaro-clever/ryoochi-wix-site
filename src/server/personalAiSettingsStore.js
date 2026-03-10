@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { DEFAULT_TENANT } = require("../db");
 const { KINDS, buildPublicId, parsePublicIdFor, isUuid } = require("../id/publicIds");
+const { validateSecretReference } = require("../api/projects");
 
 function nowIso() {
   return new Date().toISOString();
@@ -67,6 +68,8 @@ function parseConfig(input) {
 function sanitizeWritableInput(input = {}, mode = "create") {
   const provider = normalizeText(input.provider);
   const model = normalizeText(input.model);
+  const secretRefInput =
+    input.secret_ref !== undefined ? input.secret_ref : input.secret_id !== undefined ? input.secret_id : undefined;
 
   if (mode === "create") {
     if (!provider) throw validationError("provider is required", { field: "provider" });
@@ -82,8 +85,15 @@ function sanitizeWritableInput(input = {}, mode = "create") {
     if (!model) throw validationError("model is required", { field: "model" });
     next.model = model;
   }
-  if (input.secret_ref !== undefined) {
-    next.secret_ref = normalizeOptionalText(input.secret_ref);
+  if (secretRefInput !== undefined) {
+    if (typeof secretRefInput !== "string") {
+      throw validationError("secret_ref must be string", { field: "secret_ref" });
+    }
+    const secretErr = validateSecretReference(secretRefInput, "secret_ref");
+    if (secretErr) {
+      throw validationError(secretErr, { field: "secret_ref" });
+    }
+    next.secret_ref = normalizeOptionalText(secretRefInput);
   }
   if (input.config !== undefined) {
     next.config = parseConfig(input.config);
@@ -114,6 +124,7 @@ function mapRow(row) {
     provider: normalizeText(row.provider),
     model: normalizeText(row.model),
     secret_ref: normalizeOptionalText(row.secret_ref),
+    secret_id: normalizeOptionalText(row.secret_ref),
     config,
     enabled: Number(row.enabled || 0) === 1,
     is_default: Number(row.is_default || 0) === 1,

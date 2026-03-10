@@ -120,7 +120,7 @@ function validateSecretReference(value, fieldName) {
   if (!text) return null;
   if (text.length > 512) return `${fieldName} too long`;
   // Guardrails to avoid storing raw secrets by mistake.
-  if (/^(ghp_|github_pat_|gho_|ghu_|ghs_|ghr_|figd_|figma_)/i.test(text)) {
+  if (/^(ghp_|github_pat_|gho_|ghu_|ghs_|ghr_|figd_|figma_|sk-[A-Za-z0-9]|sess-[A-Za-z0-9])/i.test(text)) {
     return `${fieldName} must be a reference, not a secret value`;
   }
   return null;

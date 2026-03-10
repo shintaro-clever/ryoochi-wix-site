@@ -111,6 +111,38 @@
               <p class="mt-1 text-xs text-text-muted">scope / actor / read plan / fidelity evidence を表示します。</p>
               <pre id="run-external-audit-preview" class="mt-3 bg-background-dark text-slate-100 rounded-lg p-3 text-xs overflow-x-auto">-</pre>
             </section>
+            <section class="rounded-lg border border-border-dark p-4 xl:col-span-2">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h2 class="text-sm font-semibold">AI Run Summary</h2>
+                  <p class="mt-1 text-xs text-text-muted">概要 / 主な失敗理由 / 優先対応 / evidence_refs を表示します。</p>
+                </div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <label class="text-xs text-text-muted">
+                    AI表示言語
+                    <select id="run-ai-display-language" class="ml-2 rounded border border-border-dark bg-transparent px-2 py-1 text-xs">
+                      <option value="ja">ja</option>
+                      <option value="en">en</option>
+                    </select>
+                  </label>
+                  <button id="run-ai-summary-generate" type="button" class="px-3 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90">要約を生成</button>
+                </div>
+              </div>
+              <p class="mt-2 text-[11px] text-text-muted">対象は Run要約 の表示だけです。外観設定保存UIとは分離しています。</p>
+              <p id="run-ai-summary-status" class="mt-2 text-xs text-text-muted"></p>
+              <div id="run-ai-summary" class="mt-3 text-sm text-text-muted">要約は未生成です。</div>
+            </section>
+            <section class="rounded-lg border border-border-dark p-4 xl:col-span-2">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h2 class="text-sm font-semibold">AI Corrective Suggestions</h2>
+                  <p class="mt-1 text-xs text-text-muted">補正候補 / confirm_required / evidence 要約を表示し、write-plan 作成へ進めます。</p>
+                </div>
+                <button id="run-ai-corrective-generate" type="button" class="px-3 py-2 rounded-lg border border-border-dark text-sm font-semibold hover:bg-slate-100 dark:hover:bg-background-dark/80">提案を生成</button>
+              </div>
+              <p id="run-ai-corrective-status" class="mt-2 text-xs text-text-muted"></p>
+              <div id="run-ai-corrective-list" class="mt-3 text-sm text-text-muted">提案は未生成です。</div>
+            </section>
             <section class="rounded-lg border border-border-dark p-4">
               <h2 class="text-sm font-semibold" data-i18n="ui.run.section.inputs">Inputs</h2>
               <p class="mt-1 text-xs text-text-muted" data-i18n="ui.run.section.inputs.desc">投入した入力値を確認します。</p>
@@ -176,7 +208,7 @@
     <script src="/ui/sidebar.js"></script>
     <script src="/ui/i18n/i18n.js" defer></script>
     <script type="module">
-      import { apiGet, isPrefixedId, setText, t } from "/ui/api.js";
+      import { apiGet, apiPost, isPrefixedId, setText, t } from "/ui/api.js";
 
       const params = new URLSearchParams(window.location.search || "");
       const rawRunId = (params.get("run_id") || "").trim();
@@ -194,6 +226,118 @@
       const figmaMajorChangesEl = document.getElementById("figma-major-changes");
       const figmaStructureSummaryEl = document.getElementById("figma-structure-summary");
       const figmaVisualSummaryEl = document.getElementById("figma-visual-summary");
+      const runCorrectiveListEl = document.getElementById("run-ai-corrective-list");
+      const runCorrectiveStatusEl = document.getElementById("run-ai-corrective-status");
+      const runCorrectiveButtonEl = document.getElementById("run-ai-corrective-generate");
+      const runAiDisplayLanguageEl = document.getElementById("run-ai-display-language");
+      const AI_DISPLAY_LANG_KEY = "ai_display_lang";
+      let currentRun = null;
+      let currentRunCorrectiveSuggestions = [];
+      let runSummaryState = null;
+
+      function escapeHtml(value) {
+        return String(value == null ? "" : value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;")
+          .replace(/'/g, "&#39;");
+      }
+
+      function summarizeEvidenceRefs(evidence) {
+        const source = evidence && typeof evidence === "object" ? evidence : {};
+        const metricSnapshot = source.metric_snapshot && typeof source.metric_snapshot === "object" ? source.metric_snapshot : {};
+        const historyWindow = source.history_window && typeof source.history_window === "object" ? source.history_window : {};
+        const parts = [];
+        if (source.run_id) parts.push(`run=${String(source.run_id)}`);
+        if (source.thread_id) parts.push(`thread=${String(source.thread_id)}`);
+        if (historyWindow.action_category) parts.push(`action=${String(historyWindow.action_category)}`);
+        if (Array.isArray(historyWindow.linked_reason_types) && historyWindow.linked_reason_types.length) {
+          parts.push(`reasons=${historyWindow.linked_reason_types.join("/")}`);
+        }
+        if (Array.isArray(historyWindow.suggested_target_paths) && historyWindow.suggested_target_paths.length) {
+          parts.push(`targets=${historyWindow.suggested_target_paths.slice(0, 2).join(", ")}`);
+        }
+        if (metricSnapshot.action_reason_count) parts.push(`reason_count=${String(metricSnapshot.action_reason_count)}`);
+        return parts.join(" / ") || "-";
+      }
+
+      function detectAiDisplayLanguage() {
+        try {
+          const saved = String(localStorage.getItem(AI_DISPLAY_LANG_KEY) || "").trim().toLowerCase();
+          if (saved === "ja" || saved === "en") return saved;
+        } catch (_) {}
+        try {
+          const uiLang = String(localStorage.getItem("ui_lang") || "").trim().toLowerCase();
+          if (uiLang === "ja" || uiLang === "en") return uiLang;
+        } catch (_) {}
+        return "ja";
+      }
+
+      function storeAiDisplayLanguage(lang) {
+        const next = lang === "en" ? "en" : "ja";
+        try {
+          localStorage.setItem(AI_DISPLAY_LANG_KEY, next);
+        } catch (_) {}
+        if (runAiDisplayLanguageEl) runAiDisplayLanguageEl.value = next;
+        return next;
+      }
+
+      async function translateAiPayload(sourceUseCase, payload, evidenceRefs, targetLanguage) {
+        if (targetLanguage === "ja") {
+          return { translated: payload, evidence_refs: evidenceRefs || {} };
+        }
+        return apiPost("/ai/translate", {
+          source_use_case: sourceUseCase,
+          target_language: targetLanguage,
+          payload,
+          evidence_refs: evidenceRefs || {},
+        });
+      }
+
+      function renderRunSummaryBody(summary, evidence) {
+        const normalized = summary && typeof summary === "object" ? summary : {};
+        return `
+          <p class="text-sm">${escapeHtml(String(normalized.overview || "-"))}</p>
+          <div class="mt-3">
+            <p class="text-xs text-text-muted">主な失敗理由</p>
+            <ul class="mt-1 list-disc list-inside text-sm space-y-1">${(Array.isArray(normalized.main_failure_reasons) ? normalized.main_failure_reasons : []).map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+          </div>
+          <div class="mt-3">
+            <p class="text-xs text-text-muted">優先対応</p>
+            <ul class="mt-1 list-disc list-inside text-sm space-y-1">${(Array.isArray(normalized.priority_actions) ? normalized.priority_actions : []).map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+          </div>
+          <pre class="mt-3 bg-background-dark text-slate-100 rounded-lg p-3 text-xs overflow-x-auto">${escapeHtml(JSON.stringify(evidence || {}, null, 2))}</pre>
+        `;
+      }
+
+      async function renderRunSummaryForLanguage() {
+        const container = document.getElementById("run-ai-summary");
+        const feedbackEl = document.getElementById("run-ai-summary-status");
+        if (!container || !runSummaryState || !runSummaryState.payload) return;
+        const targetLanguage = detectAiDisplayLanguage();
+        if (targetLanguage === "ja") {
+          container.innerHTML = renderRunSummaryBody(runSummaryState.payload.summary, runSummaryState.evidence_refs);
+          feedbackEl.textContent = "";
+          return;
+        }
+        if (runSummaryState.translations && runSummaryState.translations[targetLanguage]) {
+          container.innerHTML = renderRunSummaryBody(runSummaryState.translations[targetLanguage].summary, runSummaryState.evidence_refs);
+          feedbackEl.textContent = `display_language=${targetLanguage}`;
+          return;
+        }
+        feedbackEl.textContent = `translation generating (${targetLanguage})...`;
+        try {
+          const result = await translateAiPayload("run_summary", runSummaryState.payload, runSummaryState.evidence_refs, targetLanguage);
+          const translated = result && result.translated && typeof result.translated === "object" ? result.translated : runSummaryState.payload;
+          runSummaryState.translations[targetLanguage] = translated;
+          container.innerHTML = renderRunSummaryBody(translated.summary, runSummaryState.evidence_refs);
+          feedbackEl.textContent = `display_language=${targetLanguage}`;
+        } catch (error) {
+          container.innerHTML = renderRunSummaryBody(runSummaryState.payload.summary, runSummaryState.evidence_refs);
+          feedbackEl.textContent = `translation error: ${error && error.message ? error.message : "unknown"}`;
+        }
+      }
 
       function setStatusVisual(status) {
         if (!statusBadge) return;
@@ -238,6 +382,7 @@
       }
 
       function renderRun(run) {
+        currentRun = run;
         setStatusVisual(run.status);
         setValue("run-run-id", String(run.run_id || "-"));
         setValue("run-job-type", String(run.job_type || "-"));
@@ -250,6 +395,134 @@
         renderFigmaOperations(run.external_operations, run.figma_before_after, run.inputs);
         renderExternalAudit(run.external_audit);
         renderFigmaBeforeAfter(run.figma_before_after, run.inputs);
+      }
+
+      function renderRunCorrectiveSuggestions() {
+        if (!runCorrectiveListEl) return;
+        if (!Array.isArray(currentRunCorrectiveSuggestions) || currentRunCorrectiveSuggestions.length === 0) {
+          runCorrectiveListEl.innerHTML = "提案は未生成です。";
+          return;
+        }
+        runCorrectiveListEl.innerHTML = currentRunCorrectiveSuggestions.map((entry) => {
+          const action = entry && entry.action && typeof entry.action === "object" ? entry.action : {};
+          const assist = entry && entry.assist && typeof entry.assist === "object" ? entry.assist : {};
+          const writePlan = entry && entry.writePlan && typeof entry.writePlan === "object" ? entry.writePlan : null;
+          const targets = Array.isArray(assist.target_file_or_component) ? assist.target_file_or_component : [];
+          const impact = Array.isArray(assist.expected_impact) ? assist.expected_impact : [];
+          const reasons = Array.isArray(assist.linked_reason_types) ? assist.linked_reason_types : [];
+          const providers = Array.isArray(action.eligible_providers) ? action.eligible_providers : [];
+          const planStatus = writePlan && writePlan.planned_action
+            ? `${String(writePlan.planned_action.provider || "-")} / ${String(writePlan.planned_action.status || "-")}`
+            : "";
+          return `
+            <article class="rounded-lg border border-border-dark p-4">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                  <p class="text-sm font-semibold">${escapeHtml(String(action.title || assist.action_type || "-"))}</p>
+                  <p class="mt-1 text-xs text-text-muted">action_type=${escapeHtml(String(assist.action_type || action.category || "-"))} / confidence=${escapeHtml(String(assist.confidence || "-"))} / confirm_required=${assist.confirm_required === true ? "true" : "false"}</p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  ${providers.map((provider) => `<button type="button" data-run-corrective-write-plan-button data-provider="${escapeHtml(provider)}" data-action-key="${escapeHtml(String(action.key || ""))}" class="px-2 py-1 rounded border border-border-dark text-xs hover:bg-slate-100 dark:hover:bg-background-dark/80">${escapeHtml(provider)} write-plan</button>`).join("") || '<span class="text-xs text-text-muted">write-plan 対象なし</span>'}
+                </div>
+              </div>
+              <p class="mt-2 text-xs text-text-muted">linked_reason_types: ${escapeHtml(reasons.join(" / ") || "-")}</p>
+              <p class="mt-1 text-xs text-text-muted">evidence: ${escapeHtml(summarizeEvidenceRefs(assist.evidence_refs))}</p>
+              <div class="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <p class="text-xs text-text-muted">target_file_or_component</p>
+                  <ul class="mt-1 list-disc list-inside text-sm space-y-1">${targets.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+                </div>
+                <div>
+                  <p class="text-xs text-text-muted">expected_impact</p>
+                  <ul class="mt-1 list-disc list-inside text-sm space-y-1">${impact.map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+                </div>
+              </div>
+              <p class="mt-3 text-xs ${writePlan ? "text-emerald-600 dark:text-emerald-300" : "text-text-muted"}">${escapeHtml(planStatus || "write-plan 未作成")}</p>
+            </article>
+          `;
+        }).join("");
+      }
+
+      async function loadRunSummary() {
+        const container = document.getElementById("run-ai-summary");
+        const button = document.getElementById("run-ai-summary-generate");
+        const feedbackEl = document.getElementById("run-ai-summary-status");
+        if (!container || !button) return;
+        if (!runId) return;
+        button.disabled = true;
+        feedbackEl.textContent = "AI summary generating...";
+        try {
+          const result = await apiPost(`/runs/${encodeURIComponent(runId)}/ai-summary`, {});
+          const summary = result && result.summary && typeof result.summary === "object" ? result.summary : {};
+          const evidence = result && result.evidence_refs && typeof result.evidence_refs === "object" ? result.evidence_refs : {};
+          runSummaryState = {
+            payload: { summary },
+            evidence_refs: evidence,
+            translations: {},
+          };
+          container.innerHTML = renderRunSummaryBody(summary, evidence);
+          feedbackEl.textContent = result.status === "ok" ? "" : String(result.error || result.failure_code || "summary failed");
+          await renderRunSummaryForLanguage();
+        } catch (error) {
+          feedbackEl.textContent = `error: ${error && error.message ? error.message : "unknown"}`;
+        } finally {
+          button.disabled = false;
+        }
+      }
+
+      async function loadRunCorrectiveSuggestions() {
+        if (!runCorrectiveListEl || !runCorrectiveButtonEl || !runId) return;
+        runCorrectiveButtonEl.disabled = true;
+        runCorrectiveStatusEl.textContent = "AI corrective suggestions generating...";
+        try {
+          const plan = await apiPost("/fidelity/corrective-action-plan", { run_id: runId });
+          const actions = plan && plan.corrective_action_plan && Array.isArray(plan.corrective_action_plan.actions)
+            ? plan.corrective_action_plan.actions.slice(0, 4)
+            : [];
+          if (actions.length === 0) {
+            currentRunCorrectiveSuggestions = [];
+            renderRunCorrectiveSuggestions();
+            runCorrectiveStatusEl.textContent = "補正候補はありません。";
+            return;
+          }
+          currentRunCorrectiveSuggestions = await Promise.all(actions.map(async (action) => ({
+            action,
+            assist: await apiPost("/ai-action-assist/corrective-action", { run_id: runId, action_key: action.key }),
+            writePlan: null,
+          })));
+          renderRunCorrectiveSuggestions();
+          runCorrectiveStatusEl.textContent = "";
+        } catch (error) {
+          runCorrectiveStatusEl.textContent = `error: ${error && error.message ? error.message : "unknown"}`;
+        } finally {
+          runCorrectiveButtonEl.disabled = false;
+        }
+      }
+
+      async function createRunCorrectiveWritePlan(actionKey, provider) {
+        if (!runId || !provider) return;
+        const item = currentRunCorrectiveSuggestions.find((entry) => entry && entry.action && String(entry.action.key || "") === String(actionKey || ""));
+        if (!item) return;
+        runCorrectiveStatusEl.textContent = `${provider} write-plan generating...`;
+        try {
+          const result = await apiPost("/ai-action-assist/corrective-action/write-plan", {
+            run_id: runId,
+            action_key: actionKey,
+            provider,
+            assist: {
+              target_file_or_component: item.assist.target_file_or_component,
+              expected_impact: item.assist.expected_impact,
+              linked_reason_types: item.assist.linked_reason_types,
+            },
+          });
+          item.writePlan = result;
+          renderRunCorrectiveSuggestions();
+          runCorrectiveStatusEl.textContent = result && result.confirm_required === true
+            ? `${provider} write-plan created: confirm_required`
+            : `${provider} write-plan created`;
+        } catch (error) {
+          runCorrectiveStatusEl.textContent = `error: ${error && error.message ? error.message : "unknown"}`;
+        }
       }
 
       function renderGithubOperations(items) {
@@ -391,6 +664,28 @@
       }
 
       retry.addEventListener("click", loadRun);
+      if (runAiDisplayLanguageEl) {
+        runAiDisplayLanguageEl.value = detectAiDisplayLanguage();
+        runAiDisplayLanguageEl.addEventListener("change", async (event) => {
+          storeAiDisplayLanguage(event && event.target ? event.target.value : "ja");
+          await renderRunSummaryForLanguage();
+        });
+      }
+      document.addEventListener("click", (event) => {
+        if (event.target && event.target.id === "run-ai-summary-generate") {
+          loadRunSummary();
+        }
+        if (event.target && event.target.id === "run-ai-corrective-generate") {
+          loadRunCorrectiveSuggestions();
+        }
+        const correctiveButton = event.target && event.target.closest ? event.target.closest("[data-run-corrective-write-plan-button]") : null;
+        if (correctiveButton) {
+          createRunCorrectiveWritePlan(
+            String(correctiveButton.getAttribute("data-action-key") || ""),
+            String(correctiveButton.getAttribute("data-provider") || "")
+          );
+        }
+      });
       loadRun();
     </script>
   </body>

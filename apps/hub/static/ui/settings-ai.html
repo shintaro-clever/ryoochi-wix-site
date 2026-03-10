@@ -52,6 +52,10 @@
             <h1 class="text-xl font-bold" data-i18n="ui.settingsAi.h1">個人AI設定</h1>
             <p class="mt-2 text-sm text-slate-500 dark:text-slate-300" data-i18n="ui.settingsAi.desc">provider / model / enabled / default を管理します。</p>
             <p class="mt-2 text-xs text-text-muted" data-i18n="ui.settingsAi.note">将来は複数AI接続や役割設定に拡張予定です（本フェーズは既定AI1件）。</p>
+            <div class="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 text-xs text-text-muted">
+              <p>OpenAI 接続の保存は `secret_ref` / `secret_id` 参照で行います。API キーの生値は保存しません。</p>
+              <p class="mt-1">例: `env://OPENAI_API_KEY`。`vault://...` は保存できますが、この環境では疎通確認できない場合があります。</p>
+            </div>
           </section>
 
           <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
@@ -89,8 +93,14 @@
               </label>
               <div class="md:col-span-2 flex flex-wrap items-center gap-2">
                 <button id="save-btn" type="submit" class="px-4 py-2 rounded-lg bg-primary text-white text-sm font-semibold hover:bg-primary/90" data-i18n="ui.settingsAi.form.save">保存</button>
+                <button id="verify-btn" type="button" class="px-4 py-2 rounded-lg border border-border-dark text-sm hover:border-primary/40">OpenAI接続を確認</button>
                 <button id="new-btn" type="button" class="px-4 py-2 rounded-lg border border-border-dark text-sm hover:border-primary/40" data-i18n="ui.settingsAi.form.new">新規作成モード</button>
                 <span id="form-status" class="text-xs text-text-muted"></span>
+              </div>
+              <div class="md:col-span-2 rounded-lg border border-border-dark p-3 text-xs text-text-muted">
+                <p class="font-semibold text-slate-700 dark:text-slate-200">接続確認</p>
+                <p class="mt-1">保存済みの `provider / model / secret_ref` を使って OpenAI の疎通確認を行います。</p>
+                <p id="verify-status" class="mt-2">未実行</p>
               </div>
             </form>
           </section>
@@ -108,6 +118,7 @@
       const form = document.getElementById("ai-settings-form");
       const formStatusEl = document.getElementById("form-status");
       const saveBtn = document.getElementById("save-btn");
+      const verifyBtn = document.getElementById("verify-btn");
       const refreshBtn = document.getElementById("refresh-list");
       const newBtn = document.getElementById("new-btn");
       const idInput = document.getElementById("ai_setting_id");
@@ -116,6 +127,7 @@
       const secretRefInput = document.getElementById("secret_ref");
       const enabledInput = document.getElementById("enabled");
       const defaultInput = document.getElementById("is_default");
+      const verifyStatusEl = document.getElementById("verify-status");
 
       let items = [];
 
@@ -131,11 +143,12 @@
       function fillForm(item = null) {
         if (!item) {
           idInput.value = "";
-          providerInput.value = "";
+          providerInput.value = "openai";
           modelInput.value = "";
           secretRefInput.value = "";
           enabledInput.checked = true;
           defaultInput.checked = false;
+          if (verifyStatusEl) verifyStatusEl.textContent = "未実行";
           return;
         }
         idInput.value = item.ai_setting_id || "";
@@ -144,6 +157,7 @@
         secretRefInput.value = item.secret_ref || "";
         enabledInput.checked = Boolean(item.enabled);
         defaultInput.checked = Boolean(item.is_default);
+        if (verifyStatusEl) verifyStatusEl.textContent = "保存済み設定で接続確認できます。";
       }
 
       async function renderList(defaultId) {
@@ -266,6 +280,35 @@
       if (refreshBtn) {
         refreshBtn.addEventListener("click", () => {
           load();
+        });
+      }
+
+      if (verifyBtn) {
+        verifyBtn.addEventListener("click", async () => {
+          const id = idInput.value.trim();
+          if (!id) {
+            if (verifyStatusEl) verifyStatusEl.textContent = "先に保存してください。未保存設定の接続確認はできません。";
+            return;
+          }
+          if (String(providerInput.value || "").trim().toLowerCase() !== "openai") {
+            if (verifyStatusEl) verifyStatusEl.textContent = "接続確認は provider=openai の設定のみ対応しています。";
+            return;
+          }
+          verifyBtn.disabled = true;
+          if (verifyStatusEl) verifyStatusEl.textContent = "接続確認中...";
+          try {
+            const result = await apiPost(`/me/ai-settings/${encodeURIComponent(id)}/verify`, {});
+            if (verifyStatusEl) {
+              verifyStatusEl.textContent =
+                result && result.status === "ok"
+                  ? `OK: provider=${result.provider || "-"} / model=${result.model || "-"}`
+                  : `NG: provider=${result.provider || "-"} / model=${result.model || "-"} / error=${result && result.error ? result.error : "unknown"}`;
+            }
+          } catch (error) {
+            if (verifyStatusEl) verifyStatusEl.textContent = String((error && error.message) || "failed");
+          } finally {
+            verifyBtn.disabled = false;
+          }
         });
       }
 

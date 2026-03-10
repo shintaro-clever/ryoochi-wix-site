@@ -12,6 +12,16 @@
 - サイドバーに追加するリンクは `href="/ui/<name>.html"` を使う。
 - 追加時は必ず `apps/hub/static/ui/<name>.html` を作成する。
 - PR前に `npm test`（= `build:ui` 含む）を実行し、include未展開混入を防ぐ。
+- `/ui/` 配下を UI 正本とし、旧HTMLファイルが残っていても配信導線は `/ui/` に統一する。
+
+## Workspace IA Target (Phase5 SoT)
+
+- Workspace IA再編では 1枚目を現状UI、2枚目を目標UIとして扱う。
+- 目標UIの基本構成は次で固定する。
+  - 左: 横断ナビゲーション
+  - 中央: AI作業面
+  - 右: 接続済みリソース / roadmap / recent files
+- 新規ページ追加や導線変更は、この3面構成と `/ui/` 正本前提を崩さないこと。
 
 ## i18n Key Naming（固定）
 

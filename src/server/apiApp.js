@@ -46,11 +46,16 @@ const { handleBehaviorDiff } = require("./routes/behaviorDiff");
 const { handleExecutionDiff } = require("./routes/executionDiff");
 const { handleCorrectiveActionPlan } = require("./routes/correctiveActionPlan");
 const { handleCorrectiveActionWritePlan } = require("./routes/correctiveActionWritePlan");
+const { handleCorrectiveActionAssist, handleCorrectiveActionAssistWritePlan } = require("./routes/aiActionAssist");
 const { handleWorkspaceSearch } = require("./routes/workspaceSearch");
 const { handleHistory } = require("./routes/history");
 const { handleWorkspaceMetrics } = require("./routes/workspaceMetrics");
 const { handleWorkspaceExport } = require("./routes/workspaceExport");
 const { handleRunRetry } = require("./routes/runRetry");
+const { handleRunAiSummary, handleHistoryAiSummary, handleObservabilityAiSummary } = require("./routes/aiSummary");
+const { handleObservabilityAiAnalysis } = require("./routes/aiAnalysis");
+const { handleAiTranslate } = require("./routes/aiTranslate");
+const { handleFaqQuery } = require("./routes/faq");
 const { processChatTurnWithLocalStub } = require("./chatStub");
 const { buildExternalReadPlan, buildChatAssistantGuardMessage } = require("./chatReadPlan");
 const { planChatWrite, confirmChatWrite } = require("./chatWriteOrchestration");
@@ -86,6 +91,7 @@ const {
   patchPersonalAiSetting,
   getDefaultPersonalAiSetting,
 } = require("../api/personalAiSettings");
+const { resolveSecretReference, verifyOpenAiConnection } = require("./openaiConnection");
 const { loadProjectSharedContext } = require("./projectSharedContext");
 const { buildConnectionContext, normalizeFilePaths } = require("./connectionContext");
 const { buildFidelityEnvironmentContext } = require("./fidelityEnvironment");
@@ -691,6 +697,12 @@ function createApiServer(dbConn) {
       if (urlPath === "/api/fidelity/corrective-action-write-plan") {
         return handleCorrectiveActionWritePlan(req, res, db);
       }
+      if (urlPath === "/api/ai-action-assist/corrective-action") {
+        return handleCorrectiveActionAssist(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/ai-action-assist/corrective-action/write-plan") {
+        return handleCorrectiveActionAssistWritePlan(req, res, db);
+      }
       if (urlPath === "/api/search/model") {
         return sendJson(res, 200, SEARCH_MODEL);
       }
@@ -793,6 +805,57 @@ function createApiServer(dbConn) {
         try {
           const item = getDefaultPersonalAiSetting(db, userId);
           return sendJson(res, 200, { item });
+        } catch (error) {
+          return jsonError(
+            res,
+            error.status || 400,
+            error.code || "VALIDATION_ERROR",
+            error.message || "入力が不正です",
+            error.details || { failure_code: error.failure_code || "validation_error" }
+          );
+        }
+      }
+
+      const aiSettingVerifyMatch = urlPath.match(/^\/api\/me\/ai-settings\/([^/]+)\/verify$/);
+      if (aiSettingVerifyMatch) {
+        const userId = req.user?.id || "";
+        const aiSettingId = aiSettingVerifyMatch[1];
+        if (method !== "POST") {
+          res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
+          return res.end("Method not allowed");
+        }
+        try {
+          const item = getPersonalAiSetting(db, userId, aiSettingId);
+          if (!item) {
+            return jsonError(res, 404, "NOT_FOUND", "ai setting not found", { failure_code: "not_found" });
+          }
+          if (String(item.provider || "").toLowerCase() !== "openai") {
+            return sendJson(res, 200, {
+              provider: item.provider || "",
+              model: item.model || "",
+              status: "error",
+              error: "provider is not supported for verify",
+            });
+          }
+          const resolved = resolveSecretReference(item.secret_ref || item.secret_id || "", {
+            fallbackEnvName: "OPENAI_API_KEY",
+          });
+          if (!resolved.ok) {
+            return sendJson(res, 200, {
+              provider: "openai",
+              model: item.model || "",
+              status: "error",
+              error: resolved.error,
+            });
+          }
+          return sendJson(
+            res,
+            200,
+            await verifyOpenAiConnection({
+              model: item.model || "",
+              apiKey: resolved.value,
+            })
+          );
         } catch (error) {
           return jsonError(
             res,
@@ -935,6 +998,24 @@ function createApiServer(dbConn) {
             }
           },
         });
+      }
+      if (method === "POST" && /^\/api\/runs\/[^/]+\/ai-summary$/.test(urlPath)) {
+        return handleRunAiSummary(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/ai-summary/history") {
+        return handleHistoryAiSummary(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/ai-summary/observability") {
+        return handleObservabilityAiSummary(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/ai-analysis/observability") {
+        return handleObservabilityAiAnalysis(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/ai/translate") {
+        return handleAiTranslate(req, res, db, { userId: req.user?.id || "" });
+      }
+      if (urlPath === "/api/faq/query") {
+        return handleFaqQuery(req, res, db, { userId: req.user?.id || "" });
       }
       if (method === "GET" && /^\/api\/runs\/[^/]+$/.test(urlPath)) {
         const runIdInput = urlPath.split("/").filter(Boolean)[2];

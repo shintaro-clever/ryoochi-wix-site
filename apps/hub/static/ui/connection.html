@@ -124,19 +124,12 @@
 
           <section class="mt-4 rounded-lg border border-border-dark p-4">
             <h2 class="text-sm font-semibold" data-i18n="ui.connection.section.actions">Actions</h2>
-            <p class="mt-1 text-xs text-text-muted" data-i18n="ui.connection.section.actions.desc">保存/再認証/削除の操作です。</p>
+            <p class="mt-1 text-xs text-text-muted">この画面は接続詳細の参照専用です。未実装の保存/再認証/削除 UI は正式機能として見せません。</p>
             <div class="mt-3 flex flex-wrap gap-2">
-              <button type="button" disabled class="px-3 py-2 rounded-lg bg-primary/50 text-white text-sm font-semibold cursor-not-allowed" data-i18n="ui.connection.action.save">
-                保存
-              </button>
-              <button type="button" disabled class="px-3 py-2 rounded-lg border border-border-dark text-sm opacity-50 cursor-not-allowed" data-i18n="ui.connection.action.reauth">
-                再認証
-              </button>
-              <button type="button" disabled class="px-3 py-2 rounded-lg border border-rose-500/40 text-rose-600 text-sm opacity-50 cursor-not-allowed" data-i18n="ui.connection.action.delete">
-                削除
-              </button>
+              <a href="/ui/settings-ai.html" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80">OpenAI 設定を開く</a>
+              <a href="/ui/project-settings.html" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80">Project Settings を開く</a>
             </div>
-            <p class="mt-3 text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</p>
+            <p class="mt-3 text-xs text-text-muted">接続変更は各正本画面で行ってください。</p>
           </section>
 
           <div class="mt-4 rounded-lg border border-primary/20 bg-primary/5 p-4 text-xs text-text-muted">

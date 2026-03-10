@@ -599,26 +599,7 @@ function ensureRunExternalOperations(inputs) {
 }
 
 function safeAuditText(value) {
-  let text = typeof value === "string" ? value.trim() : "";
-  if (!text) return "";
-  const patterns = [
-    /(env|vault):\/\/[^\s"'`]+/gi,
-    /\b(ghp|gho|ghu|ghs|ghr|github_pat|sk|figd|figma)_[A-Za-z0-9_-]+\b/gi,
-    /\bconfirm_token\s*=\s*[^\s,;]+/gi,
-    /\bsecret_id\s*=\s*[^\s,;]+/gi,
-    /\b(token|password|secret|api[_-]?key)\b\s*[:=]\s*[^\s,;]+/gi,
-  ];
-  patterns.forEach((pattern) => {
-    text = text.replace(pattern, "[redacted]");
-  });
-  if (text !== (typeof value === "string" ? value.trim() : "")) {
-    return text || "[redacted]";
-  }
-  // Fallback: if the entire value contains a secret keyword, redact it
-  if (/token|secret|password|api[_-]?key/i.test(text)) {
-    return "[redacted]";
-  }
-  return text;
+  return require("../ai/openaiDataBoundary").sanitizeSecretLikeText(value, { fallbackRedact: true });
 }
 
 function buildExternalAuditView({

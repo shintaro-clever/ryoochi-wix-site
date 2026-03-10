@@ -72,50 +72,24 @@
           </section>
 
           <section class="bg-white dark:bg-card-dark border border-primary/10 rounded-xl p-6">
-            <h2 class="text-lg font-bold" data-i18n="ui.settingsConnections.section.form">接続設定フォーム</h2>
+            <h2 class="text-lg font-bold">接続設定の案内</h2>
+            <p class="mt-2 text-sm text-text-muted">このページには未実装の保存フォームを置きません。実装済みの設定画面へ遷移してください。</p>
             <div class="mt-4 grid grid-cols-1 lg:grid-cols-3 gap-4">
               <article class="rounded-lg border border-primary/10 p-4">
-                <h3 class="font-semibold">GitHub</h3>
-                <label class="mt-3 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.githubRepo">github.repo</label>
-                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="owner/repo" />
-                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.githubToken">github.token</label>
-                <input type="password" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" value="" placeholder="********" />
-                <label class="mt-3 inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" disabled />
-                  <span data-i18n="ui.settingsConnections.field.enabled">enabled</span>
-                </label>
+                <h3 class="font-semibold">OpenAI</h3>
+                <p class="mt-2 text-xs text-text-muted">OpenAI の保存と接続確認は Personal AI 設定で行います。API キーは生値保存せず、`secret_ref` 参照で扱います。</p>
+                <a href="/ui/settings-ai.html" class="mt-4 inline-flex px-3 py-2 rounded-lg border border-border-dark text-sm hover:border-primary/40">Personal AI 設定を開く</a>
               </article>
-
+              <article class="rounded-lg border border-primary/10 p-4">
+                <h3 class="font-semibold">GitHub</h3>
+                <p class="mt-2 text-xs text-text-muted">GitHub 接続はプロジェクト単位の設定と controlled write 前提で扱います。ここでは擬似保存 UI を表示しません。</p>
+                <a href="/ui/project-settings.html" class="mt-4 inline-flex px-3 py-2 rounded-lg border border-border-dark text-sm hover:border-primary/40">Project Settings を開く</a>
+              </article>
               <article class="rounded-lg border border-primary/10 p-4">
                 <h3 class="font-semibold">Figma</h3>
-                <label class="mt-3 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.figmaFileUrl">figma.fileUrl</label>
-                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="https://www.figma.com/file/..." />
-                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.figmaToken">figma.token</label>
-                <input type="password" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" value="" placeholder="********" />
-                <label class="mt-3 inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" disabled />
-                  <span data-i18n="ui.settingsConnections.field.enabled">enabled</span>
-                </label>
+                <p class="mt-2 text-xs text-text-muted">Figma 接続もプロジェクト単位で扱います。旧来の token 直入力フォームは正本にしません。</p>
+                <a href="/ui/project-settings.html" class="mt-4 inline-flex px-3 py-2 rounded-lg border border-border-dark text-sm hover:border-primary/40">Project Settings を開く</a>
               </article>
-
-              <article class="rounded-lg border border-primary/10 p-4">
-                <h3 class="font-semibold">AI</h3>
-                <label class="mt-3 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.aiProvider">ai.provider</label>
-                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="openai" />
-                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.aiName">ai.name</label>
-                <input type="text" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" placeholder="gpt-4.1" />
-                <label class="mt-2 block text-xs text-slate-500" data-i18n="ui.settingsConnections.field.aiApiKey">ai.apiKey</label>
-                <input type="password" class="mt-1 w-full rounded-lg border border-border-dark bg-transparent px-3 py-2 text-sm" value="" placeholder="********" />
-                <label class="mt-3 inline-flex items-center gap-2 text-sm">
-                  <input type="checkbox" disabled />
-                  <span data-i18n="ui.settingsConnections.field.enabled">enabled</span>
-                </label>
-              </article>
-            </div>
-
-            <div class="mt-5 flex flex-wrap items-center gap-2">
-              <button type="button" disabled class="px-4 py-2 rounded-lg bg-primary/50 text-white text-sm font-semibold cursor-not-allowed" data-i18n="ui.settingsConnections.save">保存</button>
-              <span class="text-xs text-text-muted" data-i18n="common.notImplementedYet">未実装（次フェーズで対応）</span>
             </div>
           </section>
         </div>

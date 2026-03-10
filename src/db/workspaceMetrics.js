@@ -320,6 +320,32 @@ function collectSearchAuditRows(db, criteria) {
   );
 }
 
+function collectAiAuditRows(db, criteria) {
+  const where = [
+    "tenant_id=?",
+    "action IN ('openai.assist.call','ai.summary.request','ai.analysis.request','ai.translation.request','faq.query')",
+  ];
+  const params = [DEFAULT_TENANT];
+  if (criteria.startAt) {
+    where.push("created_at>=?");
+    params.push(criteria.startAt);
+  }
+  if (criteria.endAt) {
+    where.push("created_at<=?");
+    params.push(criteria.endAt);
+  }
+  return withRetry(() =>
+    db
+      .prepare(
+        `SELECT action, meta_json, created_at
+         FROM audit_logs
+         WHERE ${where.join(" AND ")}
+         ORDER BY created_at DESC`
+      )
+      .all(...params)
+  );
+}
+
 function buildEmptyMetrics(criteria = {}) {
   return {
     project_id: criteria.projectId || null,
@@ -405,6 +431,67 @@ function buildEmptyMetrics(criteria = {}) {
     anomalies: {
       thresholds: OBSERVABILITY_ALERT_THRESHOLDS,
       items: [],
+    },
+    ai_requests: {
+      total: 0,
+      by_use_case: [],
+      by_status: [],
+      by_failure_code: [],
+    },
+    ai_failures: {
+      total: 0,
+      by_use_case: [],
+      by_failure_code: [],
+    },
+    ai_latency: {
+      count: 0,
+      median_ms: 0,
+      p95_ms: 0,
+      by_use_case: [],
+    },
+    ai_token_usage: {
+      total_input_tokens: 0,
+      total_output_tokens: 0,
+      total_tokens: 0,
+      by_use_case: [],
+    },
+    faq_queries: {
+      total: 0,
+      by_audience: [],
+      by_language: [],
+      guardrail_triggered: 0,
+      guardrail_by_code: [],
+      escalation_rate_pct: 0,
+      by_audience_escalation: [],
+    },
+    faq_resolution_rate: {
+      total: {
+        resolved: 0,
+        escalated: 0,
+        rate_pct: 0,
+      },
+      by_audience: [],
+    },
+    language_distribution: {
+      total: [],
+      by_source: [],
+    },
+    summary_requests: {
+      total: 0,
+      by_type: [],
+      by_status: [],
+    },
+    analysis_requests: {
+      total: 0,
+      by_type: [],
+      by_alert_code: [],
+      by_status: [],
+    },
+    translation_requests: {
+      total: 0,
+      by_source_use_case: [],
+      by_target_language: [],
+      by_status: [],
     },
   };
 }
@@ -553,6 +640,7 @@ function listWorkspaceMetrics(db, criteria) {
   const runRows = collectRunRows(db, criteria);
   const messageRows = collectMessageRows(db, criteria);
   const searchRows = collectSearchAuditRows(db, criteria);
+  const aiAuditRows = collectAiAuditRows(db, criteria);
   const historyItems = listHistory(db, {
     projectInternalId: criteria.projectInternalId,
     threadInternalId: criteria.threadInternalId,
@@ -594,8 +682,31 @@ function listWorkspaceMetrics(db, criteria) {
     [">=95", 0],
   ]);
   const durationValues = [];
+  const aiLatencyValues = [];
   const activeThreadIds = new Set();
   const runSnapshots = [];
+  const aiRequestsByUseCase = new Map();
+  const aiRequestsByStatus = new Map();
+  const aiRequestsByFailureCode = new Map();
+  const aiFailuresByUseCase = new Map();
+  const aiFailuresByFailureCode = new Map();
+  const aiLatencyMeta = new Map();
+  const aiTokenUsageMeta = new Map();
+  const faqByAudience = new Map();
+  const faqByLanguage = new Map();
+  const faqGuardrailByCode = new Map();
+  const faqResolutionByAudience = new Map();
+  const languageDistribution = new Map();
+  const languageDistributionBySource = new Map();
+  const summaryByType = new Map();
+  const summaryByStatus = new Map();
+  const analysisByType = new Map();
+  const analysisByAlertCode = new Map();
+  const analysisByStatus = new Map();
+  const translationBySourceUseCase = new Map();
+  const translationByTargetLanguage = new Map();
+  const translationByStatus = new Map();
+  let faqEscalated = 0;
 
   runRows.forEach((row) => {
     const inputs = parseJsonSafe(row.inputs_json);
@@ -766,6 +877,126 @@ function listWorkspaceMetrics(db, criteria) {
     asArray(meta.scope).forEach((scope) => addCount(searchByScope, asText(scope)));
   });
 
+  aiAuditRows.forEach((row) => {
+    const meta = parseJsonSafe(row.meta_json);
+    const action = asText(row.action);
+    const metaProjectId = asText(meta.project_id);
+    const metaThreadId = asText(meta.thread_id);
+    if (criteria.projectId && metaProjectId && metaProjectId !== criteria.projectId) {
+      return;
+    }
+    if (criteria.threadId && metaThreadId && metaThreadId !== criteria.threadId) {
+      return;
+    }
+    if (action === "openai.assist.call") {
+      const useCase = sanitizeMetricLabel(firstNonEmptyText(meta.use_case), "unknown");
+      const status = sanitizeMetricLabel(firstNonEmptyText(meta.status), "unknown");
+      const failureCode = sanitizeMetricLabel(firstNonEmptyText(meta.failure_code), "none");
+      const tokenUsage = asObject(meta.token_usage);
+      const latencyMs = Number(meta.latency_ms);
+      metrics.ai_requests.total += 1;
+      addCount(aiRequestsByUseCase, useCase);
+      addCount(aiRequestsByStatus, status);
+      if (failureCode && failureCode !== "none") {
+        addCount(aiRequestsByFailureCode, failureCode);
+      }
+      if (status !== "ok") {
+        metrics.ai_failures.total += 1;
+        addCount(aiFailuresByUseCase, useCase);
+        if (failureCode && failureCode !== "none") {
+          addCount(aiFailuresByFailureCode, failureCode);
+        }
+      }
+      if (Number.isFinite(latencyMs) && latencyMs >= 0) {
+        aiLatencyValues.push(latencyMs);
+        if (!aiLatencyMeta.has(useCase)) {
+          aiLatencyMeta.set(useCase, []);
+        }
+        aiLatencyMeta.get(useCase).push(latencyMs);
+      }
+      const inputTokens = Number(tokenUsage.input_tokens);
+      const outputTokens = Number(tokenUsage.output_tokens);
+      const totalTokens = Number(tokenUsage.total_tokens);
+      metrics.ai_token_usage.total_input_tokens += Number.isFinite(inputTokens) ? inputTokens : 0;
+      metrics.ai_token_usage.total_output_tokens += Number.isFinite(outputTokens) ? outputTokens : 0;
+      metrics.ai_token_usage.total_tokens += Number.isFinite(totalTokens) ? totalTokens : 0;
+      if (!aiTokenUsageMeta.has(useCase)) {
+        aiTokenUsageMeta.set(useCase, { input_tokens: 0, output_tokens: 0, total_tokens: 0, count: 0 });
+      }
+      const tokenEntry = aiTokenUsageMeta.get(useCase);
+      tokenEntry.input_tokens += Number.isFinite(inputTokens) ? inputTokens : 0;
+      tokenEntry.output_tokens += Number.isFinite(outputTokens) ? outputTokens : 0;
+      tokenEntry.total_tokens += Number.isFinite(totalTokens) ? totalTokens : 0;
+      tokenEntry.count += 1;
+      return;
+    }
+
+    if (action === "ai.summary.request") {
+      const summaryType = sanitizeMetricLabel(firstNonEmptyText(meta.summary_type), "unknown");
+      const status = sanitizeMetricLabel(firstNonEmptyText(meta.status), "unknown");
+      metrics.summary_requests.total += 1;
+      addCount(summaryByType, summaryType);
+      addCount(summaryByStatus, status);
+      return;
+    }
+
+    if (action === "ai.analysis.request") {
+      const analysisType = sanitizeMetricLabel(firstNonEmptyText(meta.analysis_type), "unknown");
+      const alertCode = sanitizeMetricLabel(firstNonEmptyText(meta.alert_code), "unknown");
+      const status = sanitizeMetricLabel(firstNonEmptyText(meta.status), "unknown");
+      metrics.analysis_requests.total += 1;
+      addCount(analysisByType, analysisType);
+      addCount(analysisByAlertCode, alertCode);
+      addCount(analysisByStatus, status);
+      return;
+    }
+
+    if (action === "ai.translation.request") {
+      const sourceUseCase = sanitizeMetricLabel(firstNonEmptyText(meta.source_use_case), "unknown");
+      const targetLanguage = sanitizeMetricLabel(firstNonEmptyText(meta.target_language), "unknown");
+      const status = sanitizeMetricLabel(firstNonEmptyText(meta.status), "unknown");
+      metrics.translation_requests.total += 1;
+      addCount(translationBySourceUseCase, sourceUseCase);
+      addCount(translationByTargetLanguage, targetLanguage);
+      addCount(translationByStatus, status);
+      addCount(languageDistribution, targetLanguage);
+      addCount(languageDistributionBySource, `translation::${targetLanguage}`);
+      return;
+    }
+
+    if (action === "faq.query") {
+      const audience = sanitizeMetricLabel(firstNonEmptyText(meta.audience), "general");
+      const language = sanitizeMetricLabel(firstNonEmptyText(meta.language), "ja");
+      const confidence = sanitizeMetricLabel(firstNonEmptyText(meta.confidence), "low");
+      const guardrailCode = sanitizeMetricLabel(firstNonEmptyText(meta.guardrail_code), "");
+      const escalated = Boolean(meta.escalation);
+      const resolved = Boolean(meta.resolved);
+      metrics.faq_queries.total += 1;
+      addCount(faqByAudience, audience);
+      addCount(faqByLanguage, language);
+      addCount(languageDistribution, language);
+      addCount(languageDistributionBySource, `faq::${language}`);
+      if (guardrailCode) {
+        metrics.faq_queries.guardrail_triggered += 1;
+        addCount(faqGuardrailByCode, guardrailCode);
+      }
+      if (!faqResolutionByAudience.has(audience)) {
+        faqResolutionByAudience.set(audience, { total: 0, resolved: 0, escalated: 0 });
+      }
+      const audienceEntry = faqResolutionByAudience.get(audience);
+      audienceEntry.total += 1;
+      if (resolved) {
+        metrics.faq_resolution_rate.total.resolved += 1;
+        audienceEntry.resolved += 1;
+      }
+      if (escalated || confidence === "low") {
+        faqEscalated += 1;
+        metrics.faq_resolution_rate.total.escalated += 1;
+        audienceEntry.escalated += 1;
+      }
+    }
+  });
+
   historyItems.forEach((item) => {
     metrics.history_event_volume.total += 1;
     addCount(historyByType, asText(item.event_type));
@@ -882,6 +1113,81 @@ function listWorkspaceMetrics(db, criteria) {
       const severityRank = { alert: 0, warning: 1 };
       return (severityRank[a.severity] || 9) - (severityRank[b.severity] || 9) || a.code.localeCompare(b.code);
     });
+
+  metrics.ai_requests.by_use_case = toSortedCountArray(aiRequestsByUseCase, "use_case");
+  metrics.ai_requests.by_status = toSortedCountArray(aiRequestsByStatus, "status");
+  metrics.ai_requests.by_failure_code = toSortedCountArray(aiRequestsByFailureCode, "failure_code");
+  metrics.ai_failures.by_use_case = toSortedCountArray(aiFailuresByUseCase, "use_case");
+  metrics.ai_failures.by_failure_code = toSortedCountArray(aiFailuresByFailureCode, "failure_code");
+
+  aiLatencyValues.sort((a, b) => a - b);
+  metrics.ai_latency.count = aiLatencyValues.length;
+  metrics.ai_latency.median_ms = aiLatencyValues.length > 0 ? percentile(aiLatencyValues, 0.5) : 0;
+  metrics.ai_latency.p95_ms = aiLatencyValues.length > 0 ? percentile(aiLatencyValues, 0.95) : 0;
+  metrics.ai_latency.by_use_case = Array.from(aiLatencyMeta.entries())
+    .map(([useCase, values]) => {
+      const sorted = values.slice().sort((a, b) => a - b);
+      return {
+        use_case: useCase,
+        count: sorted.length,
+        median_ms: sorted.length > 0 ? percentile(sorted, 0.5) : 0,
+        p95_ms: sorted.length > 0 ? percentile(sorted, 0.95) : 0,
+      };
+    })
+    .sort((a, b) => b.count - a.count || a.use_case.localeCompare(b.use_case));
+
+  metrics.ai_token_usage.by_use_case = Array.from(aiTokenUsageMeta.entries())
+    .map(([useCase, entry]) => ({
+      use_case: useCase,
+      request_count: entry.count,
+      input_tokens: entry.input_tokens,
+      output_tokens: entry.output_tokens,
+      total_tokens: entry.total_tokens,
+    }))
+    .sort((a, b) => b.total_tokens - a.total_tokens || a.use_case.localeCompare(b.use_case));
+
+  metrics.faq_queries.by_audience = toSortedCountArray(faqByAudience, "audience");
+  metrics.faq_queries.by_language = toSortedCountArray(faqByLanguage, "language");
+  metrics.faq_queries.guardrail_by_code = toSortedCountArray(faqGuardrailByCode, "guardrail_code");
+  metrics.faq_queries.escalation_rate_pct =
+    metrics.faq_queries.total > 0 ? roundPct((faqEscalated / metrics.faq_queries.total) * 100) : 0;
+  metrics.faq_queries.by_audience_escalation = Array.from(faqResolutionByAudience.entries())
+    .map(([audience, entry]) => ({
+      audience,
+      total: entry.total,
+      escalated: entry.escalated,
+      escalation_rate_pct: entry.total > 0 ? roundPct((entry.escalated / entry.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total || a.audience.localeCompare(b.audience));
+
+  metrics.faq_resolution_rate.total.rate_pct =
+    metrics.faq_queries.total > 0 ? roundPct((metrics.faq_resolution_rate.total.resolved / metrics.faq_queries.total) * 100) : 0;
+  metrics.faq_resolution_rate.by_audience = Array.from(faqResolutionByAudience.entries())
+    .map(([audience, entry]) => ({
+      audience,
+      total: entry.total,
+      resolved: entry.resolved,
+      escalated: entry.escalated,
+      rate_pct: entry.total > 0 ? roundPct((entry.resolved / entry.total) * 100) : 0,
+    }))
+    .sort((a, b) => b.total - a.total || a.audience.localeCompare(b.audience));
+
+  metrics.language_distribution.total = toSortedCountArray(languageDistribution, "language");
+  metrics.language_distribution.by_source = Array.from(languageDistributionBySource.entries())
+    .map(([key, count]) => {
+      const [source, language] = key.split("::");
+      return { source, language, count };
+    })
+    .sort((a, b) => b.count - a.count || a.source.localeCompare(b.source) || a.language.localeCompare(b.language));
+
+  metrics.summary_requests.by_type = toSortedCountArray(summaryByType, "summary_type");
+  metrics.summary_requests.by_status = toSortedCountArray(summaryByStatus, "status");
+  metrics.analysis_requests.by_type = toSortedCountArray(analysisByType, "analysis_type");
+  metrics.analysis_requests.by_alert_code = toSortedCountArray(analysisByAlertCode, "alert_code");
+  metrics.analysis_requests.by_status = toSortedCountArray(analysisByStatus, "status");
+  metrics.translation_requests.by_source_use_case = toSortedCountArray(translationBySourceUseCase, "source_use_case");
+  metrics.translation_requests.by_target_language = toSortedCountArray(translationByTargetLanguage, "target_language");
+  metrics.translation_requests.by_status = toSortedCountArray(translationByStatus, "status");
 
   return metrics;
 }

@@ -7,6 +7,7 @@
     if (file === "connections.html" || file === "connection.html") return "projects";
     if (file === "dashboard.html") return "dashboard";
     if (file === "analytics.html") return "analytics";
+    if (file === "help.html") return "help";
     if (file === "projects.html" || file === "project.html" || file.startsWith("project-")) return "projects";
     if (file === "setting.html" || file === "settings.html" || file.startsWith("settings-")) return "settings";
     return "";
@@ -15,6 +16,7 @@
   function normalizeNavKey(page) {
     if (!page) return inferPageFromPath();
     if (page === "dashboard") return "dashboard";
+    if (page === "help") return "help";
     if (page === "run" || page === "runs" || page === "job" || page === "jobs") return "projects";
     if (page === "connection" || page === "connections") return "projects";
     if (page === "project" || page === "projects" || page.startsWith("project-")) return "projects";

@@ -52,6 +52,9 @@ alias codex='codex --sandbox=workspace-write'
 次フェーズ2は「GitHub/Figma読取 → validation（Figma再現度検証）→ controlled write → run/workspace integration」を固定順序とし、完全自動同期と複数AI役割設定は対象外とする。
 次フェーズ3は Workspace の `search -> history -> observability -> operability` のみを対象とし、複数AI接続・役割設定、Figma/GitHub 高度操作の追加拡張、完全自動同期は対象外とする。
 次フェーズ4は **Phase3完了後にのみ** 着手し、Fidelity Hardening（Figma・コード・本番環境の一致率強化）専用とする。複数AI役割設計の再拡張、無関係な新機能追加、大規模UX刷新は対象外とする。
+次フェーズ5は **Phase4完了後にのみ** 着手し、単一運用者前提の `OpenAI運用補助AI` `多言語説明` `FAQボット` `Workspace IA再編` のみに限定する。今後の UI 正本は `/ui/` 配下とし、旧ページ直配信を設計基準に戻さない。
+Workspace IA再編は `1枚目=現状UI` `2枚目=目標UI` を前提にし、目標UIは `左=横断ナビ` `中央=AI作業面` `右=接続済みリソース/roadmap/recent files` の3面構成へ寄せる。
+Phase5 の対象外は `社内管理画面` `組織ユーザー管理` `RBAC強化` `複数AI routing` `confirmなし自動実行` `完全自律エージェント` とし、これらは Phase6 以降へ分離して混入させない。
 
 ---
 

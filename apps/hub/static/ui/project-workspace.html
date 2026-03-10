@@ -33,6 +33,21 @@
     </header>
 
     <div class="flex-1 overflow-y-auto p-4 md:p-6 custom-scrollbar space-y-4">
+      <section class="bg-primary/5 dark:bg-primary/10 border border-primary/30 rounded-xl p-4">
+        <div class="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p class="text-xs font-semibold uppercase tracking-[0.2em] text-primary">Phase5 Workspace IA</p>
+            <h1 class="mt-2 text-lg font-semibold">現状UIから目標UIへ寄せるための AI Workspace 基準面</h1>
+            <p class="mt-2 text-sm text-text-muted">この画面は Thread 中心の見え方を残しつつ、目標UIの 3 面構成へ寄せる移行面として扱います。以後の判断は現状UIではなく、AI Workspace 中心の目標構成を基準にします。</p>
+          </div>
+          <div class="rounded-lg border border-border-dark bg-white/70 dark:bg-background-dark/50 p-3 text-xs text-text-muted">
+            <p>左: 横断ナビ / 会話選択</p>
+            <p class="mt-1">中央: AI作業面</p>
+            <p class="mt-1">右: 接続済みリソース / roadmap / recent files</p>
+          </div>
+        </div>
+      </section>
+
       <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-4 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p class="text-xs text-text-muted" data-i18n="ui.workspace.aiStatus">個人AI設定</p>
@@ -40,16 +55,27 @@
           <p id="workspace-ai-setting-id" class="mt-1 text-[11px] font-mono text-text-muted break-all">-</p>
           <p id="workspace-ai-setting-meta" class="mt-1 text-[11px] text-text-muted">-</p>
         </div>
-        <div class="flex items-center gap-2">
+        <div class="flex flex-wrap items-center gap-2">
+          <label class="text-xs text-text-muted">
+            AI表示言語
+            <select id="workspace-ai-display-language" class="ml-2 rounded border border-border-dark bg-transparent px-2 py-1 text-xs">
+              <option value="ja">ja</option>
+              <option value="en">en</option>
+            </select>
+          </label>
           <a id="workspace-ai-link" href="/ui/settings-ai.html" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80" data-i18n="ui.workspace.openAiSettings">AI設定を開く</a>
           <a id="workspace-project-settings-link" href="/ui/project-settings.html" class="px-3 py-2 rounded-lg border border-border-dark text-sm hover:bg-slate-100 dark:hover:bg-background-dark/80" data-i18n="ui.workspace.openProjectSettings">プロジェクト設定</a>
         </div>
+        <p class="w-full text-[11px] text-text-muted">表示対象は Run要約 / History要約 / Observability要約 / 異常分析 / FAQ回答 のみです。外観設定保存UIとは分離しています。</p>
       </section>
 
       <section class="grid grid-cols-1 xl:grid-cols-[18rem_minmax(0,1fr)_20rem] gap-4">
         <aside class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-4">
           <div class="flex items-center justify-between gap-2">
-            <h3 class="text-sm font-semibold" data-i18n="ui.workspace.threads">Threads</h3>
+            <div>
+              <h3 class="text-sm font-semibold">Workspace Navigation</h3>
+              <p class="mt-1 text-[11px] text-text-muted">会話一覧は AI Workspace の補助導線として扱います。</p>
+            </div>
             <div class="flex items-center gap-2">
               <button id="workspace-new-conversation" type="button" class="inline-flex items-center gap-1 px-2 py-1 rounded border border-border-dark text-xs hover:bg-slate-100 dark:hover:bg-background-dark/80" data-i18n="ui.workspace.newConversation">新規会話</button>
               <a id="workspace-thread-detail-link" href="/ui/project-thread.html" class="text-xs text-primary hover:underline" data-i18n="ui.workspace.openThreadPage">Thread Debug</a>
@@ -62,8 +88,9 @@
         <section class="bg-white dark:bg-card-dark border border-border-dark rounded-xl p-4 flex flex-col min-h-[28rem]">
           <div class="flex items-center justify-between gap-3 border-b border-border-dark pb-3">
             <div>
-              <p class="text-xs text-text-muted" data-i18n="ui.workspace.activeThread">現在のスレッド</p>
+              <p class="text-xs text-text-muted">AI Workspace Center</p>
               <p id="workspace-active-thread" class="text-sm font-semibold">-</p>
+              <p class="mt-1 text-[11px] text-text-muted">Thread は中央作業面の文脈の一部として扱います。</p>
             </div>
             <a id="workspace-runs-link" href="/ui/project-runs.html" class="text-xs text-primary hover:underline" data-i18n="ui.workspace.openRuns">Runsを見る</a>
           </div>
@@ -206,6 +233,17 @@
                 <p id="workspace-history-status-text" class="text-xs text-text-muted">直近イベントを表示します。</p>
               </div>
             </form>
+            <section class="mt-3 rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-sm font-semibold">AI History Summary</h4>
+                  <p class="mt-1 text-[11px] text-text-muted">履歴を読みやすい説明へ変換します。</p>
+                </div>
+                <button id="workspace-history-ai-summary-btn" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">要約</button>
+              </div>
+              <p id="workspace-history-ai-summary-status" class="mt-2 text-[11px] text-text-muted"></p>
+              <div id="workspace-history-ai-summary-body" class="mt-2 text-sm text-text-muted">未生成</div>
+            </section>
             <div class="mt-3 grid grid-cols-1 xl:grid-cols-[minmax(0,1.25fr)_minmax(18rem,0.9fr)] gap-3">
               <div>
                 <div id="workspace-history-list" class="space-y-2"></div>
@@ -293,6 +331,27 @@
                 <p id="workspace-metrics-status-text" class="text-xs text-text-muted">主要 KPI、status 分布、provider 別件数、failure_code、Figma fidelity を表示します。</p>
               </div>
             </form>
+            <section class="mt-3 rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-sm font-semibold">AI Observability Summary</h4>
+                  <p class="mt-1 text-[11px] text-text-muted">alert と指標を人間向け説明へ変換します。</p>
+                </div>
+                <button id="workspace-metrics-ai-summary-btn" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">要約</button>
+              </div>
+              <p id="workspace-metrics-ai-summary-status" class="mt-2 text-[11px] text-text-muted"></p>
+              <div id="workspace-metrics-ai-summary-body" class="mt-2 text-sm text-text-muted">未生成</div>
+            </section>
+            <section class="mt-3 rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-sm font-semibold">AI Alert Analysis</h4>
+                  <p class="mt-1 text-[11px] text-text-muted">断定診断ではなく、evidence 付きの原因候補を alert ごとに表示します。</p>
+                </div>
+                <p id="workspace-metrics-analysis-status" class="text-[11px] text-text-muted">alert を選んで分析</p>
+              </div>
+              <div id="workspace-metrics-analysis-list" class="mt-3 space-y-2 text-sm text-text-muted">alert を読み込むと分析導線を表示します。</div>
+            </section>
             <div id="workspace-metrics-alerts" class="mt-3 space-y-2"></div>
             <div id="workspace-metrics-kpis" class="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-2"></div>
             <div class="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
@@ -325,6 +384,16 @@
                 <div id="workspace-metrics-fidelity" class="mt-3 space-y-2"></div>
               </section>
             </div>
+            <section class="mt-3 rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h4 class="text-sm font-semibold">AI Usage Metrics</h4>
+                  <p class="mt-1 text-[11px] text-text-muted">wrapper / summary / analysis / translation / FAQ 利用状況</p>
+                </div>
+                <span class="text-[11px] text-text-muted">audience / language / guardrail</span>
+              </div>
+              <div id="workspace-metrics-ai-usage" class="mt-3 space-y-2"></div>
+            </section>
             <section class="mt-3 rounded-lg border border-border-dark bg-background-light/70 dark:bg-background-dark/60 p-3">
               <div class="flex items-center justify-between gap-2">
                 <div>
@@ -423,6 +492,28 @@
             <p class="mt-1 text-[11px] text-text-muted">GitHub/Figma の read/write 実行結果を run 横断で時系列表示</p>
             <div id="workspace-op-timeline" class="mt-2 space-y-2 text-xs"></div>
           </div>
+          <div class="mt-4 border-t border-border-dark pt-4">
+            <div class="flex items-center justify-between gap-2">
+              <div>
+                <h4 class="text-sm font-semibold">FAQ Answer Viewer</h4>
+                <p class="mt-1 text-[11px] text-text-muted">FAQ回答の表示専用です。保存しません。</p>
+              </div>
+              <div class="flex items-center gap-2">
+                <a href="/ui/help-admin.html" class="text-[11px] text-primary hover:underline">運用者FAQ / Runbook Nav</a>
+                <button id="workspace-faq-render" type="button" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">表示更新</button>
+              </div>
+            </div>
+            <label class="mt-3 block text-[11px] text-text-muted">
+              answer
+              <textarea id="workspace-faq-answer-input" class="mt-1 h-24 w-full rounded border border-border-dark bg-transparent p-2 text-xs" placeholder="既存 FAQ 回答の answer を貼り付け"></textarea>
+            </label>
+            <label class="mt-2 block text-[11px] text-text-muted">
+              follow_up_actions
+              <textarea id="workspace-faq-actions-input" class="mt-1 h-20 w-full rounded border border-border-dark bg-transparent p-2 text-xs" placeholder="1行につき1件"></textarea>
+            </label>
+            <p id="workspace-faq-status" class="mt-2 text-[11px] text-text-muted">FAQ回答を入力すると表示言語に合わせて表示します。</p>
+            <div id="workspace-faq-body" class="mt-2 text-sm text-text-muted">FAQ回答は未入力です。</div>
+          </div>
         </aside>
       </section>
     </div>
@@ -499,6 +590,37 @@
     const historyStatusTextEl = document.getElementById("workspace-history-status-text");
     const historyListEl = document.getElementById("workspace-history-list");
     const historyMoreEl = document.getElementById("workspace-history-more");
+    const historyAiSummaryBtn = document.getElementById("workspace-history-ai-summary-btn");
+    const historyAiSummaryStatusEl = document.getElementById("workspace-history-ai-summary-status");
+    const historyAiSummaryBodyEl = document.getElementById("workspace-history-ai-summary-body");
+    const runCorrectiveAssistState = new Map();
+    runsList.addEventListener("click", (event) => {
+      const summaryButton = event.target && event.target.closest ? event.target.closest("[data-run-ai-summary-button]") : null;
+      if (summaryButton) {
+        const runId = String(summaryButton.getAttribute("data-run-id") || "");
+        const card = summaryButton.closest("article");
+        if (!runId || !card) return;
+        loadWorkspaceRunSummary(runId, card);
+        return;
+      }
+      const correctiveButton = event.target && event.target.closest ? event.target.closest("[data-run-ai-corrective-button]") : null;
+      if (correctiveButton) {
+        const runId = String(correctiveButton.getAttribute("data-run-id") || "");
+        const card = correctiveButton.closest("article");
+        if (!runId || !card) return;
+        loadWorkspaceRunCorrectiveSuggestions(runId, card);
+        return;
+      }
+      const writePlanButton = event.target && event.target.closest ? event.target.closest("[data-run-corrective-write-plan-button]") : null;
+      if (writePlanButton) {
+        const runId = String(writePlanButton.getAttribute("data-run-id") || "");
+        const actionKey = String(writePlanButton.getAttribute("data-action-key") || "");
+        const provider = String(writePlanButton.getAttribute("data-provider") || "");
+        const card = writePlanButton.closest("article");
+        if (!runId || !actionKey || !provider || !card) return;
+        createWorkspaceCorrectiveWritePlan(runId, actionKey, provider, card);
+      }
+    });
     const historyRefreshEl = document.getElementById("workspace-history-refresh");
     const historyExportEl = document.getElementById("workspace-history-export");
     const historyExportFormatEl = document.getElementById("workspace-history-export-format");
@@ -530,11 +652,24 @@
     const metricsProviderCountsEl = document.getElementById("workspace-metrics-provider-counts");
     const metricsFailureCodesEl = document.getElementById("workspace-metrics-failure-codes");
     const metricsFidelityEl = document.getElementById("workspace-metrics-fidelity");
+    const metricsAiUsageEl = document.getElementById("workspace-metrics-ai-usage");
     const metricsTimeSeriesEl = document.getElementById("workspace-metrics-timeseries");
     const metricsSeriesLabelEl = document.getElementById("workspace-metrics-series-label");
     const metricsRefreshEl = document.getElementById("workspace-metrics-refresh");
     const metricsResetEl = document.getElementById("workspace-metrics-reset");
+    const metricsAiSummaryBtn = document.getElementById("workspace-metrics-ai-summary-btn");
+    const metricsAiSummaryStatusEl = document.getElementById("workspace-metrics-ai-summary-status");
+    const metricsAiSummaryBodyEl = document.getElementById("workspace-metrics-ai-summary-body");
+    const metricsAnalysisStatusEl = document.getElementById("workspace-metrics-analysis-status");
+    const metricsAnalysisListEl = document.getElementById("workspace-metrics-analysis-list");
+    const workspaceAiDisplayLanguageEl = document.getElementById("workspace-ai-display-language");
+    const workspaceFaqRenderEl = document.getElementById("workspace-faq-render");
+    const workspaceFaqAnswerInputEl = document.getElementById("workspace-faq-answer-input");
+    const workspaceFaqActionsInputEl = document.getElementById("workspace-faq-actions-input");
+    const workspaceFaqStatusEl = document.getElementById("workspace-faq-status");
+    const workspaceFaqBodyEl = document.getElementById("workspace-faq-body");
     const metricsRangeButtons = Array.from(document.querySelectorAll("[data-range-preset]"));
+    const AI_DISPLAY_LANG_KEY = "ai_display_lang";
     let cachedRuns = [];
     let pendingWriteConfirm = null;
     let searchNextCursor = null;
@@ -552,6 +687,10 @@
     let metricsRangePreset = String(params.get("metrics_range") || "7d").trim() || "7d";
     let workspaceMetrics = null;
     let historySelectedItem = null;
+    let historySummaryState = null;
+    let observabilitySummaryState = null;
+    const observabilityAnalysisState = new Map();
+    let faqAnswerState = null;
 
     function escapeHtml(value) {
       return String(value == null ? "" : value)
@@ -560,6 +699,39 @@
         .replace(/>/g, "&gt;")
         .replace(/"/g, "&quot;")
         .replace(/'/g, "&#39;");
+    }
+
+    function detectAiDisplayLanguage() {
+      try {
+        const saved = String(localStorage.getItem(AI_DISPLAY_LANG_KEY) || "").trim().toLowerCase();
+        if (saved === "ja" || saved === "en") return saved;
+      } catch (_) {}
+      try {
+        const uiLang = String(localStorage.getItem("ui_lang") || "").trim().toLowerCase();
+        if (uiLang === "ja" || uiLang === "en") return uiLang;
+      } catch (_) {}
+      return "ja";
+    }
+
+    function storeAiDisplayLanguage(lang) {
+      const next = lang === "en" ? "en" : "ja";
+      try {
+        localStorage.setItem(AI_DISPLAY_LANG_KEY, next);
+      } catch (_) {}
+      if (workspaceAiDisplayLanguageEl) workspaceAiDisplayLanguageEl.value = next;
+      return next;
+    }
+
+    async function translateAiPayload(sourceUseCase, payload, evidenceRefs, targetLanguage) {
+      if (targetLanguage === "ja") {
+        return { translated: payload, evidence_refs: evidenceRefs || {} };
+      }
+      return apiPost("/ai/translate", {
+        source_use_case: sourceUseCase,
+        target_language: targetLanguage,
+        payload,
+        evidence_refs: evidenceRefs || {},
+      });
     }
 
     function toIsoFromLocalInput(value) {
@@ -1141,6 +1313,7 @@
       metricsProviderCountsEl.innerHTML = box;
       metricsFailureCodesEl.innerHTML = box;
       metricsFidelityEl.innerHTML = box;
+      metricsAiUsageEl.innerHTML = box;
       metricsTimeSeriesEl.innerHTML = box;
       if (metricsSeriesLabelEl) metricsSeriesLabelEl.textContent = "history events/day";
     }
@@ -1163,7 +1336,10 @@
                 <span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold">${escapeHtml(severity)}</span>
                 <span class="text-sm font-semibold">${escapeHtml(item.title || item.code || "-")}</span>
               </div>
-              <span class="text-[11px] font-mono">${escapeHtml(item.code || "-")}</span>
+              <div class="flex items-center gap-2">
+                <span class="text-[11px] font-mono">${escapeHtml(item.code || "-")}</span>
+                <button type="button" data-alert-analysis-button data-alert-code="${escapeHtml(item.code || "")}" class="rounded border border-current px-2 py-1 text-[11px] hover:bg-white/20">分析</button>
+              </div>
             </div>
             <p class="mt-1 text-sm">${escapeHtml(item.summary || "-")}</p>
           </article>
@@ -1271,6 +1447,104 @@
       `;
     }
 
+    function renderAiUsageMetrics(payload) {
+      const aiRequests = payload && payload.ai_requests ? payload.ai_requests : {};
+      const aiFailures = payload && payload.ai_failures ? payload.ai_failures : {};
+      const aiLatency = payload && payload.ai_latency ? payload.ai_latency : {};
+      const aiTokenUsage = payload && payload.ai_token_usage ? payload.ai_token_usage : {};
+      const faqQueries = payload && payload.faq_queries ? payload.faq_queries : {};
+      const faqResolution = payload && payload.faq_resolution_rate ? payload.faq_resolution_rate : {};
+      const languageDistribution = payload && payload.language_distribution ? payload.language_distribution : {};
+      const summaryRequests = payload && payload.summary_requests ? payload.summary_requests : {};
+      const analysisRequests = payload && payload.analysis_requests ? payload.analysis_requests : {};
+      const translationRequests = payload && payload.translation_requests ? payload.translation_requests : {};
+      const topUseCases = Array.isArray(aiRequests.by_use_case) ? aiRequests.by_use_case.slice(0, 4) : [];
+      const topLanguages = Array.isArray(languageDistribution.total) ? languageDistribution.total.slice(0, 4) : [];
+      const faqByAudience = Array.isArray(faqQueries.by_audience) ? faqQueries.by_audience : [];
+      const guardrails = Array.isArray(faqQueries.guardrail_by_code) ? faqQueries.guardrail_by_code.slice(0, 4) : [];
+      const summaryByType = Array.isArray(summaryRequests.by_type) ? summaryRequests.by_type : [];
+      const analysisByAlertCode = Array.isArray(analysisRequests.by_alert_code) ? analysisRequests.by_alert_code.slice(0, 3) : [];
+      const translationByLanguage = Array.isArray(translationRequests.by_target_language) ? translationRequests.by_target_language : [];
+      metricsAiUsageEl.innerHTML = `
+        <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2">
+          <article class="rounded border border-border-dark p-3">
+            <p class="text-[11px] uppercase tracking-wide text-text-muted">AI Requests</p>
+            <p class="mt-2 text-2xl font-semibold">${escapeHtml(formatCount(aiRequests.total || 0))}</p>
+            <p class="mt-1 text-[11px] text-text-muted">failures ${escapeHtml(formatCount(aiFailures.total || 0))} / median ${escapeHtml(formatDurationMs(aiLatency.median_ms || 0))}</p>
+          </article>
+          <article class="rounded border border-border-dark p-3">
+            <p class="text-[11px] uppercase tracking-wide text-text-muted">AI Tokens</p>
+            <p class="mt-2 text-2xl font-semibold">${escapeHtml(formatCount(aiTokenUsage.total_tokens || 0))}</p>
+            <p class="mt-1 text-[11px] text-text-muted">input ${escapeHtml(formatCount(aiTokenUsage.total_input_tokens || 0))} / output ${escapeHtml(formatCount(aiTokenUsage.total_output_tokens || 0))}</p>
+          </article>
+          <article class="rounded border border-border-dark p-3">
+            <p class="text-[11px] uppercase tracking-wide text-text-muted">FAQ Queries</p>
+            <p class="mt-2 text-2xl font-semibold">${escapeHtml(formatCount(faqQueries.total || 0))}</p>
+            <p class="mt-1 text-[11px] text-text-muted">resolution ${escapeHtml(formatPercent(faqResolution.total && faqResolution.total.rate_pct || 0))} / escalation ${escapeHtml(formatPercent(faqQueries.escalation_rate_pct || 0))}</p>
+          </article>
+          <article class="rounded border border-border-dark p-3">
+            <p class="text-[11px] uppercase tracking-wide text-text-muted">AI API Mix</p>
+            <p class="mt-2 text-2xl font-semibold">${escapeHtml(formatCount(summaryRequests.total || 0))}</p>
+            <p class="mt-1 text-[11px] text-text-muted">summary / ${escapeHtml(formatCount(analysisRequests.total || 0))} analysis / ${escapeHtml(formatCount(translationRequests.total || 0))} translation</p>
+          </article>
+        </div>
+        <div class="mt-3 grid grid-cols-1 xl:grid-cols-2 gap-3">
+          <article class="rounded border border-border-dark p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold">Use Cases</p>
+              <span class="text-[11px] text-text-muted">wrapper</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${topUseCases.map((entry) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`${entry.use_case}:${entry.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">use_case: -</span>`}
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              ${Array.isArray(aiFailures.by_failure_code) && aiFailures.by_failure_code.length
+                ? aiFailures.by_failure_code.slice(0, 4).map((entry) => `<span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] ${getStatusBadgeClass("failed")}">${escapeHtml(`${entry.failure_code}:${entry.count}`)}</span>`).join("")
+                : `<span class="text-[11px] text-text-muted">failure_code: -</span>`}
+            </div>
+          </article>
+          <article class="rounded border border-border-dark p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold">FAQ Audience / Guardrails</p>
+              <span class="text-[11px] text-text-muted">general / operator</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${faqByAudience.map((entry) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`${entry.audience}:${entry.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">audience: -</span>`}
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              ${guardrails.length
+                ? guardrails.map((entry) => `<span class="inline-flex rounded-full border px-2 py-0.5 text-[11px] ${getStatusBadgeClass("failed")}">${escapeHtml(`${entry.guardrail_code}:${entry.count}`)}</span>`).join("")
+                : `<span class="text-[11px] text-text-muted">guardrail: 0</span>`}
+            </div>
+          </article>
+          <article class="rounded border border-border-dark p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold">Language Distribution</p>
+              <span class="text-[11px] text-text-muted">faq / translation</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${topLanguages.map((entry) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`${entry.language}:${entry.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">language: -</span>`}
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              ${translationByLanguage.map((entry) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`translate:${entry.target_language}:${entry.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">translation language: -</span>`}
+            </div>
+          </article>
+          <article class="rounded border border-border-dark p-3">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-sm font-semibold">Summary / Analysis Mix</p>
+              <span class="text-[11px] text-text-muted">request level</span>
+            </div>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${summaryByType.map((entry) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`${entry.summary_type}:${entry.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">summary: -</span>`}
+            </div>
+            <div class="mt-3 flex flex-wrap gap-2">
+              ${analysisByAlertCode.map((entry) => `<span class="inline-flex rounded-full border border-border-dark px-2 py-0.5 text-[11px]">${escapeHtml(`${entry.alert_code}:${entry.count}`)}</span>`).join("") || `<span class="text-[11px] text-text-muted">analysis: -</span>`}
+            </div>
+          </article>
+        </div>
+      `;
+    }
+
     function renderMetricsTimeSeries(payload) {
       const mode = String(metricsSeriesModeEl && metricsSeriesModeEl.value ? metricsSeriesModeEl.value : "history");
       const rows = mode === "threads"
@@ -1305,6 +1579,7 @@
       renderProviderCounts(payload || {});
       renderFailureCodes(payload || {});
       renderFidelity(payload || {});
+      renderAiUsageMetrics(payload || {});
       renderMetricsTimeSeries(payload || {});
       updateMetricsOperability();
     }
@@ -1387,6 +1662,13 @@
       return payload;
     }
 
+    function buildHistorySummaryPayload() {
+      const payload = buildHistoryPayload({ append: false });
+      delete payload.limit;
+      delete payload.cursor;
+      return payload;
+    }
+
     function buildHistoryExportPayload() {
       const payload = buildHistoryPayload({ append: false });
       delete payload.cursor;
@@ -1432,6 +1714,375 @@
       if (startAt) payload.start_at = startAt;
       if (endAt) payload.end_at = endAt;
       return payload;
+    }
+
+    function renderAiWorkspaceSummary(bodyEl, statusEl, result) {
+      const summary = result && result.summary && typeof result.summary === "object" ? result.summary : {};
+      const evidence = result && result.evidence_refs && typeof result.evidence_refs === "object" ? result.evidence_refs : {};
+      bodyEl.innerHTML = `
+        <p>${escapeHtml(String(summary.overview || "-"))}</p>
+        <p class="mt-2 text-[11px] text-text-muted">failure: ${escapeHtml((Array.isArray(summary.main_failure_reasons) ? summary.main_failure_reasons.join(" / ") : "-") || "-")}</p>
+        <p class="mt-1 text-[11px] text-text-muted">action: ${escapeHtml((Array.isArray(summary.priority_actions) ? summary.priority_actions.join(" / ") : "-") || "-")}</p>
+        <pre class="mt-2 bg-background-dark text-slate-100 rounded-lg p-3 text-xs overflow-x-auto">${escapeHtml(JSON.stringify(evidence, null, 2))}</pre>
+      `;
+      if (statusEl) {
+        statusEl.textContent = result && result.status === "ok" ? "" : String(result && (result.error || result.failure_code) || "");
+      }
+    }
+
+    function renderAiSummaryPayload(bodyEl, summary, evidence) {
+      if (!bodyEl) return;
+      const normalized = summary && typeof summary === "object" ? summary : {};
+      bodyEl.innerHTML = `
+        <p>${escapeHtml(String(normalized.overview || "-"))}</p>
+        <p class="mt-2 text-[11px] text-text-muted">failure: ${escapeHtml((Array.isArray(normalized.main_failure_reasons) ? normalized.main_failure_reasons.join(" / ") : "-") || "-")}</p>
+        <p class="mt-1 text-[11px] text-text-muted">action: ${escapeHtml((Array.isArray(normalized.priority_actions) ? normalized.priority_actions.join(" / ") : "-") || "-")}</p>
+        <pre class="mt-2 bg-background-dark text-slate-100 rounded-lg p-3 text-xs overflow-x-auto">${escapeHtml(JSON.stringify(evidence || {}, null, 2))}</pre>
+      `;
+    }
+
+    async function renderSummaryStateForLanguage(state, bodyEl, statusEl) {
+      if (!state || !state.payload) return;
+      const targetLanguage = detectAiDisplayLanguage();
+      if (targetLanguage === "ja") {
+        renderAiSummaryPayload(bodyEl, state.payload.summary, state.evidence_refs);
+        if (statusEl) statusEl.textContent = "";
+        return;
+      }
+      if (state.translations && state.translations[targetLanguage]) {
+        renderAiSummaryPayload(bodyEl, state.translations[targetLanguage].summary, state.evidence_refs);
+        if (statusEl) statusEl.textContent = `display_language=${targetLanguage}`;
+        return;
+      }
+      if (statusEl) statusEl.textContent = `translation generating (${targetLanguage})...`;
+      try {
+        const result = await translateAiPayload(state.source_use_case, state.payload, state.evidence_refs, targetLanguage);
+        const translated = result && result.translated && typeof result.translated === "object" ? result.translated : state.payload;
+        state.translations[targetLanguage] = translated;
+        renderAiSummaryPayload(bodyEl, translated.summary, state.evidence_refs);
+        if (statusEl) statusEl.textContent = `display_language=${targetLanguage}`;
+      } catch (error) {
+        renderAiSummaryPayload(bodyEl, state.payload.summary, state.evidence_refs);
+        if (statusEl) statusEl.textContent = `translation error: ${String(error && error.message ? error.message : "unknown")}`;
+      }
+    }
+
+    function summarizeEvidenceRefsForUi(evidence) {
+      const source = evidence && typeof evidence === "object" ? evidence : {};
+      const metricSnapshot = source.metric_snapshot && typeof source.metric_snapshot === "object" ? source.metric_snapshot : {};
+      const historyWindow = source.history_window && typeof source.history_window === "object" ? source.history_window : {};
+      const parts = [];
+      if (source.run_id) parts.push(`run=${String(source.run_id)}`);
+      if (source.thread_id) parts.push(`thread=${String(source.thread_id)}`);
+      if (historyWindow.action_category) parts.push(`action=${String(historyWindow.action_category)}`);
+      if (Array.isArray(historyWindow.linked_reason_types) && historyWindow.linked_reason_types.length) {
+        parts.push(`reasons=${historyWindow.linked_reason_types.join("/")}`);
+      }
+      if (Array.isArray(historyWindow.suggested_target_paths) && historyWindow.suggested_target_paths.length) {
+        parts.push(`targets=${historyWindow.suggested_target_paths.slice(0, 2).join(", ")}`);
+      }
+      if (metricSnapshot.action_reason_count) parts.push(`reason_count=${String(metricSnapshot.action_reason_count)}`);
+      return parts.join(" / ") || "-";
+    }
+
+    function renderObservabilityAnalysisBody(entry) {
+      const analysis = entry && entry.payload && entry.payload.analysis && typeof entry.payload.analysis === "object"
+        ? entry.payload.analysis
+        : {};
+      const evidence = entry && entry.evidence_refs && typeof entry.evidence_refs === "object" ? entry.evidence_refs : {};
+      return `
+        <div class="rounded-lg border border-border-dark p-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <p class="text-sm font-semibold">${escapeHtml(String(entry && entry.alert_title ? entry.alert_title : entry && entry.alert_code ? entry.alert_code : "-"))}</p>
+            <span class="text-[11px] font-mono text-text-muted">${escapeHtml(String(entry && entry.alert_code ? entry.alert_code : "-"))}</span>
+          </div>
+          <div class="mt-2">
+            <p class="text-[11px] text-text-muted">candidate_causes</p>
+            <ul class="mt-1 list-disc list-inside space-y-1 text-sm">${(Array.isArray(analysis.candidate_causes) ? analysis.candidate_causes : []).map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+          </div>
+          <div class="mt-2">
+            <p class="text-[11px] text-text-muted">impact_scope</p>
+            <ul class="mt-1 list-disc list-inside space-y-1 text-sm">${(Array.isArray(analysis.impact_scope) ? analysis.impact_scope : []).map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+          </div>
+          <div class="mt-2">
+            <p class="text-[11px] text-text-muted">additional_checks</p>
+            <ul class="mt-1 list-disc list-inside space-y-1 text-sm">${(Array.isArray(analysis.additional_checks) ? analysis.additional_checks : []).map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+          </div>
+          <p class="mt-2 text-[11px] text-text-muted">evidence: ${escapeHtml(summarizeEvidenceRefsForUi(evidence))}</p>
+          <pre class="mt-2 bg-background-dark text-slate-100 rounded-lg p-3 text-xs overflow-x-auto">${escapeHtml(JSON.stringify(evidence, null, 2))}</pre>
+        </div>
+      `;
+    }
+
+    function renderObservabilityAnalysisList() {
+      if (!metricsAnalysisListEl) return;
+      const entries = Array.from(observabilityAnalysisState.values());
+      if (!entries.length) {
+        metricsAnalysisListEl.innerHTML = "alert を読み込むと分析導線を表示します。";
+        return;
+      }
+      metricsAnalysisListEl.innerHTML = entries.map((entry) => renderObservabilityAnalysisBody(entry)).join("");
+    }
+
+    async function renderObservabilityAnalysesForLanguage() {
+      const targetLanguage = detectAiDisplayLanguage();
+      const entries = Array.from(observabilityAnalysisState.values());
+      if (!entries.length) return;
+      if (targetLanguage === "ja") {
+        entries.forEach((entry) => {
+          entry.payload = entry.original_payload;
+        });
+        renderObservabilityAnalysisList();
+        if (metricsAnalysisStatusEl) metricsAnalysisStatusEl.textContent = "display_language=ja";
+        return;
+      }
+      if (metricsAnalysisStatusEl) metricsAnalysisStatusEl.textContent = `translation generating (${targetLanguage})...`;
+      for (const entry of entries) {
+        if (entry.translations && entry.translations[targetLanguage]) {
+          entry.payload = entry.translations[targetLanguage];
+          continue;
+        }
+        try {
+          const result = await translateAiPayload("observability_analysis", entry.original_payload, entry.evidence_refs, targetLanguage);
+          const translated = result && result.translated && typeof result.translated === "object" ? result.translated : entry.original_payload;
+          entry.translations[targetLanguage] = translated;
+          entry.payload = translated;
+        } catch (_) {
+          entry.payload = entry.original_payload;
+        }
+      }
+      renderObservabilityAnalysisList();
+      if (metricsAnalysisStatusEl) metricsAnalysisStatusEl.textContent = `display_language=${targetLanguage}`;
+    }
+
+    function parseFaqActions(value) {
+      return String(value || "")
+        .split(/\r?\n/)
+        .map((item) => item.trim())
+        .filter(Boolean)
+        .slice(0, 5);
+    }
+
+    function renderFaqBody(payload, evidenceRefs) {
+      if (!workspaceFaqBodyEl) return;
+      const faq = payload && payload.faq && typeof payload.faq === "object" ? payload.faq : {};
+      workspaceFaqBodyEl.innerHTML = `
+        <p>${escapeHtml(String(faq.answer || "-"))}</p>
+        <div class="mt-2">
+          <p class="text-[11px] text-text-muted">follow_up_actions</p>
+          <ul class="mt-1 list-disc list-inside space-y-1 text-sm">${(Array.isArray(faq.follow_up_actions) ? faq.follow_up_actions : []).map((item) => `<li>${escapeHtml(String(item))}</li>`).join("") || "<li>-</li>"}</ul>
+        </div>
+        <pre class="mt-2 bg-background-dark text-slate-100 rounded-lg p-3 text-xs overflow-x-auto">${escapeHtml(JSON.stringify(evidenceRefs || {}, null, 2))}</pre>
+      `;
+    }
+
+    async function renderFaqForLanguage() {
+      if (!faqAnswerState || !faqAnswerState.payload) return;
+      const targetLanguage = detectAiDisplayLanguage();
+      if (targetLanguage === "ja") {
+        renderFaqBody(faqAnswerState.payload, faqAnswerState.evidence_refs);
+        if (workspaceFaqStatusEl) workspaceFaqStatusEl.textContent = "display_language=ja";
+        return;
+      }
+      if (faqAnswerState.translations && faqAnswerState.translations[targetLanguage]) {
+        renderFaqBody(faqAnswerState.translations[targetLanguage], faqAnswerState.evidence_refs);
+        if (workspaceFaqStatusEl) workspaceFaqStatusEl.textContent = `display_language=${targetLanguage}`;
+        return;
+      }
+      if (workspaceFaqStatusEl) workspaceFaqStatusEl.textContent = `translation generating (${targetLanguage})...`;
+      try {
+        const result = await translateAiPayload("faq", faqAnswerState.payload, faqAnswerState.evidence_refs, targetLanguage);
+        const translated = result && result.translated && typeof result.translated === "object" ? result.translated : faqAnswerState.payload;
+        faqAnswerState.translations[targetLanguage] = translated;
+        renderFaqBody(translated, faqAnswerState.evidence_refs);
+        if (workspaceFaqStatusEl) workspaceFaqStatusEl.textContent = `display_language=${targetLanguage}`;
+      } catch (error) {
+        renderFaqBody(faqAnswerState.payload, faqAnswerState.evidence_refs);
+        if (workspaceFaqStatusEl) workspaceFaqStatusEl.textContent = `translation error: ${String(error && error.message ? error.message : "unknown")}`;
+      }
+    }
+
+    function renderWorkspaceCorrectiveSuggestions(runId, card) {
+      const state = runCorrectiveAssistState.get(runId) || [];
+      const bodyEl = card.querySelector("[data-run-ai-corrective-body]");
+      if (!bodyEl) return;
+      if (!Array.isArray(state) || state.length === 0) {
+        bodyEl.innerHTML = `<div class="text-[11px] text-text-muted">未生成</div>`;
+        return;
+      }
+      bodyEl.innerHTML = state.map((entry) => {
+        const action = entry && entry.action && typeof entry.action === "object" ? entry.action : {};
+        const assist = entry && entry.assist && typeof entry.assist === "object" ? entry.assist : {};
+        const writePlan = entry && entry.writePlan && typeof entry.writePlan === "object" ? entry.writePlan : null;
+        const targets = Array.isArray(assist.target_file_or_component) ? assist.target_file_or_component : [];
+        const impacts = Array.isArray(assist.expected_impact) ? assist.expected_impact : [];
+        const reasons = Array.isArray(assist.linked_reason_types) ? assist.linked_reason_types : [];
+        const providers = Array.isArray(action.eligible_providers) ? action.eligible_providers : [];
+        const planStatus = writePlan && writePlan.planned_action
+          ? `${String(writePlan.planned_action.provider || "-")} / ${String(writePlan.planned_action.status || "-")}`
+          : "write-plan 未作成";
+        return `
+          <div class="mt-2 rounded border border-border-dark p-2">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[11px] font-semibold">${escapeHtml(String(action.title || assist.action_type || "-"))}</p>
+              <p class="text-[11px] text-text-muted">confirm_required=${assist.confirm_required === true ? "true" : "false"} / confidence=${escapeHtml(String(assist.confidence || "-"))}</p>
+            </div>
+            <p class="mt-1 text-[11px] text-text-muted">reasons: ${escapeHtml(reasons.join(" / ") || "-")}</p>
+            <p class="mt-1 text-[11px] text-text-muted">evidence: ${escapeHtml(summarizeEvidenceRefsForUi(assist.evidence_refs))}</p>
+            <p class="mt-1 text-[11px] text-text-muted">targets: ${escapeHtml(targets.join(" / ") || "-")}</p>
+            <p class="mt-1 text-[11px] text-text-muted">impact: ${escapeHtml(impacts.join(" / ") || "-")}</p>
+            <div class="mt-2 flex flex-wrap gap-2">
+              ${providers.map((provider) => `<button type="button" data-run-corrective-write-plan-button data-run-id="${escapeHtml(runId)}" data-action-key="${escapeHtml(String(action.key || ""))}" data-provider="${escapeHtml(provider)}" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">${escapeHtml(provider)} write-plan</button>`).join("") || '<span class="text-[11px] text-text-muted">write-plan 対象なし</span>'}
+            </div>
+            <p class="mt-2 text-[11px] ${writePlan ? "text-emerald-700 dark:text-emerald-300" : "text-text-muted"}">${escapeHtml(planStatus)}</p>
+          </div>
+        `;
+      }).join("");
+    }
+
+    async function loadHistoryAiSummary() {
+      if (!historyAiSummaryBtn || !historyAiSummaryBodyEl) return;
+      historyAiSummaryBtn.disabled = true;
+      historyAiSummaryStatusEl.textContent = "AI summary generating...";
+      try {
+        const result = await apiPost("/ai-summary/history", buildHistorySummaryPayload());
+        renderAiWorkspaceSummary(historyAiSummaryBodyEl, historyAiSummaryStatusEl, result);
+        historySummaryState = {
+          source_use_case: "history_summary",
+          payload: { summary: result && result.summary ? result.summary : {} },
+          evidence_refs: result && result.evidence_refs ? result.evidence_refs : {},
+          translations: {},
+        };
+        await renderSummaryStateForLanguage(historySummaryState, historyAiSummaryBodyEl, historyAiSummaryStatusEl);
+      } catch (error) {
+        historyAiSummaryStatusEl.textContent = `error: ${String(error && error.message ? error.message : "unknown")}`;
+      } finally {
+        historyAiSummaryBtn.disabled = false;
+      }
+    }
+
+    async function loadObservabilityAiSummary() {
+      if (!metricsAiSummaryBtn || !metricsAiSummaryBodyEl) return;
+      metricsAiSummaryBtn.disabled = true;
+      metricsAiSummaryStatusEl.textContent = "AI summary generating...";
+      try {
+        const result = await apiPost("/ai-summary/observability", buildMetricsPayload());
+        renderAiWorkspaceSummary(metricsAiSummaryBodyEl, metricsAiSummaryStatusEl, result);
+        observabilitySummaryState = {
+          source_use_case: "observability_summary",
+          payload: { summary: result && result.summary ? result.summary : {} },
+          evidence_refs: result && result.evidence_refs ? result.evidence_refs : {},
+          translations: {},
+        };
+        await renderSummaryStateForLanguage(observabilitySummaryState, metricsAiSummaryBodyEl, metricsAiSummaryStatusEl);
+      } catch (error) {
+        metricsAiSummaryStatusEl.textContent = `error: ${String(error && error.message ? error.message : "unknown")}`;
+      } finally {
+        metricsAiSummaryBtn.disabled = false;
+      }
+    }
+
+    async function loadObservabilityAlertAnalysis(alertCode) {
+      if (!alertCode) return;
+      if (metricsAnalysisStatusEl) metricsAnalysisStatusEl.textContent = `analysis generating (${alertCode})...`;
+      try {
+        const result = await apiPost("/ai-analysis/observability", {
+          ...buildMetricsPayload(),
+          alert_code: alertCode,
+        });
+        observabilityAnalysisState.set(alertCode, {
+          alert_code: result && result.alert_code ? result.alert_code : alertCode,
+          alert_title: result && result.alert_title ? result.alert_title : alertCode,
+          evidence_refs: result && result.evidence_refs ? result.evidence_refs : {},
+          original_payload: { analysis: result && result.analysis ? result.analysis : {} },
+          payload: { analysis: result && result.analysis ? result.analysis : {} },
+          translations: {},
+        });
+        await renderObservabilityAnalysesForLanguage();
+      } catch (error) {
+        if (metricsAnalysisStatusEl) metricsAnalysisStatusEl.textContent = `analysis error: ${String(error && error.message ? error.message : "unknown")}`;
+      }
+    }
+
+    async function updateFaqAnswerViewer() {
+      const answer = String(workspaceFaqAnswerInputEl && workspaceFaqAnswerInputEl.value ? workspaceFaqAnswerInputEl.value : "").trim();
+      const followUpActions = parseFaqActions(workspaceFaqActionsInputEl && workspaceFaqActionsInputEl.value);
+      if (!answer) {
+        faqAnswerState = null;
+        if (workspaceFaqBodyEl) workspaceFaqBodyEl.textContent = "FAQ回答は未入力です。";
+        if (workspaceFaqStatusEl) workspaceFaqStatusEl.textContent = "FAQ回答を入力すると表示言語に合わせて表示します。";
+        return;
+      }
+      faqAnswerState = {
+        payload: {
+          faq: {
+            answer,
+            follow_up_actions: followUpActions,
+          },
+        },
+        evidence_refs: {
+          doc_source: [{ title: "FAQ Answer Viewer", path: "ui://project-workspace" }],
+        },
+        translations: {},
+      };
+      renderFaqBody(faqAnswerState.payload, faqAnswerState.evidence_refs);
+      await renderFaqForLanguage();
+    }
+
+    async function loadWorkspaceRunCorrectiveSuggestions(runId, card) {
+      const statusEl = card.querySelector("[data-run-ai-corrective-status]");
+      if (!statusEl) return;
+      statusEl.textContent = "AI corrective suggestions generating...";
+      try {
+        const plan = await apiPost("/fidelity/corrective-action-plan", { run_id: runId });
+        const actions = plan && plan.corrective_action_plan && Array.isArray(plan.corrective_action_plan.actions)
+          ? plan.corrective_action_plan.actions.slice(0, 4)
+          : [];
+        if (actions.length === 0) {
+          runCorrectiveAssistState.set(runId, []);
+          renderWorkspaceCorrectiveSuggestions(runId, card);
+          statusEl.textContent = "補正候補はありません。";
+          return;
+        }
+        const entries = await Promise.all(actions.map(async (action) => ({
+          action,
+          assist: await apiPost("/ai-action-assist/corrective-action", { run_id: runId, action_key: action.key }),
+          writePlan: null,
+        })));
+        runCorrectiveAssistState.set(runId, entries);
+        renderWorkspaceCorrectiveSuggestions(runId, card);
+        statusEl.textContent = "";
+      } catch (error) {
+        statusEl.textContent = `error: ${error && error.message ? error.message : "unknown"}`;
+      }
+    }
+
+    async function createWorkspaceCorrectiveWritePlan(runId, actionKey, provider, card) {
+      const statusEl = card.querySelector("[data-run-ai-corrective-status]");
+      const state = runCorrectiveAssistState.get(runId) || [];
+      const entry = state.find((item) => item && item.action && String(item.action.key || "") === String(actionKey || ""));
+      if (!statusEl || !entry) return;
+      statusEl.textContent = `${provider} write-plan generating...`;
+      try {
+        const result = await apiPost("/ai-action-assist/corrective-action/write-plan", {
+          run_id: runId,
+          action_key: actionKey,
+          provider,
+          assist: {
+            target_file_or_component: entry.assist.target_file_or_component,
+            expected_impact: entry.assist.expected_impact,
+            linked_reason_types: entry.assist.linked_reason_types,
+          },
+        });
+        entry.writePlan = result;
+        runCorrectiveAssistState.set(runId, state);
+        renderWorkspaceCorrectiveSuggestions(runId, card);
+        statusEl.textContent = result && result.confirm_required === true
+          ? `${provider} write-plan created: confirm_required`
+          : `${provider} write-plan created`;
+      } catch (error) {
+        statusEl.textContent = `error: ${error && error.message ? error.message : "unknown"}`;
+      }
     }
 
     function buildMetricsExportPayload() {
@@ -1715,9 +2366,61 @@
           <p class="mt-1 text-[11px] text-text-muted break-all">${figmaOpNote}</p>
           <p class="mt-1 text-[11px] text-text-muted break-all">${beforeAfterNote}</p>
           <p class="mt-1 text-[11px] text-text-muted">${compareNote}</p>
+          <div class="mt-2 border-t border-border-dark pt-2">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[11px] text-text-muted">AI summary</p>
+              <button type="button" data-run-ai-summary-button data-run-id="${runId}" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">要約</button>
+            </div>
+            <p data-run-ai-summary-status class="mt-1 text-[11px] text-text-muted"></p>
+            <div data-run-ai-summary-body class="mt-1 text-[11px] text-text-muted">未生成</div>
+          </div>
+          <div class="mt-2 border-t border-border-dark pt-2">
+            <div class="flex items-center justify-between gap-2">
+              <p class="text-[11px] text-text-muted">AI corrective</p>
+              <button type="button" data-run-ai-corrective-button data-run-id="${runId}" class="px-2 py-1 rounded border border-border-dark text-[11px] hover:bg-slate-100 dark:hover:bg-background-dark/80">補正提案</button>
+            </div>
+            <p data-run-ai-corrective-status class="mt-1 text-[11px] text-text-muted"></p>
+            <div data-run-ai-corrective-body class="mt-1 text-[11px] text-text-muted">未生成</div>
+          </div>
         `;
         runsList.appendChild(card);
       });
+    }
+
+    async function loadWorkspaceRunSummary(runId, card) {
+      const statusEl = card.querySelector("[data-run-ai-summary-status]");
+      const bodyEl = card.querySelector("[data-run-ai-summary-body]");
+      if (!statusEl || !bodyEl) return;
+      statusEl.textContent = "AI summary generating...";
+      try {
+        const result = await apiPost(`/runs/${encodeURIComponent(runId)}/ai-summary`, {});
+        let summary = result && result.summary && typeof result.summary === "object" ? result.summary : {};
+        const evidence = result && result.evidence_refs && typeof result.evidence_refs === "object" ? result.evidence_refs : {};
+        const targetLanguage = detectAiDisplayLanguage();
+        if (targetLanguage !== "ja") {
+          try {
+            const translated = await translateAiPayload("run_summary", { summary }, evidence, targetLanguage);
+            if (translated && translated.translated && translated.translated.summary) {
+              summary = translated.translated.summary;
+              statusEl.textContent = `display_language=${targetLanguage}`;
+            }
+          } catch (error) {
+            statusEl.textContent = `translation error: ${String(error && error.message ? error.message : "unknown")}`;
+          }
+        }
+        const reasons = Array.isArray(summary.main_failure_reasons) ? summary.main_failure_reasons : [];
+        const actions = Array.isArray(summary.priority_actions) ? summary.priority_actions : [];
+        bodyEl.innerHTML = `
+          <p>${escapeHtml(String(summary.overview || "-"))}</p>
+          <p class="mt-1">failure: ${escapeHtml(reasons.join(" / ") || "-")}</p>
+          <p class="mt-1">action: ${escapeHtml(actions.join(" / ") || "-")}</p>
+        `;
+        if (!statusEl.textContent) {
+          statusEl.textContent = result.status === "ok" ? "" : String(result.error || result.failure_code || "summary failed");
+        }
+      } catch (error) {
+        statusEl.textContent = `error: ${error && error.message ? error.message : "unknown"}`;
+      }
     }
 
     function renderExternalOperationTimeline(runs) {
@@ -1989,6 +2692,20 @@
     historyRefreshEl.addEventListener("click", async () => {
       await loadWorkspaceHistory({ append: false });
     });
+    historyAiSummaryBtn.addEventListener("click", loadHistoryAiSummary);
+    if (workspaceAiDisplayLanguageEl) {
+      workspaceAiDisplayLanguageEl.value = detectAiDisplayLanguage();
+      workspaceAiDisplayLanguageEl.addEventListener("change", async (event) => {
+        storeAiDisplayLanguage(event && event.target ? event.target.value : "ja");
+        await renderSummaryStateForLanguage(historySummaryState, historyAiSummaryBodyEl, historyAiSummaryStatusEl);
+        await renderSummaryStateForLanguage(observabilitySummaryState, metricsAiSummaryBodyEl, metricsAiSummaryStatusEl);
+        await renderObservabilityAnalysesForLanguage();
+        await renderFaqForLanguage();
+      });
+    }
+    if (workspaceFaqRenderEl) {
+      workspaceFaqRenderEl.addEventListener("click", updateFaqAnswerViewer);
+    }
 
     historyExportEl.addEventListener("click", async () => {
       await triggerWorkspaceExport(buildHistoryExportPayload(), historyStatusTextEl, "history を export しました");
@@ -2066,6 +2783,12 @@
 
     metricsRefreshEl.addEventListener("click", async () => {
       await loadWorkspaceMetrics();
+    });
+    metricsAiSummaryBtn.addEventListener("click", loadObservabilityAiSummary);
+    metricsAlertsEl.addEventListener("click", (event) => {
+      const button = event.target && event.target.closest ? event.target.closest("[data-alert-analysis-button]") : null;
+      if (!button) return;
+      loadObservabilityAlertAnalysis(String(button.getAttribute("data-alert-code") || ""));
     });
 
     metricsResetEl.addEventListener("click", async () => {

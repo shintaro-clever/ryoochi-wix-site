@@ -42,6 +42,12 @@ const {
   patchPersonalAiSetting,
   getDefaultPersonalAiSetting,
 } = require('../api/personalAiSettings');
+const { resolveSecretReference, verifyOpenAiConnection } = require('./openaiConnection');
+const { handleRunAiSummary, handleHistoryAiSummary, handleObservabilityAiSummary } = require('./routes/aiSummary');
+const { handleObservabilityAiAnalysis } = require('./routes/aiAnalysis');
+const { handleAiTranslate } = require('./routes/aiTranslate');
+const { handleFaqQuery } = require('./routes/faq');
+const { handleCorrectiveActionAssist, handleCorrectiveActionAssistWritePlan } = require('./routes/aiActionAssist');
 const { loadProjectSharedContext } = require('./projectSharedContext');
 const { buildConnectionContext, normalizeFilePaths } = require('./connectionContext');
 const { buildFidelityEnvironmentContext } = require('./fidelityEnvironment');
@@ -1051,6 +1057,59 @@ async function handleRequest(req, res) {
     }
     return;
   }
+  if (segments[0] === 'api' && segments[1] === 'me' && segments[2] === 'ai-settings' && segments[4] === 'verify' && segments.length === 5) {
+    if (method !== 'POST') {
+      sendJsonError(res, 405, 'VALIDATION_ERROR', 'Method not allowed');
+      return;
+    }
+    const userId = resolveLocalUserId(req);
+    const aiSettingId = segments[3];
+    try {
+      const item = getPersonalAiSetting(appDb, userId, aiSettingId);
+      if (!item) {
+        sendJsonError(res, 404, 'NOT_FOUND', 'ai setting not found', { failure_code: 'not_found' });
+        return;
+      }
+      if (String(item.provider || '').toLowerCase() !== 'openai') {
+        sendJson(res, 200, {
+          provider: item.provider || '',
+          model: item.model || '',
+          status: 'error',
+          error: 'provider is not supported for verify',
+        });
+        return;
+      }
+      const resolved = resolveSecretReference(item.secret_ref || item.secret_id || '', {
+        fallbackEnvName: 'OPENAI_API_KEY',
+      });
+      if (!resolved.ok) {
+        sendJson(res, 200, {
+          provider: 'openai',
+          model: item.model || '',
+          status: 'error',
+          error: resolved.error,
+        });
+        return;
+      }
+      sendJson(
+        res,
+        200,
+        await verifyOpenAiConnection({
+          model: item.model || '',
+          apiKey: resolved.value,
+        })
+      );
+    } catch (error) {
+      sendJsonError(
+        res,
+        error.status || 400,
+        error.code || 'VALIDATION_ERROR',
+        error.message || '入力が不正です',
+        error.details || { failure_code: error.failure_code || 'validation_error' }
+      );
+    }
+    return;
+  }
   if (segments[0] === 'api' && segments[1] === 'me' && segments[2] === 'ai-settings' && segments.length === 4) {
     const userId = resolveLocalUserId(req);
     const aiSettingId = segments[3];
@@ -1565,6 +1624,10 @@ async function handleRequest(req, res) {
   }
   if (segments[0] === 'api' && segments[1] === 'runs') {
     const runId = segments.length >= 3 ? segments[2] : null;
+    if (segments.length >= 4 && segments[3] === 'ai-summary' && runId) {
+      await handleRunAiSummary(req, res, appDb, { userId: resolveLocalUserId(req) });
+      return;
+    }
     if (segments.length >= 4 && segments[3] === 'figma-bootstrap-plan' && runId) {
       handleBootstrapPlanApi(req, res, method, runId);
       return;
@@ -1574,6 +1637,34 @@ async function handleRequest(req, res) {
       return;
     }
     handleRunsApi(req, res, method, runId);
+    return;
+  }
+  if (urlPath === '/api/ai-summary/history') {
+    await handleHistoryAiSummary(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/ai-summary/observability') {
+    await handleObservabilityAiSummary(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/ai-analysis/observability') {
+    await handleObservabilityAiAnalysis(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/ai/translate') {
+    await handleAiTranslate(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/faq/query') {
+    await handleFaqQuery(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/ai-action-assist/corrective-action') {
+    await handleCorrectiveActionAssist(req, res, appDb, { userId: resolveLocalUserId(req) });
+    return;
+  }
+  if (urlPath === '/api/ai-action-assist/corrective-action/write-plan') {
+    await handleCorrectiveActionAssistWritePlan(req, res, appDb);
     return;
   }
   if (isGetLikeMethod && urlPath === '/') {
