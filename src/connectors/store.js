@@ -1,6 +1,7 @@
 const crypto = require("crypto");
 const { DEFAULT_TENANT } = require("../db/sqlite");
 const { withRetry } = require("../db/retry");
+const { openDb } = require("../db");
 const { encrypt, decrypt } = require("../crypto/secrets");
 
 function nowIso() {
@@ -25,12 +26,22 @@ function parseConfig(configJson) {
   }
 }
 
+function withConnectorDb(db, fn) {
+  try {
+    return fn(db);
+  } catch (error) {
+    if (!error || error.code !== "SQLITE_CANTOPEN") throw error;
+    const fallbackDb = openDb();
+    return fn(fallbackDb);
+  }
+}
+
 function listConnections(db, { tenantId = DEFAULT_TENANT, providerKey = "" } = {}) {
   const sql = providerKey
     ? "SELECT id,provider_key,config_json,created_at,updated_at FROM connections WHERE tenant_id=? AND provider_key=? ORDER BY created_at DESC"
     : "SELECT id,provider_key,config_json,created_at,updated_at FROM connections WHERE tenant_id=? ORDER BY created_at DESC";
-  const rows = withRetry(() =>
-    providerKey ? db.prepare(sql).all(tenantId, providerKey) : db.prepare(sql).all(tenantId)
+  const rows = withConnectorDb(db, (activeDb) =>
+    withRetry(() => (providerKey ? activeDb.prepare(sql).all(tenantId, providerKey) : activeDb.prepare(sql).all(tenantId)))
   );
   return rows.map((row) => ({
     id: row.id,
@@ -47,12 +58,14 @@ function createConnection(
 ) {
   const ts = nowIso();
   const configJson = encrypt(JSON.stringify(config || {}));
-  withRetry(() =>
-    db
-      .prepare(
-        "INSERT INTO connections(tenant_id,id,provider,provider_key,config_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)"
-      )
-      .run(tenantId, id, providerKey, providerKey, configJson, ts, ts)
+  withConnectorDb(db, (activeDb) =>
+    withRetry(() =>
+      activeDb
+        .prepare(
+          "INSERT INTO connections(tenant_id,id,provider,provider_key,config_json,created_at,updated_at) VALUES(?,?,?,?,?,?,?)"
+        )
+        .run(tenantId, id, providerKey, providerKey, configJson, ts, ts)
+    )
   );
   return {
     id,
@@ -64,8 +77,8 @@ function createConnection(
 }
 
 function deleteConnection(db, { tenantId = DEFAULT_TENANT, id } = {}) {
-  const info = withRetry(() =>
-    db.prepare("DELETE FROM connections WHERE tenant_id=? AND id=?").run(tenantId, id)
+  const info = withConnectorDb(db, (activeDb) =>
+    withRetry(() => activeDb.prepare("DELETE FROM connections WHERE tenant_id=? AND id=?").run(tenantId, id))
   );
   return info.changes > 0;
 }

@@ -10,7 +10,9 @@ function ensureDir(dir) {
 }
 
 function getDbPath() {
-  const root = process.cwd();
+  const root = process.env.HUB_DB_ROOT
+    ? path.resolve(process.env.HUB_DB_ROOT)
+    : path.resolve(__dirname, "..", "..");
   const dir = path.join(root, ".hub");
   ensureDir(dir);
   return path.join(dir, "hub.sqlite");
@@ -19,6 +21,7 @@ function getDbPath() {
 function openDb() {
   const dbPath = getDbPath();
   const db = new Database(dbPath);
+  db.pragma("busy_timeout = 5000");
   db.pragma("journal_mode = WAL");
   const schemaPath = path.join(__dirname, "schema.sql");
   const schemaSql = fs.existsSync(schemaPath)
@@ -144,6 +147,8 @@ function openDb() {
   ensureOrganizationTables(db);
   ensureFaqKnowledgeSourcePolicies(db);
   ensureOrganizationLanguagePolicies(db);
+  ensureExecutionPlanTable(db);
+  ensureWritePlanTable(db);
   ensureJobTemplates(db);
   migrateConnectionConfigJsonEncryption(db);
   return db;
@@ -206,6 +211,153 @@ function ensureConnectionColumns(db) {
 
 function ensureAuditColumns(db) {
   db.exec("CREATE INDEX IF NOT EXISTS audit_logs_action_created ON audit_logs(tenant_id, action, created_at DESC)");
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS audit_event_drafts (
+      tenant_id        TEXT NOT NULL DEFAULT 'internal',
+      id               TEXT NOT NULL,
+      entity_type      TEXT NOT NULL,
+      entity_id        TEXT NOT NULL,
+      event_type       TEXT NOT NULL,
+      draft_state      TEXT NOT NULL,
+      commit_condition TEXT NOT NULL,
+      meta_json        TEXT,
+      committed_at     TEXT,
+      created_at       TEXT NOT NULL,
+      updated_at       TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS audit_event_drafts_entity_updated ON audit_event_drafts(tenant_id, entity_type, entity_id, updated_at DESC)");
+}
+
+function ensureExecutionPlanTable(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS execution_plans (
+      tenant_id             TEXT NOT NULL DEFAULT 'internal',
+      id                    TEXT NOT NULL,
+      project_id            TEXT NOT NULL,
+      thread_id             TEXT,
+      run_id                TEXT,
+      source_type           TEXT NOT NULL,
+      source_ref_json       TEXT NOT NULL,
+      plan_type             TEXT NOT NULL,
+      target_kind           TEXT NOT NULL,
+      target_refs_json      TEXT NOT NULL,
+      requested_by          TEXT,
+      proposed_by_ai        INTEGER NOT NULL DEFAULT 0,
+      summary               TEXT,
+      expected_changes_json TEXT NOT NULL,
+      evidence_refs_json    TEXT NOT NULL,
+      impact_scope_json     TEXT NOT NULL,
+      risk_level            TEXT NOT NULL DEFAULT 'medium',
+      confirm_required      INTEGER NOT NULL DEFAULT 1,
+      plan_version          INTEGER NOT NULL DEFAULT 1,
+      confirm_state         TEXT NOT NULL DEFAULT 'pending',
+      confirm_policy_json   TEXT NOT NULL,
+      confirm_session_json  TEXT,
+      rollback_plan_json    TEXT NOT NULL,
+      status                TEXT NOT NULL,
+      rejection_reason      TEXT,
+      approved_by           TEXT,
+      approved_at           TEXT,
+      internal_meta_json    TEXT,
+      created_at            TEXT NOT NULL,
+      updated_at            TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS execution_plans_project_status_updated ON execution_plans(tenant_id, project_id, status, updated_at DESC)"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS execution_plans_thread_created ON execution_plans(tenant_id, thread_id, created_at DESC)"
+  );
+  const columns = db.prepare("PRAGMA table_info(execution_plans)").all().map((row) => row.name);
+  if (!columns.includes("plan_version")) {
+    db.exec("ALTER TABLE execution_plans ADD COLUMN plan_version INTEGER NOT NULL DEFAULT 1");
+  }
+  if (!columns.includes("confirm_state")) {
+    db.exec("ALTER TABLE execution_plans ADD COLUMN confirm_state TEXT NOT NULL DEFAULT 'pending'");
+  }
+  if (!columns.includes("confirm_session_json")) {
+    db.exec("ALTER TABLE execution_plans ADD COLUMN confirm_session_json TEXT");
+  }
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS execution_jobs (
+      tenant_id        TEXT NOT NULL DEFAULT 'internal',
+      id               TEXT NOT NULL,
+      plan_id          TEXT NOT NULL,
+      project_id       TEXT NOT NULL,
+      created_by       TEXT,
+      status           TEXT NOT NULL,
+      job_type         TEXT NOT NULL DEFAULT 'planned_change_execution',
+      target_scope_json TEXT NOT NULL DEFAULT '{}',
+      inputs_json      TEXT NOT NULL DEFAULT '{}',
+      safety_level     TEXT NOT NULL DEFAULT 'guarded',
+      confirm_state    TEXT NOT NULL DEFAULT 'pending',
+      plan_ref_json    TEXT NOT NULL DEFAULT '{}',
+      run_ref_json     TEXT NOT NULL DEFAULT '{}',
+      audit_draft_json TEXT NOT NULL,
+      created_at       TEXT NOT NULL,
+      updated_at       TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  db.exec("CREATE INDEX IF NOT EXISTS execution_jobs_plan_created ON execution_jobs(tenant_id, plan_id, created_at DESC)");
+  const jobColumns = db.prepare("PRAGMA table_info(execution_jobs)").all().map((row) => row.name);
+  if (!jobColumns.includes("job_type")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN job_type TEXT NOT NULL DEFAULT 'planned_change_execution'");
+  }
+  if (!jobColumns.includes("target_scope_json")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN target_scope_json TEXT NOT NULL DEFAULT '{}'");
+  }
+  if (!jobColumns.includes("inputs_json")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN inputs_json TEXT NOT NULL DEFAULT '{}'");
+  }
+  if (!jobColumns.includes("safety_level")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN safety_level TEXT NOT NULL DEFAULT 'guarded'");
+  }
+  if (!jobColumns.includes("confirm_state")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN confirm_state TEXT NOT NULL DEFAULT 'pending'");
+  }
+  if (!jobColumns.includes("plan_ref_json")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN plan_ref_json TEXT NOT NULL DEFAULT '{}'");
+  }
+  if (!jobColumns.includes("run_ref_json")) {
+    db.exec("ALTER TABLE execution_jobs ADD COLUMN run_ref_json TEXT NOT NULL DEFAULT '{}'");
+  }
+}
+
+function ensureWritePlanTable(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS write_plans (
+      tenant_id             TEXT NOT NULL DEFAULT 'internal',
+      id                    TEXT NOT NULL,
+      project_id            TEXT NOT NULL,
+      thread_id             TEXT,
+      run_id                TEXT,
+      source_type           TEXT NOT NULL,
+      source_ref_json       TEXT NOT NULL,
+      target_kind           TEXT NOT NULL,
+      target_refs_json      TEXT NOT NULL,
+      summary               TEXT,
+      expected_changes_json TEXT NOT NULL,
+      evidence_refs_json    TEXT NOT NULL,
+      confirm_required      INTEGER NOT NULL DEFAULT 1,
+      status                TEXT NOT NULL,
+      created_by            TEXT,
+      internal_meta_json    TEXT,
+      created_at            TEXT NOT NULL,
+      updated_at            TEXT NOT NULL,
+      PRIMARY KEY (tenant_id, id)
+    );
+  `);
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS write_plans_project_status_updated ON write_plans(tenant_id, project_id, status, updated_at DESC)"
+  );
+  db.exec(
+    "CREATE INDEX IF NOT EXISTS write_plans_thread_created ON write_plans(tenant_id, thread_id, created_at DESC)"
+  );
 }
 
 function ensureOrganizationTables(db) {
@@ -518,6 +670,7 @@ function ensureJobTemplates(db) {
 }
 
 function migrateConnectionConfigJsonEncryption(db) {
+  const MAX_CONFIG_JSON_MIGRATION_LENGTH = 1024 * 1024;
   const rows = db
     .prepare(
       "SELECT tenant_id, id, config_json FROM connections WHERE config_json IS NOT NULL AND trim(config_json) <> ''"
@@ -530,12 +683,19 @@ function migrateConnectionConfigJsonEncryption(db) {
   rows.forEach((row) => {
     const text = typeof row.config_json === "string" ? row.config_json : "";
     if (!text) return;
+    if (text.length > MAX_CONFIG_JSON_MIGRATION_LENGTH) {
+      return;
+    }
     try {
       decrypt(text);
       return;
     } catch {
-      const encrypted = encrypt(text);
-      update.run(encrypted, now, row.tenant_id, row.id);
+      try {
+        const encrypted = encrypt(text);
+        update.run(encrypted, now, row.tenant_id, row.id);
+      } catch {
+        return;
+      }
     }
   });
 }

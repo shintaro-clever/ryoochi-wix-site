@@ -119,6 +119,13 @@ async function run() {
     const githubPlan = JSON.parse(githubPlanRes.body.toString("utf8"));
     assert(githubPlan.confirm_required === true, "github corrective action plan should require confirm");
     assert(githubPlan.write_plan && githubPlan.write_plan.confirm_token, "github write plan should include confirm_token");
+    assert(githubPlan.write_plan_record && typeof githubPlan.write_plan_record.write_plan_id === "string", "github write plan should persist generic write plan record");
+    assert(Array.isArray(githubPlan.write_plan_record.target_files) && githubPlan.write_plan_record.target_files.includes("src/state-machine.js"), "github write plan record should preserve target files");
+    assert(githubPlan.write_plan_record.target_refs.some((item) => item.target_type === "repo"), "github write plan record should include repo target");
+    assert(githubPlan.write_plan_record.target_refs.some((item) => item.target_type === "branch"), "github write plan record should include branch target");
+    assert(githubPlan.write_plan_record.target_refs.some((item) => item.target_type === "file"), "github write plan record should include file target");
+    assert(Array.isArray(githubPlan.write_plan_record.expected_changes) && githubPlan.write_plan_record.expected_changes.length > 0, "github write plan record should preserve expected changes");
+    assert(githubPlan.write_plan_record.confirm_required === true, "github write plan record should keep confirm_required");
     assert(
       githubPlan.write_plan.planned_action && githubPlan.write_plan.planned_action.status === "confirm_required",
       "github planned action should stay confirm_required"
@@ -134,7 +141,16 @@ async function run() {
         provider: "figma",
         write: {
           change_type: "update",
+          page_id: "11",
+          page_name: "Landing",
+          frame_id: "11:22",
+          frame_name: "Hero",
           node_id: "11:22:node1",
+          component_id: "cmp_hero_button",
+          component_name: "Hero Button",
+          component_key: "figma-component-key-hero",
+          component_set_id: "set_hero_button",
+          component_set_name: "Hero Button Set",
         },
       }),
     });
@@ -142,6 +158,13 @@ async function run() {
     const figmaPlan = JSON.parse(figmaPlanRes.body.toString("utf8"));
     assert(figmaPlan.confirm_required === true, "figma corrective action plan should require confirm");
     assert(figmaPlan.write_plan && figmaPlan.write_plan.confirm_token, "figma write plan should include confirm_token");
+    assert(figmaPlan.write_plan_record && typeof figmaPlan.write_plan_record.write_plan_id === "string", "figma write plan should persist generic write plan record");
+    assert(Array.isArray(figmaPlan.write_plan_record.target_refs) && figmaPlan.write_plan_record.target_refs.length > 0, "figma write plan record should preserve targets");
+    assert(figmaPlan.write_plan_record.target_refs.some((item) => item.target_type === "page"), "figma write plan record should include page target");
+    assert(figmaPlan.write_plan_record.target_refs.some((item) => item.target_type === "frame"), "figma write plan record should include frame target");
+    assert(figmaPlan.write_plan_record.target_refs.some((item) => item.target_type === "component"), "figma write plan record should include component target");
+    assert(figmaPlan.write_plan_record.target_refs.some((item) => item.target_type === "node"), "figma write plan record should include node target");
+    assert(figmaPlan.write_plan_record.source_ref && figmaPlan.write_plan_record.source_ref.ref_kind === "corrective_action", "figma write plan record should preserve source_ref");
     assert(
       figmaPlan.write_plan.planned_action && figmaPlan.write_plan.planned_action.status === "confirm_required",
       "figma planned action should stay confirm_required"

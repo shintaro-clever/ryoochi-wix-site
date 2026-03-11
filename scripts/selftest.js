@@ -76,6 +76,22 @@ function loadSelftestRunners() {
     'p6_ops_console_ui.test.js',
     'p6_b_inventory_residual_ui.test.js',
     'p6_phase6_runbook.test.js',
+    'p7_write_plan_model.test.js',
+    'p7_write_plan_ui.test.js',
+    'p7_selftest_suite.test.js',
+    'p7_completion_criteria.test.js',
+    'p7_phase7_runbook.test.js',
+    'p7_execution_plan_model.test.js',
+    'p7_execution_job_model.test.js',
+    'p7_execution_audit.test.js',
+    'p7_confirm_flow_api.test.js',
+    'p7_confirm_flow_ui.test.js',
+    'p7_run_execution_trace.test.js',
+    'p7_run_execution_trace_ui.test.js',
+    'p7_figma_execution_plan_job.test.js',
+    'p7_github_execution_plan_job.test.js',
+    'p7_ops_console_execution_api.test.js',
+    'p7_ops_console_execution_ui.test.js',
     'ghr_github_read_client.test.js',
     'ghr_connection_context_run_chat.test.js',
     'ghw_github_write_plan.test.js',
@@ -144,13 +160,40 @@ function loadSelftestRunners() {
       console.warn(`[selftest] SKIP missing ${name}`);
       continue;
     }
-    const mod = require(filePath);
-    if (typeof mod.run !== 'function') {
-      throw new Error(`[selftest] invalid selftest module: ${name} (missing run)`);
-    }
-    runners.push({ name, run: mod.run });
+    runners.push({ name, filePath });
   }
   return runners;
+}
+
+function runIsolatedSelftest(filePath) {
+  const repoRoot = path.join(__dirname, '..');
+  const isolatedDbRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'codex-selftest-db-'));
+  const wrapped = `
+Promise.resolve(require(${JSON.stringify(filePath)}).run())
+  .then(() => process.exit(0))
+  .catch((error) => {
+    console.error(error && error.stack ? error.stack : (error && error.message ? error.message : error));
+    process.exit(1);
+  });
+`;
+  try {
+    const result = spawnSync(process.execPath, ['-e', wrapped], {
+      cwd: repoRoot,
+      env: {
+        ...process.env,
+        PWD: repoRoot,
+        HUB_DB_ROOT: isolatedDbRoot,
+      },
+      encoding: 'utf8',
+    });
+    if (result.status !== 0) {
+      if (result.stderr) process.stderr.write(result.stderr);
+      if (result.stdout) process.stdout.write(result.stdout);
+      throw new Error(`isolated selftest failed: ${path.basename(filePath)}`);
+    }
+  } finally {
+    fs.rmSync(isolatedDbRoot, { recursive: true, force: true });
+  }
 }
 
 function assert(condition, message) {
@@ -1717,7 +1760,8 @@ async function main() {
   await verifyRunTimeout();
   const runners = loadSelftestRunners();
   for (const runner of runners) {
-    await runner.run();
+    console.log(`[selftest] RUN ${runner.name}`);
+    runIsolatedSelftest(runner.filePath);
   }
   console.log('Selftest ok');
 }

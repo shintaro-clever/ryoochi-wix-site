@@ -6,6 +6,8 @@ const { parseRunIdInput, getRun, appendRunExternalOperation } = require("../../a
 const { validateCorrectiveActionConnection } = require("../../fidelity/correctiveActionConnect");
 const { handleGithubWritePlan } = require("./githubWritePlan");
 const { handleFigmaWritePlan } = require("./figmaWritePlan");
+const { createWritePlan } = require("../../db/writePlans");
+const { toWritePlanApi } = require("../writePlans");
 
 function asObject(value) {
   return value && typeof value === "object" && !Array.isArray(value) ? value : {};
@@ -68,6 +70,242 @@ function buildDelegatedPayload(body, provider) {
   };
 }
 
+function normalizeText(value) {
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function safeArray(value) {
+  return Array.isArray(value) ? value : [];
+}
+
+function toSourceRef(body, action, provider) {
+  const writePlanSource = asObject(body.write_plan_source);
+  const sourceRef = asObject(writePlanSource.source_ref);
+  return {
+    system: sourceRef.system || "hub",
+    ref_kind: sourceRef.ref_kind || "corrective_action",
+    ref_id: sourceRef.ref_id || normalizeText(action && action.key) || null,
+    path: sourceRef.path || null,
+    label: sourceRef.label || normalizeText(action && action.title) || "corrective action write plan",
+    version: sourceRef.version || null,
+    metadata: {
+      ...asObject(sourceRef.metadata),
+      provider,
+      category: normalizeText(action && action.category) || null,
+      entrypoint: normalizeText(writePlanSource.entrypoint) || "run_detail",
+    },
+  };
+}
+
+function buildTargetRefs(provider, delegatedPlan) {
+  if (provider === "github") {
+    const repository = normalizeText(delegatedPlan && delegatedPlan.repository);
+    const branch = normalizeText(delegatedPlan && delegatedPlan.target_branch);
+    const refs = [];
+    if (repository) {
+      refs.push({
+        system: "github",
+        target_type: "repo",
+        id: repository,
+        path: null,
+        name: repository,
+        scope: null,
+        writable: true,
+        metadata: {
+          repository,
+        },
+      });
+    }
+    if (branch) {
+      refs.push({
+        system: "github",
+        target_type: "branch",
+        id: branch,
+        path: null,
+        name: branch,
+        scope: repository || null,
+        writable: true,
+        metadata: {
+          repository: repository || null,
+          target_branch: branch,
+        },
+      });
+    }
+    safeArray(delegatedPlan && delegatedPlan.write_paths).forEach((item) => {
+      refs.push({
+        system: "github",
+        target_type: "file",
+        id: null,
+        path: normalizeText(item),
+        name: normalizeText(item).split("/").pop() || normalizeText(item),
+        scope: repository || null,
+        writable: true,
+        metadata: {
+          repository: repository || null,
+          target_branch: branch || null,
+        },
+      });
+    });
+    return refs.filter((item) => item.id || item.path || item.name);
+  }
+  const target = asObject(delegatedPlan && delegatedPlan.target);
+  const refs = [];
+  if (normalizeText(target.page_id) || normalizeText(target.page_name)) {
+    refs.push({
+      system: "figma",
+      target_type: "page",
+      id: normalizeText(target.page_id) || null,
+      path: null,
+      name: normalizeText(target.page_name) || normalizeText(target.page_id) || "page",
+      scope: normalizeText(delegatedPlan && delegatedPlan.file_key) || null,
+      writable: true,
+      metadata: {
+        file_key: normalizeText(delegatedPlan && delegatedPlan.file_key) || null,
+      },
+    });
+  }
+  if (normalizeText(target.frame_id) || normalizeText(target.frame_name)) {
+    refs.push({
+      system: "figma",
+      target_type: "frame",
+      id: normalizeText(target.frame_id) || null,
+      path: null,
+      name: normalizeText(target.frame_name) || normalizeText(target.frame_id) || "frame",
+      scope: normalizeText(target.page_id || target.page_name) || null,
+      writable: true,
+      metadata: {
+        file_key: normalizeText(delegatedPlan && delegatedPlan.file_key) || null,
+        page_id: normalizeText(target.page_id) || null,
+      },
+    });
+  }
+  if (normalizeText(target.component_id) || normalizeText(target.component_name) || normalizeText(target.component_key)) {
+    refs.push({
+      system: "figma",
+      target_type: "component",
+      id: normalizeText(target.component_id) || normalizeText(target.component_key) || null,
+      path: null,
+      name: normalizeText(target.component_name) || normalizeText(target.component_id) || normalizeText(target.component_key) || "component",
+      scope: normalizeText(target.frame_id || target.page_id) || null,
+      writable: true,
+      metadata: {
+        file_key: normalizeText(delegatedPlan && delegatedPlan.file_key) || null,
+        component_key: normalizeText(target.component_key) || null,
+        component_set_id: normalizeText(target.component_set_id) || null,
+        component_set_name: normalizeText(target.component_set_name) || null,
+      },
+    });
+  }
+  safeArray(target.node_ids).forEach((item) => {
+    refs.push({
+      system: "figma",
+      target_type: "node",
+      id: normalizeText(item) || null,
+      path: null,
+      name: normalizeText(item) || "node",
+    scope: normalizeText(target.frame_id || target.page_id) || null,
+    writable: true,
+    metadata: {
+      file_key: normalizeText(delegatedPlan && delegatedPlan.file_key) || null,
+        page_id: normalizeText(target.page_id) || null,
+        frame_id: normalizeText(target.frame_id) || null,
+      },
+    });
+  });
+  return refs.filter((item) => item.id || item.name);
+}
+
+function buildExpectedChanges(provider, delegatedPlan, targetRefs) {
+  const refsByPath = new Map(targetRefs.filter((item) => item.path).map((item) => [item.path, item]));
+  const refsById = new Map(targetRefs.filter((item) => item.id).map((item) => [item.id, item]));
+  return safeArray(delegatedPlan && delegatedPlan.changes).map((change) => {
+    const item = asObject(change);
+    const targetRef = provider === "github"
+      ? refsByPath.get(normalizeText(item.path)) || {}
+      : refsById.get(normalizeText(item.node_id)) || {};
+    return {
+      change_type: normalizeText(item.change_type) || "update",
+      target_ref: targetRef,
+      summary:
+        normalizeText(item.summary) ||
+        normalizeText(item.diff_summary && item.diff_summary.summary) ||
+        normalizeText(item.node_id) ||
+        normalizeText(item.path) ||
+        null,
+      before_ref: {},
+      after_ref: {},
+      patch_hint: normalizeText(item.path || item.node_id) || null,
+    };
+  }).filter((item) => item.change_type || item.summary);
+}
+
+function buildEvidenceRefs(run, action, provider) {
+  return {
+    run_artifacts: [
+      {
+        system: "hub",
+        ref_kind: "run",
+        ref_id: normalizeText(run && run.run_id),
+        path: null,
+        label: "source run",
+        version: null,
+        metadata: {
+          project_id: normalizeText(run && run.project_id) || null,
+          provider,
+        },
+      },
+    ],
+    compare_results: [],
+    ai_summaries: [],
+    source_documents: [
+      {
+        system: "repo",
+        ref_kind: "doc",
+        ref_id: "execution-plan-model",
+        path: "docs/ai/core/execution-plan-model.md",
+        label: "Execution Plan Model",
+        version: null,
+        metadata: {},
+      },
+    ],
+    other_refs: safeArray(action && action.reason_types).map((item) => ({
+      system: "hub",
+      ref_kind: "reason_type",
+      ref_id: normalizeText(item),
+      path: null,
+      label: normalizeText(item),
+      version: null,
+      metadata: {},
+    })).filter((item) => item.ref_id),
+  };
+}
+
+function createCommonWritePlanRecord({ db, run, body, action, provider, delegatedPlan, actorId }) {
+  const targetRefs = buildTargetRefs(provider, delegatedPlan);
+  return createWritePlan({
+    payload: {
+      project_id: run.project_id,
+      thread_id: run.thread_id || null,
+      run_id: run.run_id,
+      source_type: "phase4_corrective_action",
+      source_ref: toSourceRef(body, action, provider),
+      target_kind: provider,
+      target_refs: targetRefs,
+      summary: normalizeText(action && action.recommendation) || normalizeText(action && action.title) || `${provider} write plan`,
+      expected_changes: buildExpectedChanges(provider, delegatedPlan, targetRefs),
+      evidence_refs: buildEvidenceRefs(run, action, provider),
+      confirm_required: true,
+      status: "ready",
+      created_by: actorId || "user",
+      internal_meta: {
+        corrective_action_key: normalizeText(action && action.key) || null,
+        corrective_action_category: normalizeText(action && action.category) || null,
+      },
+    },
+    dbConn: db,
+  });
+}
+
 async function handleCorrectiveActionWritePlan(req, res, db) {
   if ((req.method || "GET").toUpperCase() !== "POST") {
     res.writeHead(405, { "Content-Type": "text/plain; charset=utf-8" });
@@ -88,6 +326,7 @@ async function handleCorrectiveActionWritePlan(req, res, db) {
       reason: "auto_execution_forbidden",
     });
   }
+  const actorId = typeof req.user?.id === "string" && req.user.id.trim() ? req.user.id.trim() : "user";
 
   const parsedRunId = parseRunIdInput(body.run_id);
   if (!parsedRunId.ok) {
@@ -167,6 +406,16 @@ async function handleCorrectiveActionWritePlan(req, res, db) {
     },
   });
 
+  const writePlanRecord = createCommonWritePlanRecord({
+    db,
+    run,
+    body,
+    action: validation.action,
+    provider: validation.provider,
+    delegatedPlan: delegated.parsed || {},
+    actorId,
+  });
+
   return sendJson(res, 201, {
     run_id: body.run_id,
     provider: validation.provider,
@@ -174,6 +423,7 @@ async function handleCorrectiveActionWritePlan(req, res, db) {
     confirm_required_reason: "corrective_action_confirmation_required",
     corrective_action: validation.action,
     write_plan: delegated.parsed,
+    write_plan_record: toWritePlanApi(writePlanRecord),
   });
 }
 

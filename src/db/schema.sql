@@ -117,6 +117,21 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS audit_event_drafts (
+  tenant_id         TEXT NOT NULL DEFAULT 'internal',
+  id                TEXT NOT NULL,
+  entity_type       TEXT NOT NULL,
+  entity_id         TEXT NOT NULL,
+  event_type        TEXT NOT NULL,
+  draft_state       TEXT NOT NULL,
+  commit_condition  TEXT NOT NULL,
+  meta_json         TEXT,
+  committed_at      TEXT,
+  created_at        TEXT NOT NULL,
+  updated_at        TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
 CREATE TABLE IF NOT EXISTS organizations (
   tenant_id   TEXT NOT NULL DEFAULT 'internal',
   id          TEXT NOT NULL,
@@ -195,8 +210,87 @@ CREATE TABLE IF NOT EXISTS organization_language_policies (
   PRIMARY KEY (tenant_id, organization_id)
 );
 
+CREATE TABLE IF NOT EXISTS execution_plans (
+  tenant_id            TEXT NOT NULL DEFAULT 'internal',
+  id                   TEXT NOT NULL,
+  project_id           TEXT NOT NULL,
+  thread_id            TEXT,
+  run_id               TEXT,
+  source_type          TEXT NOT NULL,
+  source_ref_json      TEXT NOT NULL,
+  plan_type            TEXT NOT NULL,
+  target_kind          TEXT NOT NULL,
+  target_refs_json     TEXT NOT NULL,
+  requested_by         TEXT,
+  proposed_by_ai       INTEGER NOT NULL DEFAULT 0,
+  summary              TEXT,
+  expected_changes_json TEXT NOT NULL,
+  evidence_refs_json   TEXT NOT NULL,
+  impact_scope_json    TEXT NOT NULL,
+  risk_level           TEXT NOT NULL DEFAULT 'medium',
+  confirm_required     INTEGER NOT NULL DEFAULT 1,
+  plan_version         INTEGER NOT NULL DEFAULT 1,
+  confirm_state        TEXT NOT NULL DEFAULT 'pending',
+  confirm_policy_json  TEXT NOT NULL,
+  confirm_session_json TEXT,
+  rollback_plan_json   TEXT NOT NULL,
+  status               TEXT NOT NULL,
+  rejection_reason     TEXT,
+  approved_by          TEXT,
+  approved_at          TEXT,
+  internal_meta_json   TEXT,
+  created_at           TEXT NOT NULL,
+  updated_at           TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS write_plans (
+  tenant_id            TEXT NOT NULL DEFAULT 'internal',
+  id                   TEXT NOT NULL,
+  project_id           TEXT NOT NULL,
+  thread_id            TEXT,
+  run_id               TEXT,
+  source_type          TEXT NOT NULL,
+  source_ref_json      TEXT NOT NULL,
+  target_kind          TEXT NOT NULL,
+  target_refs_json     TEXT NOT NULL,
+  summary              TEXT,
+  expected_changes_json TEXT NOT NULL,
+  evidence_refs_json   TEXT NOT NULL,
+  confirm_required     INTEGER NOT NULL DEFAULT 1,
+  status               TEXT NOT NULL,
+  created_by           TEXT,
+  internal_meta_json   TEXT,
+  created_at           TEXT NOT NULL,
+  updated_at           TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
+CREATE TABLE IF NOT EXISTS execution_jobs (
+  tenant_id        TEXT NOT NULL DEFAULT 'internal',
+  id               TEXT NOT NULL,
+  plan_id          TEXT NOT NULL,
+  project_id       TEXT NOT NULL,
+  created_by       TEXT,
+  status           TEXT NOT NULL,
+  job_type         TEXT NOT NULL DEFAULT 'planned_change_execution',
+  target_scope_json TEXT NOT NULL DEFAULT '{}',
+  inputs_json      TEXT NOT NULL DEFAULT '{}',
+  safety_level     TEXT NOT NULL DEFAULT 'guarded',
+  confirm_state    TEXT NOT NULL DEFAULT 'pending',
+  plan_ref_json    TEXT NOT NULL DEFAULT '{}',
+  run_ref_json     TEXT NOT NULL DEFAULT '{}',
+  audit_draft_json TEXT NOT NULL,
+  created_at       TEXT NOT NULL,
+  updated_at       TEXT NOT NULL,
+  PRIMARY KEY (tenant_id, id)
+);
+
 CREATE INDEX IF NOT EXISTS audit_logs_action_created
   ON audit_logs(tenant_id, action, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS audit_event_drafts_entity_updated
+  ON audit_event_drafts(tenant_id, entity_type, entity_id, updated_at DESC);
 
 CREATE INDEX IF NOT EXISTS organizations_slug
   ON organizations(tenant_id, slug);
@@ -215,6 +309,15 @@ CREATE INDEX IF NOT EXISTS faq_knowledge_source_policies_priority
 
 CREATE INDEX IF NOT EXISTS organization_language_policies_updated
   ON organization_language_policies(tenant_id, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS execution_plans_project_status_updated
+  ON execution_plans(tenant_id, project_id, status, updated_at DESC);
+
+CREATE INDEX IF NOT EXISTS execution_plans_thread_created
+  ON execution_plans(tenant_id, thread_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS execution_jobs_plan_created
+  ON execution_jobs(tenant_id, plan_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS job_templates (
   name                  TEXT NOT NULL,

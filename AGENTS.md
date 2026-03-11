@@ -56,6 +56,23 @@ alias codex='codex --sandbox=workspace-write'
 Workspace IA再編は `1枚目=現状UI` `2枚目=目標UI` を前提にし、目標UIは `左=横断ナビ` `中央=AI作業面` `右=接続済みリソース/roadmap/recent files` の3面構成へ寄せる。
 Phase5 の対象外は `社内管理画面` `組織ユーザー管理` `RBAC強化` `複数AI routing` `confirmなし自動実行` `完全自律エージェント` とし、これらは Phase6 以降へ分離して混入させない。
 次フェーズ6は `社内管理画面` `組織ユーザー管理` `RBAC` `接続ライフサイクル管理` `AI利用管理` `FAQ知識源管理` `多言語設定管理` `監査ビュー` のみを対象とする管理・組織運用レイヤーとし、Phase5 の単一運用者向け Workspace 責務へ逆流させない。`複数AI routing の高度化` `confirmなし自動実行` `完全自律エージェント` は Phase6 にも混入させない。
+次フェーズ7は **Phase6完了後にのみ** 着手し、SoT 上 `作成・変更実行レイヤー` 専用とする。対象は `write-plan` `execution plan` `confirm付き変更実行補助` `Figma / GitHub / AI / Run の変更連携` の4領域のみに限定する。
+Hubは成果物SoTではない。Hub は orchestration layer として `thread / run / plan / audit` を保持し、成果物の正本は GitHub / Figma / Drive 側に残す。
+Phase7 の主要成果物は `execution plan` `confirm flow` `execution job` `audit` `ops console` `selftest` `runbook` とする。
+Phase7 の対象外は `confirmなし自動実行` `完全自律エージェント` `複数AI routing の高度化` `Phase5 Workspaceへの管理責務逆流` `Phase6 Adminへの自律実行混入` とし、これらを Phase7 の UI/API/orchestration/運用判断へ混入させない。
+
+Phase7で実装してよいもの:
+- `write-plan` / `execution plan` の生成・保存・表示
+- operator confirm を前提にした変更実行補助
+- `execution job` `audit` `ops console` `selftest` `runbook`
+- GitHub / Figma / Drive の成果物正本へ戻すための orchestration 記録
+
+Phase7でまだ実装してはいけないもの:
+- confirmなし自動実行
+- 完全自律エージェント
+- 複数AI routing の高度化
+- Phase5 Workspace へ管理画面責務を戻す変更
+- Phase6 Admin へ自律実行責務を混入させる変更
 
 ---
 

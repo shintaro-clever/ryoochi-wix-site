@@ -42,6 +42,16 @@ module.exports = Object.freeze({
   AI_ANALYSIS_REQUEST: "ai.analysis.request",
   AI_TRANSLATION_REQUEST: "ai.translation.request",
   FAQ_QUERY: "faq.query",
+  EXECUTION_PLAN_CREATED: "execution_plan.created",
+  EXECUTION_PLAN_CONFIRM_SESSION_ISSUED: "execution_plan.confirm_session_issued",
+  EXECUTION_PLAN_APPROVED: "execution_plan.approved",
+  EXECUTION_PLAN_REJECTED: "execution_plan.rejected",
+  EXECUTION_PLAN_REVOKED: "execution_plan.revoked",
+  EXECUTION_PLAN_EXPIRED: "execution_plan.expired",
+  EXECUTION_JOB_DRAFTED: "execution_job.drafted",
+  EXECUTION_JOB_CREATED: "execution_job.created",
+  EXECUTION_JOB_STARTED: "execution_job.started",
+  EXECUTION_JOB_FINISHED: "execution_job.finished",
 
   // Phase6 RBAC
   ORG_MEMBER_CREATE: "org.member.create",

@@ -293,6 +293,19 @@ async function handleCorrectiveActionAssistWritePlan(req, res, db) {
   const delegatedPayload = provider === "github"
     ? buildGithubAssistWritePayload({ run, projectSettings, action: resolvedAction.action, assist: body.assist })
     : buildFigmaAssistWritePayload({ run, projectSettings, action: resolvedAction.action, assist: body.assist });
+  delegatedPayload.write_plan_source = {
+    entrypoint: "run_detail",
+    source_ref: {
+      system: "hub",
+      ref_kind: "ai_action_assist",
+      ref_id: normalizeText(body.action_key || resolvedAction.action.key),
+      label: normalizeText(resolvedAction.action.title) || "AI action assist write plan",
+      metadata: {
+        provider,
+        source_surface: "corrective_action_assist",
+      },
+    },
+  };
   const delegated = await requestLocalHandler(handleCorrectiveActionWritePlan, delegatedPayload, db);
   if (delegated.statusCode < 200 || delegated.statusCode >= 300) {
     return sendJson(res, delegated.statusCode || 400, delegated.parsed || {

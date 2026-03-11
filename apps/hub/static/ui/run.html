@@ -143,6 +143,28 @@
               <p id="run-ai-corrective-status" class="mt-2 text-xs text-text-muted"></p>
               <div id="run-ai-corrective-list" class="mt-3 text-sm text-text-muted">提案は未生成です。</div>
             </section>
+            <section class="rounded-lg border border-border-dark p-4 xl:col-span-2">
+              <div class="flex items-center justify-between gap-2">
+                <div>
+                  <h2 class="text-sm font-semibold">Execution Trace</h2>
+                  <p class="mt-1 text-xs text-text-muted">run に紐づく write-plan / execution plan / execution job を追跡します。</p>
+                </div>
+              </div>
+              <div class="mt-3 grid grid-cols-1 xl:grid-cols-3 gap-3">
+                <article class="rounded-lg border border-border-dark p-3">
+                  <h3 class="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Write Plans</h3>
+                  <div id="run-related-write-plans" class="mt-2 text-sm text-text-muted">-</div>
+                </article>
+                <article class="rounded-lg border border-border-dark p-3">
+                  <h3 class="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Execution Plans</h3>
+                  <div id="run-related-execution-plans" class="mt-2 text-sm text-text-muted">-</div>
+                </article>
+                <article class="rounded-lg border border-border-dark p-3">
+                  <h3 class="text-xs font-semibold uppercase tracking-[0.18em] text-text-muted">Execution Jobs</h3>
+                  <div id="run-related-execution-jobs" class="mt-2 text-sm text-text-muted">-</div>
+                </article>
+              </div>
+            </section>
             <section class="rounded-lg border border-border-dark p-4">
               <h2 class="text-sm font-semibold" data-i18n="ui.run.section.inputs">Inputs</h2>
               <p class="mt-1 text-xs text-text-muted" data-i18n="ui.run.section.inputs.desc">投入した入力値を確認します。</p>
@@ -229,6 +251,9 @@
       const runCorrectiveListEl = document.getElementById("run-ai-corrective-list");
       const runCorrectiveStatusEl = document.getElementById("run-ai-corrective-status");
       const runCorrectiveButtonEl = document.getElementById("run-ai-corrective-generate");
+      const relatedWritePlansEl = document.getElementById("run-related-write-plans");
+      const relatedExecutionPlansEl = document.getElementById("run-related-execution-plans");
+      const relatedExecutionJobsEl = document.getElementById("run-related-execution-jobs");
       const runAiDisplayLanguageEl = document.getElementById("run-ai-display-language");
       const AI_DISPLAY_LANG_KEY = "ai_display_lang";
       let currentRun = null;
@@ -395,6 +420,50 @@
         renderFigmaOperations(run.external_operations, run.figma_before_after, run.inputs);
         renderExternalAudit(run.external_audit);
         renderFigmaBeforeAfter(run.figma_before_after, run.inputs);
+        renderExecutionTrace(run);
+      }
+
+      function renderLinkList(root, items, renderItem) {
+        if (!root) return;
+        const list = Array.isArray(items) ? items : [];
+        if (list.length === 0) {
+          root.innerHTML = '<p class="text-text-muted">-</p>';
+          return;
+        }
+        root.innerHTML = list.map(renderItem).join("");
+      }
+
+      function renderExecutionTrace(run) {
+        const projectId = String(run && run.project_id || "");
+        renderLinkList(relatedWritePlansEl, run.related_write_plans || [], (item) => `
+          <div class="rounded-lg border border-border-dark p-2">
+            <p class="text-sm font-semibold">${escapeHtml(String(item.summary || item.write_plan_id || "-"))}</p>
+            <p class="mt-1 text-xs text-text-muted">status=${escapeHtml(String(item.status || "-"))} / confirm_required=${item.confirm_required === true ? "true" : "false"}</p>
+            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+              <a href="/ui/write-plans.html?project_id=${encodeURIComponent(projectId)}&write_plan_id=${encodeURIComponent(String(item.write_plan_id || ""))}" class="text-primary hover:underline">write-plan 詳細</a>
+              <a href="/ui/execution-plan-confirm.html?write_plan_id=${encodeURIComponent(String(item.write_plan_id || ""))}" class="text-amber-300 hover:underline">confirm</a>
+            </div>
+          </div>
+        `);
+        renderLinkList(relatedExecutionPlansEl, run.related_execution_plans || [], (item) => `
+          <div class="rounded-lg border border-border-dark p-2">
+            <p class="text-sm font-semibold">${escapeHtml(String(item.summary || item.plan_id || "-"))}</p>
+            <p class="mt-1 text-xs text-text-muted">confirm_state=${escapeHtml(String(item.confirm_state || "-"))} / status=${escapeHtml(String(item.status || "-"))}</p>
+            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+              <a href="/ui/execution-plan-confirm.html?plan_id=${encodeURIComponent(String(item.plan_id || ""))}" class="text-amber-300 hover:underline">execution plan</a>
+            </div>
+          </div>
+        `);
+        renderLinkList(relatedExecutionJobsEl, run.related_execution_jobs || [], (item) => `
+          <div class="rounded-lg border border-border-dark p-2">
+            <p class="text-sm font-semibold">${escapeHtml(String(item.job_type || item.execution_job_id || "-"))}</p>
+            <p class="mt-1 text-xs text-text-muted">status=${escapeHtml(String(item.status || "-"))} / safety=${escapeHtml(String(item.safety_level || "-"))}</p>
+            <div class="mt-2 flex flex-wrap gap-2 text-xs">
+              <span class="text-text-muted">job_id=${escapeHtml(String(item.execution_job_id || "-"))}</span>
+              <a href="/ui/execution-plan-confirm.html?plan_id=${encodeURIComponent(String(item.plan_ref && item.plan_ref.plan_id || ""))}" class="text-amber-300 hover:underline">source plan</a>
+            </div>
+          </div>
+        `);
       }
 
       function renderRunCorrectiveSuggestions() {

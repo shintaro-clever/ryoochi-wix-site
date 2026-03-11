@@ -6,6 +6,11 @@ const { withRetry } = require("../db/retry");
 const { KINDS, buildPublicId, parsePublicIdFor, isUuid } = require("../id/publicIds");
 const { collectClassifiedReasons } = require("../fidelity/reasonTaxonomy");
 const { normalizeFidelityReasonSnapshot } = require("../db/fidelityReasons");
+const { mapExecutionPlanRow } = require("../db/executionPlans");
+const { listExecutionJobs } = require("../db/executionJobs");
+const { toExecutionPlanApi } = require("../server/executionPlans");
+const { toExecutionJobApi } = require("../server/executionJobs");
+const { toWritePlanApi } = require("../server/writePlans");
 
 const API_RUNS_PROJECT_ID = "api:runs";
 const RUN_STATUS = Object.freeze({
@@ -86,6 +91,16 @@ function parseInputs(inputsJson) {
     return parsed && typeof parsed === "object" ? parsed : {};
   } catch {
     return {};
+  }
+}
+
+function parseJsonLoose(value, fallback) {
+  if (typeof value !== "string" || value.length === 0) return fallback;
+  try {
+    const parsed = JSON.parse(value);
+    return parsed == null ? fallback : parsed;
+  } catch {
+    return fallback;
   }
 }
 
@@ -1431,9 +1446,60 @@ function getRun(db, runId) {
   }
   const parsedInputs = parseInputs(row.inputs_json);
   const retryMeta = extractRetryMetadata(parsedInputs);
+  const publicRunId = toPublicRunId(row.id);
+  const relatedExecutionPlanRows = withRetry(() =>
+    db.prepare(
+      `SELECT tenant_id,id,project_id,thread_id,run_id,source_type,source_ref_json,plan_type,target_kind,target_refs_json,
+              requested_by,proposed_by_ai,summary,expected_changes_json,evidence_refs_json,impact_scope_json,risk_level,
+              confirm_required,plan_version,confirm_state,confirm_policy_json,confirm_session_json,rollback_plan_json,status,
+              rejection_reason,approved_by,approved_at,internal_meta_json,created_at,updated_at
+       FROM execution_plans
+       WHERE tenant_id=? AND run_id=?
+       ORDER BY updated_at DESC, created_at DESC`
+    ).all(DEFAULT_TENANT, publicRunId)
+  );
+  const relatedExecutionPlans = relatedExecutionPlanRows
+    .map((entry) => mapExecutionPlanRow(entry))
+    .filter(Boolean)
+    .map((entry) => toExecutionPlanApi(entry));
+  const relatedExecutionPlanIds = relatedExecutionPlans.map((entry) => entry.plan_id).filter(Boolean);
+  const relatedExecutionJobs = relatedExecutionPlanIds.length > 0
+    ? listExecutionJobs({ tenantId: DEFAULT_TENANT, dbConn: db })
+        .filter((entry) => entry.plan_ref && relatedExecutionPlanIds.includes(entry.plan_ref.plan_id))
+        .map((entry) => toExecutionJobApi(entry))
+    : [];
+  const relatedWritePlanRows = withRetry(() =>
+    db.prepare(
+      `SELECT tenant_id,id,project_id,thread_id,run_id,source_type,source_ref_json,target_kind,target_refs_json,summary,
+              expected_changes_json,evidence_refs_json,confirm_required,status,created_by,internal_meta_json,created_at,updated_at
+       FROM write_plans
+       WHERE tenant_id=? AND run_id=?
+       ORDER BY updated_at DESC, created_at DESC`
+    ).all(DEFAULT_TENANT, publicRunId)
+  );
+  const relatedWritePlans = relatedWritePlanRows.map((entry) => toWritePlanApi({
+    write_plan_id: entry.id,
+    tenant_id: entry.tenant_id,
+    project_id: entry.project_id,
+    thread_id: entry.thread_id,
+    run_id: entry.run_id,
+    source_type: entry.source_type,
+    source_ref: parseJsonLoose(entry.source_ref_json, {}),
+    target_kind: entry.target_kind,
+    target_refs: parseJsonLoose(entry.target_refs_json, []),
+    summary: entry.summary,
+    expected_changes: parseJsonLoose(entry.expected_changes_json, []),
+    evidence_refs: parseJsonLoose(entry.evidence_refs_json, {}),
+    confirm_required: Number(entry.confirm_required || 0) === 1,
+    status: entry.status,
+    created_by: entry.created_by,
+    internal_meta: parseJsonLoose(entry.internal_meta_json, {}),
+    created_at: entry.created_at,
+    updated_at: entry.updated_at,
+  }));
   return {
     status: normalizeRunStatus(row.status),
-    run_id: toPublicRunId(row.id),
+    run_id: publicRunId,
     project_id: row.project_id ? toPublicProjectId(row.project_id) : null,
     thread_id: row.thread_id ? toPublicThreadId(row.thread_id) : null,
     ai_setting_id: row.ai_setting_id ? toPublicAiSettingId(row.ai_setting_id) : null,
@@ -1465,6 +1531,9 @@ function getRun(db, runId) {
     retry_kind: retryMeta.retry_kind,
     retry_requested_at: retryMeta.retry_requested_at,
     retry_children: listRetryChildren(db, row.id),
+    related_write_plans: relatedWritePlans,
+    related_execution_plans: relatedExecutionPlans,
+    related_execution_jobs: relatedExecutionJobs,
     created_at: row.created_at,
     updated_at: row.updated_at,
   };

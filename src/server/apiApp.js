@@ -3,7 +3,7 @@ const fs = require("fs");
 const path = require("path");
 const os = require("os");
 const { spawn } = require("child_process");
-const { initDB } = require("../db");
+const { initDB, db: sharedDb } = require("../db");
 const {
   sendJson,
   jsonError,
@@ -47,10 +47,13 @@ const { handleExecutionDiff } = require("./routes/executionDiff");
 const { handleCorrectiveActionPlan } = require("./routes/correctiveActionPlan");
 const { handleCorrectiveActionWritePlan } = require("./routes/correctiveActionWritePlan");
 const { handleCorrectiveActionAssist, handleCorrectiveActionAssistWritePlan } = require("./routes/aiActionAssist");
+const { handleWritePlans } = require("./routes/writePlans");
 const { handleWorkspaceSearch } = require("./routes/workspaceSearch");
 const { handleHistory } = require("./routes/history");
 const { handleWorkspaceMetrics } = require("./routes/workspaceMetrics");
 const { handleWorkspaceExport } = require("./routes/workspaceExport");
+const { handleExecutionPlans } = require("./routes/executionPlans");
+const { handleExecutionJobs } = require("./routes/executionJobs");
 const { handleRunRetry } = require("./routes/runRetry");
 const { handleRunAiSummary, handleHistoryAiSummary, handleObservabilityAiSummary } = require("./routes/aiSummary");
 const { handleObservabilityAiAnalysis } = require("./routes/aiAnalysis");
@@ -62,6 +65,7 @@ const { handleAdminAiOverview } = require("./routes/adminAiOverview");
 const { handleAdminKnowledgeSources } = require("./routes/adminKnowledgeSources");
 const { handleAdminI18nPolicy } = require("./routes/adminI18nPolicy");
 const { handleAdminAuditOverview } = require("./routes/adminAuditOverview");
+const { handleAdminExecutionOverview } = require("./routes/adminExecutionOverview");
 const { processChatTurnWithLocalStub } = require("./chatStub");
 const { buildExternalReadPlan, buildChatAssistantGuardMessage } = require("./chatReadPlan");
 const { planChatWrite, confirmChatWrite } = require("./chatWriteOrchestration");
@@ -624,7 +628,9 @@ function createApiServer(dbConn) {
   const db =
     dbConn && dbConn.constructor && dbConn.constructor.name === "Database"
       ? dbConn
-      : initDB();
+      : sharedDb && sharedDb.constructor && sharedDb.constructor.name === "Database"
+        ? sharedDb
+        : initDB();
   const inlineRunner = String(process.env.RUNNER_MODE || "").toLowerCase() === "inline" ? createInlineRunner(db) : null;
 
   const server = http.createServer(async (req, res) => {
@@ -709,6 +715,10 @@ function createApiServer(dbConn) {
       if (urlPath === "/api/ai-action-assist/corrective-action/write-plan") {
         return handleCorrectiveActionAssistWritePlan(req, res, db);
       }
+      if (urlPath === "/api/write-plans" || urlPath.startsWith("/api/write-plans/")) {
+        const handled = await handleWritePlans(req, res, db);
+        if (handled !== false) return;
+      }
       if (urlPath === "/api/search/model") {
         return sendJson(res, 200, SEARCH_MODEL);
       }
@@ -723,6 +733,13 @@ function createApiServer(dbConn) {
       }
       if (urlPath === "/api/exports/workspace") {
         return handleWorkspaceExport(req, res, db);
+      }
+      if (urlPath === "/api/execution-jobs" || urlPath.startsWith("/api/execution-jobs/")) {
+        return handleExecutionJobs(req, res, db);
+      }
+      if (urlPath === "/api/execution-plans" || urlPath.startsWith("/api/execution-plans/")) {
+        const handled = await handleExecutionPlans(req, res, db);
+        if (handled !== false) return;
       }
 
       if (urlPath === "/api/connectors") {
@@ -1043,6 +1060,9 @@ function createApiServer(dbConn) {
       }
       if (urlPath === "/api/admin/audit-overview") {
         return handleAdminAuditOverview(req, res, db);
+      }
+      if (urlPath === "/api/admin/execution-overview") {
+        return handleAdminExecutionOverview(req, res, db);
       }
       if (method === "GET" && /^\/api\/runs\/[^/]+$/.test(urlPath)) {
         const runIdInput = urlPath.split("/").filter(Boolean)[2];

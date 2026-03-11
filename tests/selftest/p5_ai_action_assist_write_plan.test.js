@@ -179,6 +179,8 @@ async function run() {
     assert(githubWritePlanRes.statusCode === 201, "github assist write plan should return 201");
     const githubWritePlan = JSON.parse(githubWritePlanRes.body.toString("utf8"));
     assert(githubWritePlan.confirm_required === true, "github write plan should require confirm");
+    assert(githubWritePlan.write_plan_record && githubWritePlan.write_plan_record.source_ref.metadata.entrypoint === "run_detail", "github assist write plan should carry common write plan source");
+    assert(Array.isArray(githubWritePlan.write_plan_record.target_files) && githubWritePlan.write_plan_record.target_files.length > 0, "github assist write plan should preserve targets");
 
     const figmaWritePlanRes = await requestLocal(handler, {
       method: "POST",
@@ -198,6 +200,8 @@ async function run() {
     assert(figmaWritePlanRes.statusCode === 201, "figma assist write plan should return 201");
     const figmaWritePlan = JSON.parse(figmaWritePlanRes.body.toString("utf8"));
     assert(figmaWritePlan.confirm_required === true, "figma write plan should require confirm");
+    assert(figmaWritePlan.write_plan_record && Array.isArray(figmaWritePlan.write_plan_record.expected_changes) && figmaWritePlan.write_plan_record.expected_changes.length > 0, "figma assist write plan should preserve expected changes");
+    assert(figmaWritePlan.write_plan_record.source_ref && figmaWritePlan.write_plan_record.source_ref.ref_kind === "ai_action_assist", "figma assist write plan should preserve source_ref");
   } finally {
     nock.cleanAll();
     createdRunIds.forEach((id) => db.prepare("DELETE FROM runs WHERE tenant_id=? AND id=?").run(DEFAULT_TENANT, id));

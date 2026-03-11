@@ -53,7 +53,9 @@ const { handleAdminAiOverview } = require('./routes/adminAiOverview');
 const { handleAdminKnowledgeSources } = require('./routes/adminKnowledgeSources');
 const { handleAdminI18nPolicy } = require('./routes/adminI18nPolicy');
 const { handleAdminAuditOverview } = require('./routes/adminAuditOverview');
+const { handleAdminExecutionOverview } = require('./routes/adminExecutionOverview');
 const { handleCorrectiveActionAssist, handleCorrectiveActionAssistWritePlan } = require('./routes/aiActionAssist');
+const { handleWritePlans } = require('./routes/writePlans');
 const { loadProjectSharedContext } = require('./projectSharedContext');
 const { buildConnectionContext, normalizeFilePaths } = require('./connectionContext');
 const { buildFidelityEnvironmentContext } = require('./fidelityEnvironment');
@@ -1693,6 +1695,10 @@ async function handleRequest(req, res) {
     await handleAdminAuditOverview(req, res, appDb);
     return;
   }
+  if (urlPath === '/api/admin/execution-overview') {
+    await handleAdminExecutionOverview(req, res, appDb);
+    return;
+  }
   if (urlPath === '/api/ai-action-assist/corrective-action') {
     await handleCorrectiveActionAssist(req, res, appDb, { userId: resolveLocalUserId(req) });
     return;
@@ -1700,6 +1706,10 @@ async function handleRequest(req, res) {
   if (urlPath === '/api/ai-action-assist/corrective-action/write-plan') {
     await handleCorrectiveActionAssistWritePlan(req, res, appDb);
     return;
+  }
+  if (urlPath === '/api/write-plans' || urlPath.startsWith('/api/write-plans/')) {
+    const handled = await handleWritePlans(req, res, appDb);
+    if (handled !== false) return;
   }
   if (isGetLikeMethod && urlPath === '/') {
     res.writeHead(302, { Location: '/ui/dashboard.html' });
