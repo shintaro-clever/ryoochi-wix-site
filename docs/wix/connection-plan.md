@@ -159,6 +159,39 @@ Actions のログにプレビューURLが表示されれば連携完了。
 
 ---
 
+## 過去の誤認ポイントと再発防止メモ
+
+同じ失敗を繰り返さないための記録。事実のみを残す。
+
+### 1. `uiVersion: "6"` は手動追記が必要な場合がある
+
+Wix Studio GitHub Integration が生成する `wix.config.json` には `uiVersion` フィールドが含まれないことがある。この状態では CLI が正常に動作しない。生成直後に `uiVersion: "6"` を追記してコミットすること。
+
+```json
+{
+  "siteId": "<Wix が生成した値>",
+  "uiVersion": "6"
+}
+```
+
+### 2. `--source` オプションは `wix preview` 専用
+
+`wix publish --source remote` と入力すると `unknown option '--source'` エラーになる。`--source` フラグは `wix preview` にのみ存在する。`wix publish` には `--source` がない。
+
+### 3. `src/` は手動再現が困難
+
+`src/pages/masterPage.js` を手動作成したり別リポジトリからコピーしたりしても、Wix CLI が期待する構造と一致しないことがある。この状態で `wix dev` や `wix preview` を実行すると `ENOENT: no such file or directory, scandir '...src'` エラーが発生し起動しない。`src/` は必ず Wix Studio GitHub Integration が生成したものを使う。
+
+### 4. 既存リポジトリへの直接接続はできない
+
+Wix Studio GitHub Integration は自身が生成したリポジトリにのみ接続できる。既存リポジトリに `src/` や `wix.config.json` をコピーしても、Wix 側はそのリポジトリを認識しない。`wix preview --source remote` は Wix が認識しているリポジトリの `main` ブランチを参照するため、別リポジトリへの変更は Wix 側に届かない。CI が成功するのにデザインが反映されないという症状が出る。
+
+### 5. 非TTY環境での `wix publish` は実際には公開されない
+
+CI（非TTY環境）で `wix publish` を実行すると「Remote / Local code を選択してください」というインタラクティブメニューが表示される。入力待ちのまま処理が止まり、タイムアウト後に exit code 0 で終了する。**実際には公開されていない。** `printf '\n' | npx wix publish` で入力を送り込む回避策もあるが、現在は `wix preview` に切り替えているため不要。
+
+---
+
 ## 別案件への流用
 
 新規案件でも手順は同じ。
