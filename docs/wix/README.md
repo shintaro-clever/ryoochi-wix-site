@@ -1,7 +1,7 @@
 # Wix Docs
 
-このディレクトリはテンプレート基盤（ryoochi-wix-site）の Wix 関連ドキュメントを置く。
-実働先は **Wix Studio GitHub Integration が生成したリポジトリ**（例: `my-site-1`）。
+このディレクトリはテンプレート基盤の Wix 関連ドキュメントを置く。
+実働先は **Wix Studio GitHub Integration が生成したリポジトリ** とする。
 
 ## ドキュメント構成
 
