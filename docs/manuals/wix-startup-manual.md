@@ -208,5 +208,6 @@ Phase 3: 本制作・日常運用
 
 ## 補足
 - Phase 1 の技術手順の詳細は `docs/wix/connection-plan.md` を参照
+- 旧方針との差分・引継ぎ情報は `docs/wix/connection-plan.md`「方針変更の記録」セクションを参照
 - Git や CLI の詳細はこのマニュアルの主目的ではありません
 - 技術手順が必要な場合は `docs/wix/` 配下の文書を参照するか、管理者へ確認してください
