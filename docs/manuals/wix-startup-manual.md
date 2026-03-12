@@ -166,10 +166,10 @@ Phase 3: 本制作・日常運用
 2. 確認したら Wix Studio の「公開」ボタン
 3. コード変更がある場合は `main` push → プレビューURLで確認
 
-### 公開の仕組み（参考）
-- `main` ブランチへのプッシュで GitHub Actions が `wix preview` を実行する
-- プレビューURLが生成されるが、本番公開はしない
-- 本番公開（`wix publish`）はドメイン設定・課金が整った後に管理者が手動で行う
+### CI の目的とプレビューの仕組み（参考）
+- `main` ブランチへのプッシュで GitHub Actions（`wix-preview-on-push`）が `wix preview` を実行する
+- Actions ログにプレビュー URL（`https://wix.to/...`）が生成されるが、**本番公開は行わない**
+- 本番公開（`wix publish`）はドメイン設定・課金が整った後に管理者が手動で実施する将来の作業
 - 非エンジニアは基本的に Wix Studio の画面操作だけで作業が完結する
 
 ## 6. 困ったときどうするか
