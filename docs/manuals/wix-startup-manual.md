@@ -22,6 +22,36 @@ Wix Studio の GitHub Integration でリポジトリを作成すると、Wix と
 > Wix 側が認識する GitHub リポジトリと一致しないため機能しません。
 > この手順は現在の主線ではありません。
 
+## 移植対象と非移植対象
+
+Phase 1 Step 2 の資産移植では、「既存 GitHub 側から持ち込んでよいもの」と「Wix が生成・管理するため原則触らないもの」を明確に区別する。
+
+### 移植対象（既存 GitHub 側から Wix 生成リポジトリへ持ち込む）
+
+| 資産 | 説明 |
+|---|---|
+| `.github/workflows/` | CI ワークフロー（wix preview など） |
+| `agents/` | AI エージェント行動規範 |
+| `docs/` | マニュアル・連携ドキュメント |
+| `scripts/` | PR 自動化スクリプト |
+| `prototype/` | 静的 HTML 原型 |
+| `AGENTS.md`, `CLAUDE.md` | AI ルール入口 |
+| `README.md` | プロジェクト説明 |
+| `.devcontainer/` | Codespaces 設定 |
+| `package.json`（`@wix/cli` 追記） | devDependency を追加するだけで上書きしない |
+
+### 非移植対象（Wix 生成・Wix 実行系が依存するもの）
+
+| 資産 | 理由 |
+|---|---|
+| `src/` | Wix Studio が生成・管理する Velo コード構造。既存 GitHub 側の内容で**上書きしない** |
+| `wix.config.json` | Wix が生成した `siteId` を含む。既存側の値で上書きしてはならない |
+| `.wix/` | Wix CLI が生成するローカルキャッシュ。コミット対象外 |
+
+> **重要**：`src/` は既存 GitHub 側のコードで置き換えない。Wix Studio GitHub Integration が生成した構造をそのまま維持する。`src/` への変更は Wix Studio 上での編集または Velo 開発フローに従って行う。
+
+---
+
 ## 案件立ち上げの全体フロー
 
 ```

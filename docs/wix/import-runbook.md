@@ -14,12 +14,26 @@ GitHub ↔ Wix 連携が未設定の場合、先に以下を完了する。
 - `wix.config.json` がリポジトリ直下にあり `siteId` と `uiVersion: "6"` が設定されている
 - GitHub Secrets に `WIX_API_KEY` が設定されている
 - `src/` ディレクトリが存在し `src/pages/masterPage.js` が含まれている
-- `main` push → `wix publish --approve-preview` の CI が通ることを確認済み
+- `main` push → `wix preview --source remote` の CI が通ることを確認済み
 
-### src/ がない場合の初期化手順（要点のみ）
-1. Wix Studio GitHub Integration で一時リポジトリ（例: `my-site-init`）を作成
-2. 生成された `src/` を本リポジトリにコピー: `cp -r /tmp/wix-init-tmp/src ./`
-3. コミット・PR・main マージ → CI で動作確認
+### 移植対象と非移植対象
+
+このリポジトリは **Wix Studio GitHub Integration で生成したリポジトリが母体** である。
+既存 GitHub 側の資産を持ち込む際は、以下の区分を守ること。
+
+**移植対象**（既存 GitHub 側から持ち込んでよいもの）
+- `.github/workflows/` — CI ワークフロー
+- `agents/`, `docs/`, `scripts/`, `prototype/` — 運用ドキュメント・原型
+- `AGENTS.md`, `CLAUDE.md`, `README.md` — ルール・説明ファイル
+- `.devcontainer/` — Codespaces 設定
+- `package.json` への `@wix/cli` 追記（ファイルごと置き換えは不可）
+
+**非移植対象**（Wix 生成・Wix 実行系が依存するもの）
+- `src/` — Wix Studio が生成・管理する Velo コード構造。既存側の内容で**上書きしない**
+- `wix.config.json` — Wix が生成した `siteId` を含む。既存側の値で上書きしてはならない
+- `.wix/` — Wix CLI キャッシュ。コミット対象外
+
+> `src/` は既存 GitHub 側のコードで置き換えない。変更は Wix Studio 上または Velo 開発フローで行う。
 
 ## 1. Studio ブラウザでログイン状態確認
 
