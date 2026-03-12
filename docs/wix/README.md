@@ -13,3 +13,4 @@
 
 ## 関連メモ
 - `docs/wix/connection-plan.md`
+- 非エンジニア向けの開始資料は `docs/manuals/index.md`

@@ -216,13 +216,6 @@ a {
   padding-top: 18px;
 }
 
-.text-slot,
-.cta-slot,
-.image-placeholder,
-.section-label {
-  transition: none;
-}
-
 @media (max-width: 820px) {
   .hero-grid,
   .cards,

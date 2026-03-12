@@ -23,3 +23,18 @@
 - 静的原型: `prototype/minimum-page/index.html`
 
 詳細は `docs/wix/artifact-index.md` を参照。
+
+## 立ち上げマニュアルの位置づけ
+- 立ち上げマニュアルは非エンジニア向けの運用文書として扱う
+- 目的は、案件開始時の準備、確認、依頼先判断を迷わず進めること
+- CLI や Git の詳細手順は本文の主役にせず、必要時は管理者確認へ回す
+
+## 非エンジニア向け資料
+- 一覧: `docs/manuals/index.md`
+- 立ち上げマニュアル本体: `docs/manuals/wix-startup-manual.md`
+- 開始時チェックリスト: `docs/manuals/wix-startup-checklist.md`
+- 用語集: `docs/manuals/wix-glossary.md`
+- 役割分担表: `docs/manuals/who-does-what.md`
+- 困ったときの見方: `docs/manuals/troubleshooting-for-nonengineers.md`
+
+詳細は `docs/manuals/index.md` を参照。
