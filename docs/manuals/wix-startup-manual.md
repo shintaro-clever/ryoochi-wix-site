@@ -57,12 +57,22 @@ Phase 3: 本制作・日常運用
 ## 2. Phase 1：技術セットアップ（管理者担当）
 
 非エンジニアは直接操作しなくてよいが、内容を把握しておく。
+詳細手順は `docs/wix/connection-plan.md` を参照。
 
-### 管理者が行うこと
-1. Wix Studio エディターで GitHub Integration を開き、**新規リポジトリを生成**する
-2. 生成されたリポジトリに CI ワークフロー・ドキュメント・AI 管理ルールをインストールする
-3. `WIX_API_KEY` を GitHub Secrets に設定する
-4. `main` push → `wix preview` が動作することを CI で確認する
+### 管理者が行うこと（3ステップ）
+
+**Step 1：Wix Studio GitHub Integration でリポジトリを生成する**
+- Wix Studio エディター → GitHub Integration → 新規リポジトリを作成
+- Wix が `src/`（Velo コード構造）と `wix.config.json` を自動生成してプッシュする
+- このリポジトリが以降の作業の母体になる
+
+**Step 2：生成リポジトリに運用資産を移植する**
+- CI ワークフロー（`wix preview --source remote`）を追加
+- ドキュメント・AI 管理ルール・スクリプトをコピー
+- `WIX_API_KEY` を GitHub Secrets に設定
+
+**Step 3：CI 動作確認**
+- `main` へプッシュ → GitHub Actions がプレビューURLを生成することを確認
 
 ### 完了の目安
 - `main` にコードをプッシュするとプレビューURLが生成される
