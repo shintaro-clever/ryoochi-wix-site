@@ -38,6 +38,18 @@ bash /tmp/template/scripts/migrate-to-wix-repo.sh /tmp/working-repo
 
 詳細は `docs/wix/import-runbook.md` を参照。
 
+## テンプレート化で残すもの
+
+テンプレート化しても、次の運用資産は保持対象とする。
+
+- `agents/` と `.agents/`
+- `.github/PULL_REQUEST_TEMPLATE.md`
+- `.github/workflows/pr-ci.yml`
+- `.github/workflows/pr-gate.yml`
+- `scripts/pr-up.js`
+
+案件固有の接続履歴や `siteId` 固定値は整理対象だが、PR 運用と Skills の土台は削除対象にしない。
+
 ## CI の目的
 
 `main` push 時に GitHub Actions（`wix-preview-on-push`）が `wix preview` を実行し、プレビュー URL を生成します。
