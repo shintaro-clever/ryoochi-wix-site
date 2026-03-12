@@ -10,30 +10,44 @@
 GitHub ↔ Wix 連携が未設定の場合、先に以下を完了する。
 詳細は `docs/wix/connection-plan.md` を参照。
 
-### チェックリスト
+### リポジトリの役割
+
+| リポジトリ | 役割 |
+|---|---|
+| `ryoochi-wix-site`（本リポジトリ） | **テンプレート基盤**。CI・ドキュメント・AI ルール等を管理する |
+| `my-site-1` | **実働先**。Wix Studio GitHub Integration が生成した Wix 連携リポジトリ |
+
+同期方向は **テンプレート基盤 → 実働先（片方向のみ）**。逆方向の同期は行わない。
+
+### 移植対象（ryoochi-wix-site → my-site-1 へ持ち込む）
+
+| 資産 | 備考 |
+|---|---|
+| `.github/` | CI ワークフロー一式 |
+| `docs/` | マニュアル・連携ドキュメント |
+| `agents/` | AI エージェント行動規範 |
+| `scripts/` | PR 自動化・構造チェック等のスクリプト |
+| `prototype/` | 静的 HTML 原型 |
+| `README.md` | プロジェクト説明 |
+| `AGENTS.md` | AI ルール入口 |
+| `CLAUDE.md` | Claude Code 向けルール入口 |
+| `package.json` | `@wix/cli` devDependency を**追記のみ**（ファイルごと置き換えは不可） |
+
+### 移植対象外（Wix が生成・管理するもの。上書きしない）
+
+| 資産 | 理由 |
+|---|---|
+| `src/` | Wix Studio が生成・管理する Velo コード構造。テンプレート側の内容で**絶対に上書きしない** |
+| `wix.config.json` | 実働先の `siteId` を含む。テンプレート側の値で上書きしてはならない |
+| `.wix/` | Wix CLI が生成するローカルキャッシュ。コミット対象外 |
+
+> `src/` をテンプレート側のコードで置き換えると Wix CLI が起動しなくなる（`ENOENT` エラー）。変更は Wix Studio 上または Velo 開発フローで行う。
+
+### 技術セットアップ チェックリスト
 - `wix.config.json` がリポジトリ直下にあり `siteId` と `uiVersion: "6"` が設定されている
 - GitHub Secrets に `WIX_API_KEY` が設定されている
 - `src/` ディレクトリが存在し `src/pages/masterPage.js` が含まれている
 - `main` push → `wix preview --source remote` の CI が通ることを確認済み
-
-### 移植対象と非移植対象
-
-このリポジトリは **Wix Studio GitHub Integration で生成したリポジトリが母体** である。
-既存 GitHub 側の資産を持ち込む際は、以下の区分を守ること。
-
-**移植対象**（既存 GitHub 側から持ち込んでよいもの）
-- `.github/workflows/` — CI ワークフロー
-- `agents/`, `docs/`, `scripts/`, `prototype/` — 運用ドキュメント・原型
-- `AGENTS.md`, `CLAUDE.md`, `README.md` — ルール・説明ファイル
-- `.devcontainer/` — Codespaces 設定
-- `package.json` への `@wix/cli` 追記（ファイルごと置き換えは不可）
-
-**非移植対象**（Wix 生成・Wix 実行系が依存するもの）
-- `src/` — Wix Studio が生成・管理する Velo コード構造。既存側の内容で**上書きしない**
-- `wix.config.json` — Wix が生成した `siteId` を含む。既存側の値で上書きしてはならない
-- `.wix/` — Wix CLI キャッシュ。コミット対象外
-
-> `src/` は既存 GitHub 側のコードで置き換えない。変更は Wix Studio 上または Velo 開発フローで行う。
 
 ## 1. Studio ブラウザでログイン状態確認
 
