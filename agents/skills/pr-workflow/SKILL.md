@@ -1,40 +1,41 @@
 ---
 name: pr-workflow
-description: /api/runs のPR作成運用（mainに無い場合は実装、main以外にある場合は差分取り込み）。PR時は `node scripts/pr-up.js` を必ずescalatedで実行し、PR後にローカルを最新化する。
+description: PR作成運用。PR時は `unset GITHUB_TOKEN && node scripts/pr-up.js` を実行し、PR後にローカルを最新化する。
 ---
 
 # PR Workflow
 
 ## Purpose
-`/api/runs` のPR作成運用を固定する。
+PR作成運用を固定する。
 
 ## Inputs
-- `/api/runs` の有無確認結果
 - 作業ブランチ名
 - PR作成の依頼
 - PRマージ完了の報告
 
 ## Outputs
-- `/api/runs` のPR作成済み
+- PR作成済み
 - PR後のローカル最新化完了
 
 ## Steps
-1. `main` に `/api/runs` が無い場合:
-   `/api/runs` を実装するPRを作る。
-2. `main` 以外のブランチに `/api/runs` がある場合:
-   その差分を `main` に取り込むPRを作る。
-3. 作業ブランチ上であることを確認する（`main`/`master`禁止）。
-4. `node scripts/pr-up.js` を **escalated** で実行する。
-5. 出力された手順に従ってPR作成まで完了させる。
-6. PRマージ完了後、ローカルを最新化する。
-7. ローカル最新化の手順:
+1. 作業ブランチ上であることを確認する（`main`/`master`禁止）。
+2. 必ずこの順で実行する：
+   ```bash
+   unset GITHUB_TOKEN
+   node scripts/pr-up.js
+   ```
+3. 出力された手順に従ってPR作成まで完了させる。
+4. PRマージ完了後、ローカルを最新化する。
+5. ローカル最新化の手順:
    `git checkout main`
    `git pull --ff-only origin main`
    `git branch -d <working-branch>`
 
 ## Constraints
-- `node scripts/pr-up.js` は毎回escalatedで実行する。
+- `unset GITHUB_TOKEN && node scripts/pr-up.js` を唯一入口とする。
+- escalated は通常の `git push` が sandbox 制限で失敗した場合のみ検討する。通常経路で成功する場合は使わない。
 - `/tmp/pr.md` を手動編集しない。
+- `gh pr create` / `gh api -X POST .../pulls` / 手動push+PR作成は理由を問わず禁止。
 
 ## DoD
 - PR作成完了
